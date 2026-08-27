@@ -35,7 +35,8 @@ def session(engine):
     sess = sessionmaker(bind=conn)()
     yield sess
     sess.close()
-    trans.rollback()
+    if trans.is_active:
+        trans.rollback()
     conn.close()
 
 
