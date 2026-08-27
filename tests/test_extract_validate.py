@@ -71,3 +71,17 @@ def test_failed_fields_are_kept_not_dropped():
         fields=_payload().fields + _payload(field_path="policy.agent_commission").fields
     )
     assert len(validate_fields(payload, PDF, threshold=0.80)) == 2
+
+
+def test_empty_source_text_is_a_validation_error():
+    result = validate_fields(_payload(source_text=""), PDF, threshold=0.80)[0]
+    assert result.validation_error == "source_text is empty"
+    assert result.confidence == 0.0
+    assert result.needs_review is True
+
+
+def test_whitespace_only_source_text_is_a_validation_error():
+    result = validate_fields(_payload(source_text="   "), PDF, threshold=0.80)[0]
+    assert result.validation_error == "source_text is empty"
+    assert result.confidence == 0.0
+    assert result.needs_review is True

@@ -32,6 +32,8 @@ def _check(field: FieldPayload, pdf: PdfInfo) -> str | None:
         return "unknown field_path"
     if not 1 <= field.source_page <= pdf.page_count:
         return "source_page out of range"
+    if not _normalize(field.source_text):
+        return "source_text is empty"
     page = pdf.pages[field.source_page - 1]
     if _normalize(field.source_text) not in _normalize(page.text):
         return "source_text not found on cited page"
