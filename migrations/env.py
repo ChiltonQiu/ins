@@ -11,8 +11,15 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
+#
+# disable_existing_loggers=False: fileConfig's default disables every logger
+# already created (e.g. renewal.ingest, renewal.extract.runner — created at
+# module import, before this fixture-time call) that isn't explicitly listed
+# in alembic.ini's [loggers] section. Without this, application loggers go
+# silently dead for the rest of the test session the first time a migration
+# runs, which caplog-based tests would otherwise fail to detect.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
