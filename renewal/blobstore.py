@@ -8,7 +8,10 @@ documents deduplicate for free.
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
+
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 
 
 class BlobNotFound(KeyError):
@@ -20,6 +23,8 @@ class BlobStore:
         self.root = Path(root)
 
     def path_for(self, sha256: str) -> Path:
+        if not _SHA256_HEX.fullmatch(sha256):
+            raise ValueError(f"not a sha256 hex digest: {sha256!r}")
         return self.root / sha256[:2] / sha256[2:4] / f"{sha256}.pdf"
 
     def put(self, data: bytes) -> str:

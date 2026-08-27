@@ -34,3 +34,29 @@ def test_get_round_trips(tmp_path):
 def test_get_unknown_hash_raises(tmp_path):
     with pytest.raises(BlobNotFound):
         BlobStore(tmp_path).get("0" * 64)
+
+
+def test_path_for_rejects_hash_containing_dotdot_slash(tmp_path):
+    with pytest.raises(ValueError):
+        BlobStore(tmp_path).path_for("../../etc/passwd")
+
+
+def test_get_rejects_absolute_path_as_hash(tmp_path):
+    with pytest.raises(ValueError):
+        BlobStore(tmp_path).get("/etc/passwd")
+
+
+def test_get_rejects_short_hash(tmp_path):
+    with pytest.raises(ValueError):
+        BlobStore(tmp_path).get("0" * 63)
+
+
+def test_get_rejects_non_hex_hash(tmp_path):
+    with pytest.raises(ValueError):
+        BlobStore(tmp_path).get("g" * 64)
+
+
+def test_get_still_works_for_valid_hash(tmp_path):
+    store = BlobStore(tmp_path)
+    digest = store.put(PDF)
+    assert store.get(digest) == PDF
