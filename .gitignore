@@ -1,0 +1,6 @@
+blobs/
+evals/pdfs/
+__pycache__/
+*.pyc
+.env
+.venv/
