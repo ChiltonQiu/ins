@@ -1,0 +1,17 @@
+{
+  "fixture_id": "progressive-auto-001",
+  "carrier": "Progressive",
+  "pdf_filename": "progressive-auto-001.pdf",
+  "fields": {
+    "policy.carrier_name": "Progressive",
+    "policy.policy_number": "AU-0000001",
+    "policy.effective_date": "2026-03-01",
+    "policy.expiration_date": "2026-09-01",
+    "policy.total_premium": "1840.00",
+    "coverage.BI.limit_value": "100/300",
+    "coverage.PD.limit_value": "50000",
+    "item.REDACTEDVIN0000001.descriptor": "2018 Ford F-150",
+    "item.REDACTEDVIN0000001.coverage.COLL.deductible_value": "500",
+    "item.REDACTEDVIN0000001.coverage.COLL.premium": "412.00"
+  }
+}
