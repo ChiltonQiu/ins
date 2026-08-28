@@ -1,0 +1,72 @@
+# Ordered. First matching rule wins. The rule that matched is recorded on every
+# difference row, so a wrong classification can be traced back to the rule that
+# caused it.
+#
+# `*` matches one path segment, `**` matches any number.
+version: 1
+default: informational
+
+rules:
+  # Premium: a small move is rounding, a real move is the whole conversation.
+  - id: premium_rounding
+    match: {path: policy.total_premium}
+    when: {abs_delta_lt: 1}
+    materiality: noise
+
+  - id: premium_total_change
+    match: {path: policy.total_premium}
+    when: {abs_delta_gte: 25, pct_delta_gte: 0.03, combine: or}
+    materiality: material
+
+  - id: premium_total_small_change
+    match: {path: policy.total_premium}
+    materiality: informational
+
+  # Coverage shape. These are what a client is actually buying.
+  - id: deductible_change
+    match: {path_glob: "**.deductible_value"}
+    materiality: material
+
+  - id: limit_change
+    match: {path_glob: "**.limit_value"}
+    materiality: material
+
+  - id: limit_basis_change
+    match: {path_glob: "**.limit_basis"}
+    materiality: material
+
+  - id: coverage_premium_change
+    match: {path_glob: "**.coverage.*.premium"}
+    materiality: informational
+
+  # Insured items added or removed.
+  - id: item_added_or_dropped
+    match: {path_glob: "item.*.descriptor"}
+    materiality: material
+
+  - id: carrier_change
+    match: {path: policy.carrier_name}
+    materiality: material
+
+  # Dates and identity.
+  - id: policy_number_format
+    match: {path: policy.policy_number}
+    materiality: noise
+
+  - id: term_dates
+    match: {path_glob: "policy.*_date"}
+    materiality: informational
+
+  # Vehicle attributes: garaging, lienholder, and the like.
+  - id: garaging_change
+    match: {path_glob: "item.*.attributes.garaging_*"}
+    materiality: informational
+
+  - id: lienholder_change
+    match: {path_glob: "item.*.attributes.lienholder*"}
+    materiality: informational
+
+  # Paperwork.
+  - id: form_edition
+    match: {path_glob: "forms.*.edition_date"}
+    materiality: noise
