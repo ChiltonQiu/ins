@@ -211,3 +211,16 @@ def test_identical_documents_in_both_slots_are_refused_without_confirmation(
         )
     assert response.status_code == 400
     assert "same document" in response.text
+
+
+def test_session_is_closed_when_a_handler_raises(app, engine):
+    """A route that 404s mid-request must still return its connection to the
+    pool. If a handler leaks its session on the exception path, the
+    connection stays checked out after the response comes back."""
+    with TestClient(app) as client:
+        baseline = engine.pool.checkedout()
+        response = client.post(
+            "/fields/999999/correct", data={"corrected_value": "x"}
+        )
+        assert response.status_code == 404
+        assert engine.pool.checkedout() == baseline

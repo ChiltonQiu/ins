@@ -4,8 +4,17 @@ document.querySelectorAll("input.correctable").forEach(function (input) {
   function save() {
     if (input.value === input.dataset.saved) return;
     if (input.value === input.dataset.original) return;
+    // Enter triggers save() and then input.blur(), and blur() dispatches its
+    // event synchronously — before this fetch's .then() runs. Mark the value
+    // saved *before* issuing the request so that re-entrant call sees
+    // input.value === input.dataset.saved and returns immediately, instead of
+    // firing a second identical POST. Roll back on failure so a retry of the
+    // same value is not silently swallowed by the dedupe guard above.
+    var attempted = input.value;
+    var previouslySaved = input.dataset.saved;
+    input.dataset.saved = attempted;
     var body = new FormData();
-    body.append("corrected_value", input.value);
+    body.append("corrected_value", attempted);
     fetch("/fields/" + input.dataset.fieldId + "/correct", {
       method: "POST",
       body: body,
@@ -14,9 +23,11 @@ document.querySelectorAll("input.correctable").forEach(function (input) {
         '[data-saved-for="' + input.dataset.fieldId + '"]'
       );
       if (response.ok) {
-        input.dataset.saved = input.value;
         flag.textContent = "saved";
       } else {
+        if (input.dataset.saved === attempted) {
+          input.dataset.saved = previouslySaved;
+        }
         flag.textContent = "save failed";
       }
     });

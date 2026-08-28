@@ -38,49 +38,41 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
         name="static",
     )
 
-    def db() -> Session:
-        return session_factory()
-
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
-        session = db()
-        runs = (
-            session.query(RenewalRun, Client, Policy)
-            .join(Policy, RenewalRun.policy_id == Policy.id)
-            .join(Client, Policy.client_id == Client.id)
-            .order_by(RenewalRun.id.desc())
-            .all()
-        )
-        page = TEMPLATES.TemplateResponse(
-            request, "index.html", {"runs": runs}
-        )
-        session.close()
-        return page
+        with session_factory() as session:
+            runs = (
+                session.query(RenewalRun, Client, Policy)
+                .join(Policy, RenewalRun.policy_id == Policy.id)
+                .join(Client, Policy.client_id == Client.id)
+                .order_by(RenewalRun.id.desc())
+                .all()
+            )
+            return TEMPLATES.TemplateResponse(
+                request, "index.html", {"runs": runs}
+            )
 
     @app.get("/runs/new", response_class=HTMLResponse)
     def new_run(request: Request, error: str | None = None):
-        session = db()
-        policies = (
-            session.query(Client, Policy)
-            .join(Policy, Policy.client_id == Client.id)
-            .order_by(Client.display_name)
-            .all()
-        )
-        clients = session.query(Client).order_by(Client.display_name).all()
-        page = TEMPLATES.TemplateResponse(
-            request,
-            "run_new.html",
-            {"policies": policies, "clients": clients, "error": error},
-        )
-        session.close()
-        return page
+        with session_factory() as session:
+            policies = (
+                session.query(Client, Policy)
+                .join(Policy, Policy.client_id == Client.id)
+                .order_by(Client.display_name)
+                .all()
+            )
+            clients = session.query(Client).order_by(Client.display_name).all()
+            return TEMPLATES.TemplateResponse(
+                request,
+                "run_new.html",
+                {"policies": policies, "clients": clients, "error": error},
+            )
 
     @app.post("/clients")
     def add_client(display_name: str = Form(...)):
-        session = db()
-        session.add(Client(display_name=display_name))
-        session.commit()
-        session.close()
+        with session_factory() as session:
+            session.add(Client(display_name=display_name))
+            session.commit()
         return RedirectResponse("/runs/new", status_code=303)
 
     @app.post("/policies")
@@ -90,17 +82,16 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
         policy_number: str = Form(...),
         line_of_business: str = Form(...),
     ):
-        session = db()
-        session.add(
-            Policy(
-                client_id=client_id,
-                carrier_name=carrier_name,
-                policy_number=policy_number,
-                line_of_business=line_of_business,
+        with session_factory() as session:
+            session.add(
+                Policy(
+                    client_id=client_id,
+                    carrier_name=carrier_name,
+                    policy_number=policy_number,
+                    line_of_business=line_of_business,
+                )
             )
-        )
-        session.commit()
-        session.close()
+            session.commit()
         return RedirectResponse("/runs/new", status_code=303)
 
     @app.post("/runs")
@@ -124,32 +115,31 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                 ),
             )
 
-        session = db()
-        prior_doc = ingest_pdf(
-            session, store, data=prior_bytes, original_filename=prior.filename
-        )
-        renewal_doc = ingest_pdf(
-            session, store, data=renewal_bytes, original_filename=renewal.filename
-        )
-        run = RenewalRun(
-            policy_id=policy_id,
-            prior_document_id=prior_doc.id,
-            renewal_document_id=renewal_doc.id,
-        )
-        session.add(run)
-        session.flush()
-        for document in (prior_doc, renewal_doc):
-            extract(
-                session,
-                store,
-                document,
-                "v1",
-                client=model_client,
-                settings=settings,
+        with session_factory() as session:
+            prior_doc = ingest_pdf(
+                session, store, data=prior_bytes, original_filename=prior.filename
             )
-        session.commit()
-        run_id = run.id
-        session.close()
+            renewal_doc = ingest_pdf(
+                session, store, data=renewal_bytes, original_filename=renewal.filename
+            )
+            run = RenewalRun(
+                policy_id=policy_id,
+                prior_document_id=prior_doc.id,
+                renewal_document_id=renewal_doc.id,
+            )
+            session.add(run)
+            session.flush()
+            for document in (prior_doc, renewal_doc):
+                extract(
+                    session,
+                    store,
+                    document,
+                    "v1",
+                    client=model_client,
+                    settings=settings,
+                )
+            session.commit()
+            run_id = run.id
         return RedirectResponse(f"/runs/{run_id}/review", status_code=303)
 
     def _latest_extraction(session: Session, document_id: int) -> Extraction:
@@ -162,86 +152,81 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
 
     @app.get("/runs/{run_id}/review", response_class=HTMLResponse)
     def review(request: Request, run_id: int):
-        session = db()
-        run = session.get(RenewalRun, run_id)
-        if run is None:
-            session.close()
-            raise HTTPException(status_code=404, detail="no such run")
-        policy = session.get(Policy, run.policy_id)
-        client = session.get(Client, policy.client_id)
+        with session_factory() as session:
+            run = session.get(RenewalRun, run_id)
+            if run is None:
+                raise HTTPException(status_code=404, detail="no such run")
+            policy = session.get(Policy, run.policy_id)
+            client = session.get(Client, policy.client_id)
 
-        sides, extra_fields = [], {}
-        for label, document_id in (
-            ("Prior", run.prior_document_id),
-            ("Renewal", run.renewal_document_id),
-        ):
-            extraction = _latest_extraction(session, document_id)
-            values = effective_values(session, extraction.id)
-            fields = (
-                session.query(ExtractedField)
-                .filter_by(extraction_id=extraction.id)
-                .order_by(ExtractedField.field_path)
-                .all()
+            sides, extra_fields = [], {}
+            for label, document_id in (
+                ("Prior", run.prior_document_id),
+                ("Renewal", run.renewal_document_id),
+            ):
+                extraction = _latest_extraction(session, document_id)
+                values = effective_values(session, extraction.id)
+                fields = (
+                    session.query(ExtractedField)
+                    .filter_by(extraction_id=extraction.id)
+                    .order_by(ExtractedField.field_path)
+                    .all()
+                )
+                for field in fields:
+                    field.effective_value = values.get(field.field_path, field.value)
+                emitted = {field.field_path for field in fields}
+                extra_fields[extraction.id] = [
+                    (path, value)
+                    for path, value in values.items()
+                    if path not in emitted
+                ]
+                sides.append((label, extraction, fields))
+
+            return TEMPLATES.TemplateResponse(
+                request,
+                "run_review.html",
+                {
+                    "run": run,
+                    "policy": policy,
+                    "client": client,
+                    "sides": sides,
+                    "extra_fields": extra_fields,
+                },
             )
-            for field in fields:
-                field.effective_value = values.get(field.field_path, field.value)
-            emitted = {field.field_path for field in fields}
-            extra_fields[extraction.id] = [
-                (path, value) for path, value in values.items() if path not in emitted
-            ]
-            sides.append((label, extraction, fields))
-
-        page = TEMPLATES.TemplateResponse(
-            request,
-            "run_review.html",
-            {
-                "run": run,
-                "policy": policy,
-                "client": client,
-                "sides": sides,
-                "extra_fields": extra_fields,
-            },
-        )
-        session.close()
-        return page
 
     @app.post("/fields/{field_id}/correct", status_code=204)
     def correct_field(field_id: int, corrected_value: str = Form(...)):
-        session = db()
-        field = session.get(ExtractedField, field_id)
-        if field is None:
-            session.close()
-            raise HTTPException(status_code=404, detail="no such field")
-        record_correction(
-            session,
-            extraction_id=field.extraction_id,
-            extracted_field_id=field.id,
-            field_path=field.field_path,
-            kind="wrong_value",
-            extracted_value=field.value,
-            corrected_value=corrected_value,
-        )
-        session.commit()
-        session.close()
+        with session_factory() as session:
+            field = session.get(ExtractedField, field_id)
+            if field is None:
+                raise HTTPException(status_code=404, detail="no such field")
+            record_correction(
+                session,
+                extraction_id=field.extraction_id,
+                extracted_field_id=field.id,
+                field_path=field.field_path,
+                kind="wrong_value",
+                extracted_value=field.value,
+                corrected_value=corrected_value,
+            )
+            session.commit()
         return Response(status_code=204)
 
     @app.post("/fields/{field_id}/reject", status_code=204)
     def reject_field(field_id: int):
-        session = db()
-        field = session.get(ExtractedField, field_id)
-        if field is None:
-            session.close()
-            raise HTTPException(status_code=404, detail="no such field")
-        record_correction(
-            session,
-            extraction_id=field.extraction_id,
-            extracted_field_id=field.id,
-            field_path=field.field_path,
-            kind="hallucination",
-            extracted_value=field.value,
-        )
-        session.commit()
-        session.close()
+        with session_factory() as session:
+            field = session.get(ExtractedField, field_id)
+            if field is None:
+                raise HTTPException(status_code=404, detail="no such field")
+            record_correction(
+                session,
+                extraction_id=field.extraction_id,
+                extracted_field_id=field.id,
+                field_path=field.field_path,
+                kind="hallucination",
+                extracted_value=field.value,
+            )
+            session.commit()
         return Response(status_code=204)
 
     @app.post("/extractions/{extraction_id}/fields", status_code=204)
@@ -250,16 +235,15 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
         field_path: str = Form(...),
         corrected_value: str = Form(...),
     ):
-        session = db()
-        record_correction(
-            session,
-            extraction_id=extraction_id,
-            field_path=field_path,
-            kind="omission",
-            corrected_value=corrected_value,
-        )
-        session.commit()
-        session.close()
+        with session_factory() as session:
+            record_correction(
+                session,
+                extraction_id=extraction_id,
+                field_path=field_path,
+                kind="omission",
+                corrected_value=corrected_value,
+            )
+            session.commit()
         return Response(status_code=204)
 
     return app
