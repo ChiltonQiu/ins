@@ -285,7 +285,7 @@ The remaining v0 tests stay green.
 | `renewal/extract/runner.py` | Emits neutral IR; `AnthropicClient` moves out; `model_id` records provider. |
 | `renewal/config.py` | `provider`, `llm_base_url`, `llm_api_key`. |
 | `renewal/app.py` | Constructs its client via `build_client`. |
-| `renewal/extract/validate.py` | Untouched. Named here because leaving it alone is the design. |
+| `renewal/extract/validate.py` | Gains `verification_rate` and nothing else. The gate itself — `_check`, `_normalize`, `validate_fields` — is not edited. |
 | `renewal/web.py` | Verification rate into the review context. |
 | `renewal/templates/run_review.html` | Displays it per extraction. |
 | `evals/test_extraction.py` | Client via factory; per-provider-and-model baseline path. |
