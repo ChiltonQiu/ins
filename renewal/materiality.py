@@ -38,6 +38,8 @@ class RuleSet:
 
 def load_rules(path: Path) -> RuleSet:
     data = yaml.safe_load(Path(path).read_text())
+    if data["default"] not in MATERIALITIES:
+        raise ValueError(f"default: unknown materiality {data['default']}")
     rules = []
     for entry in data["rules"]:
         if entry["materiality"] not in MATERIALITIES:

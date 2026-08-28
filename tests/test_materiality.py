@@ -27,6 +27,17 @@ def test_premium_change_under_both_thresholds_is_noise(rules):
     assert rule_id == "premium_rounding"
 
 
+def test_premium_rounding_wins_when_both_conditions_fire(rules):
+    """abs_delta 0.60 is under $1 (rounding) while also a 3% relative move
+    (material). premium_rounding is listed first, so first-match-wins must
+    pick it. This pins the ordering: swapping the two rules flips the result."""
+    materiality, rule_id = classify(
+        RawDifference("policy.total_premium", "20.00", "20.60"), rules
+    )
+    assert materiality == "noise"
+    assert rule_id == "premium_rounding"
+
+
 def test_deductible_change_is_material_at_either_level(rules):
     assert classify(
         RawDifference("item.V1.coverage.COLL.deductible_value", "500", "1000"), rules
@@ -40,6 +51,17 @@ def test_limit_change_is_material(rules):
     assert classify(
         RawDifference("coverage.BI.limit_value", "100/300", "50/100"), rules
     )[0] == "material"
+
+
+def test_coverage_premium_change_matches_both_depths(rules):
+    """coverage_premium_change and item_coverage_premium_change must each match
+    their own depth's path, not fall through to the default rule_id."""
+    assert classify(
+        RawDifference("coverage.BI.premium", "210.00", "225.00"), rules
+    ) == ("informational", "coverage_premium_change")
+    assert classify(
+        RawDifference("item.V1.coverage.COLL.premium", "412.00", "530.00"), rules
+    ) == ("informational", "item_coverage_premium_change")
 
 
 def test_added_vehicle_is_material(rules):
@@ -94,3 +116,13 @@ def test_first_matching_rule_wins(tmp_path):
     assert classify(
         RawDifference("item.V1.coverage.COLL.premium", "412.00", "530.00"), rules
     ) == ("material", "first")
+
+
+def test_unknown_default_materiality_raises(tmp_path):
+    (tmp_path / "rules.yaml").write_text(
+        "version: 1\n"
+        "default: infomational\n"
+        "rules: []\n"
+    )
+    with pytest.raises(ValueError, match="infomational"):
+        load_rules(tmp_path / "rules.yaml")

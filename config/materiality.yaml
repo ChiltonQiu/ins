@@ -36,7 +36,11 @@ rules:
     materiality: material
 
   - id: coverage_premium_change
-    match: {path_glob: "**.coverage.*.premium"}
+    match: {path_glob: "coverage.*.premium"}
+    materiality: informational
+
+  - id: item_coverage_premium_change
+    match: {path_glob: "item.*.coverage.*.premium"}
     materiality: informational
 
   # Insured items added or removed.
