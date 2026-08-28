@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Comparison #{{ comparison.id }}</h1>
+<p>{{ client.display_name }} — {{ policy.carrier_name }} {{ policy.policy_number }}</p>
+
+<div class="cols">
+  <div>
+    <h2>Draft</h2>
+    <form method="post" action="/comparisons/{{ comparison.id }}/draft">
+      <textarea name="final_text" rows="14" style="width:100%; font: inherit;">{{
+        (draft.final_text or draft.generated_text) if draft else "" }}</textarea>
+      <p><button type="submit">Save edited draft</button></p>
+    </form>
+    <p class="source">
+      Nothing is sent from here. Copy the text into your own email when you are
+      happy with it.
+    </p>
+
+    <h2>Premium</h2>
+    {% if breakdown.available %}
+    <table>
+      <tr><th>Line</th><th>Amount</th></tr>
+      <tr><td>Total change</td><td>{{ breakdown.total_delta }}</td></tr>
+      {% for line in breakdown.lines %}
+      <tr><td>{{ line.label }}</td><td>{{ line.amount }}</td></tr>
+      {% endfor %}
+      <tr>
+        <td>Change not attributable from these documents</td>
+        <td>{{ breakdown.residual }}</td>
+      </tr>
+    </table>
+    {% else %}
+    <p>Premium cannot be broken down: {{ breakdown.reason }}.</p>
+    {% endif %}
+  </div>
+
+  <div>
+    <h2>Differences</h2>
+    <p>
+      <a href="?show_noise={{ 0 if show_noise else 1 }}">
+        {{ "hide noise" if show_noise else "show noise" }}
+      </a>
+    </p>
+    <table>
+      <tr><th>Field</th><th>Prior</th><th>Renewal</th><th>Class</th></tr>
+      {% for difference in differences %}
+      <tr>
+        <td>{{ difference.field_path }}</td>
+        <td>{{ difference.prior_value if difference.prior_value is not none
+                else "—" }}</td>
+        <td>{{ difference.renewal_value if difference.renewal_value is not none
+                else "—" }}</td>
+        <td>
+          {{ difference.materiality }}
+          <span class="source">({{ difference.rule_id }})</span>
+          <form class="inline"
+                action="/differences/{{ difference.id }}/reclassify" method="post">
+            <select name="to_materiality">
+              <option value="material">material</option>
+              <option value="informational">informational</option>
+              <option value="noise">noise</option>
+            </select>
+            <button type="submit">reclassify</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

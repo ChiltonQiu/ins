@@ -14,18 +14,25 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from renewal.blobstore import BlobStore
+from renewal.comparison import breakdown_for, build_comparison, reclassify
 from renewal.config import Settings
 from renewal.corrections import effective_values, record_correction
+from renewal.draft import generate_draft, latest_draft, save_edit
 from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
+from renewal.materiality import load_rules
 from renewal.models import (
     Client,
+    Comparison,
+    Difference,
     Document,
     ExtractedField,
     Extraction,
     Policy,
+    PolicyTerm,
     RenewalRun,
 )
+from renewal.promote import PromotionBlocked, promote, unresolved_field_paths
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -159,7 +166,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
             policy = session.get(Policy, run.policy_id)
             client = session.get(Client, policy.client_id)
 
-            sides, extra_fields = [], {}
+            sides, extra_fields, blocked = [], {}, []
             for label, document_id in (
                 ("Prior", run.prior_document_id),
                 ("Renewal", run.renewal_document_id),
@@ -180,6 +187,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                     for path, value in values.items()
                     if path not in emitted
                 ]
+                blocked.extend(unresolved_field_paths(session, extraction.id))
                 sides.append((label, extraction, fields))
 
             return TEMPLATES.TemplateResponse(
@@ -191,6 +199,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                     "client": client,
                     "sides": sides,
                     "extra_fields": extra_fields,
+                    "blocked": sorted(set(blocked)),
                 },
             )
 
@@ -243,6 +252,107 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                 kind="omission",
                 corrected_value=corrected_value,
             )
+            session.commit()
+        return Response(status_code=204)
+
+    @app.post("/runs/{run_id}/promote")
+    def promote_run(run_id: int, acknowledged: list[str] = Form(default=[])):
+        with session_factory() as session:
+            run = session.get(RenewalRun, run_id)
+            if run is None:
+                raise HTTPException(status_code=404, detail="no such run")
+            try:
+                terms = [
+                    promote(
+                        session,
+                        _latest_extraction(session, document_id),
+                        run.policy_id,
+                        acknowledged=frozenset(acknowledged),
+                    )
+                    for document_id in (
+                        run.prior_document_id,
+                        run.renewal_document_id,
+                    )
+                ]
+            except PromotionBlocked as blocked:
+                session.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"still needs review: {', '.join(blocked.paths)}",
+                )
+
+            comparison = build_comparison(
+                session,
+                run_id=run.id,
+                prior_term=terms[0],
+                renewal_term=terms[1],
+                rules=load_rules(settings.materiality_config),
+            )
+            differences = (
+                session.query(Difference).filter_by(comparison_id=comparison.id).all()
+            )
+            generate_draft(
+                session,
+                comparison,
+                differences,
+                breakdown_for(session, comparison),
+                client=model_client,
+                settings=settings,
+            )
+            session.commit()
+            comparison_id = comparison.id
+        return RedirectResponse(f"/comparisons/{comparison_id}", status_code=303)
+
+    @app.get("/comparisons/{comparison_id}", response_class=HTMLResponse)
+    def show_comparison(request: Request, comparison_id: int, show_noise: int = 0):
+        with session_factory() as session:
+            comparison = session.get(Comparison, comparison_id)
+            if comparison is None:
+                raise HTTPException(status_code=404, detail="no such comparison")
+            term = session.get(PolicyTerm, comparison.prior_term_id)
+            policy = session.get(Policy, term.policy_id)
+            client = session.get(Client, policy.client_id)
+
+            query = session.query(Difference).filter_by(comparison_id=comparison_id)
+            if not show_noise:
+                query = query.filter(Difference.materiality != "noise")
+            differences = query.order_by(Difference.field_path).all()
+
+            return TEMPLATES.TemplateResponse(
+                request,
+                "comparison.html",
+                {
+                    "comparison": comparison,
+                    "policy": policy,
+                    "client": client,
+                    "differences": differences,
+                    "breakdown": breakdown_for(session, comparison),
+                    "draft": latest_draft(session, comparison_id),
+                    "show_noise": bool(show_noise),
+                },
+            )
+
+    @app.post("/comparisons/{comparison_id}/draft")
+    def edit_draft(comparison_id: int, final_text: str = Form(...)):
+        with session_factory() as session:
+            draft = latest_draft(session, comparison_id)
+            if draft is None:
+                raise HTTPException(status_code=404, detail="no draft yet")
+            save_edit(session, draft, final_text)
+            session.commit()
+        return RedirectResponse(f"/comparisons/{comparison_id}", status_code=303)
+
+    @app.post("/differences/{difference_id}/reclassify", status_code=204)
+    def reclassify_difference(
+        difference_id: int,
+        to_materiality: str = Form(...),
+        note: str | None = Form(None),
+    ):
+        with session_factory() as session:
+            difference = session.get(Difference, difference_id)
+            if difference is None:
+                raise HTTPException(status_code=404, detail="no such difference")
+            reclassify(session, difference, to_materiality, note=note)
             session.commit()
         return Response(status_code=204)
 
