@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Renewal runs</h1>
+<p><a href="/runs/new">New renewal</a></p>
+<table>
+  <tr><th>Run</th><th>Client</th><th>Policy</th><th>Uploaded</th></tr>
+  {% for run, client, policy in runs %}
+  <tr>
+    <td><a href="/runs/{{ run.id }}/review">#{{ run.id }}</a></td>
+    <td>{{ client.display_name }}</td>
+    <td>{{ policy.carrier_name }} {{ policy.policy_number }}</td>
+    <td>{{ run.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,265 @@
+"""FastAPI application. Routes parse the request and call the library; no
+pipeline logic lives here.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from renewal.blobstore import BlobStore
+from renewal.config import Settings
+from renewal.corrections import effective_values, record_correction
+from renewal.extract.runner import extract
+from renewal.ingest import ingest_pdf
+from renewal.models import (
+    Client,
+    Document,
+    ExtractedField,
+    Extraction,
+    Policy,
+    RenewalRun,
+)
+
+TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def create_app(*, settings: Settings, store: BlobStore, model_client, session_factory):
+    app = FastAPI()
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(Path(__file__).parent / "static")),
+        name="static",
+    )
+
+    def db() -> Session:
+        return session_factory()
+
+    @app.get("/", response_class=HTMLResponse)
+    def index(request: Request):
+        session = db()
+        runs = (
+            session.query(RenewalRun, Client, Policy)
+            .join(Policy, RenewalRun.policy_id == Policy.id)
+            .join(Client, Policy.client_id == Client.id)
+            .order_by(RenewalRun.id.desc())
+            .all()
+        )
+        page = TEMPLATES.TemplateResponse(
+            request, "index.html", {"runs": runs}
+        )
+        session.close()
+        return page
+
+    @app.get("/runs/new", response_class=HTMLResponse)
+    def new_run(request: Request, error: str | None = None):
+        session = db()
+        policies = (
+            session.query(Client, Policy)
+            .join(Policy, Policy.client_id == Client.id)
+            .order_by(Client.display_name)
+            .all()
+        )
+        clients = session.query(Client).order_by(Client.display_name).all()
+        page = TEMPLATES.TemplateResponse(
+            request,
+            "run_new.html",
+            {"policies": policies, "clients": clients, "error": error},
+        )
+        session.close()
+        return page
+
+    @app.post("/clients")
+    def add_client(display_name: str = Form(...)):
+        session = db()
+        session.add(Client(display_name=display_name))
+        session.commit()
+        session.close()
+        return RedirectResponse("/runs/new", status_code=303)
+
+    @app.post("/policies")
+    def add_policy(
+        client_id: int = Form(...),
+        carrier_name: str = Form(...),
+        policy_number: str = Form(...),
+        line_of_business: str = Form(...),
+    ):
+        session = db()
+        session.add(
+            Policy(
+                client_id=client_id,
+                carrier_name=carrier_name,
+                policy_number=policy_number,
+                line_of_business=line_of_business,
+            )
+        )
+        session.commit()
+        session.close()
+        return RedirectResponse("/runs/new", status_code=303)
+
+    @app.post("/runs")
+    async def create_run(
+        policy_id: int = Form(...),
+        prior: UploadFile = ...,
+        renewal: UploadFile = ...,
+        confirm_same: str | None = Form(None),
+    ):
+        prior_bytes = await prior.read()
+        renewal_bytes = await renewal.read()
+        same = hashlib.sha256(prior_bytes).digest() == hashlib.sha256(
+            renewal_bytes
+        ).digest()
+        if same and not confirm_same:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Both slots hold the same document. Tick the confirmation box "
+                    "if that is deliberate."
+                ),
+            )
+
+        session = db()
+        prior_doc = ingest_pdf(
+            session, store, data=prior_bytes, original_filename=prior.filename
+        )
+        renewal_doc = ingest_pdf(
+            session, store, data=renewal_bytes, original_filename=renewal.filename
+        )
+        run = RenewalRun(
+            policy_id=policy_id,
+            prior_document_id=prior_doc.id,
+            renewal_document_id=renewal_doc.id,
+        )
+        session.add(run)
+        session.flush()
+        for document in (prior_doc, renewal_doc):
+            extract(
+                session,
+                store,
+                document,
+                "v1",
+                client=model_client,
+                settings=settings,
+            )
+        session.commit()
+        run_id = run.id
+        session.close()
+        return RedirectResponse(f"/runs/{run_id}/review", status_code=303)
+
+    def _latest_extraction(session: Session, document_id: int) -> Extraction:
+        return (
+            session.query(Extraction)
+            .filter_by(document_id=document_id)
+            .order_by(Extraction.id.desc())
+            .first()
+        )
+
+    @app.get("/runs/{run_id}/review", response_class=HTMLResponse)
+    def review(request: Request, run_id: int):
+        session = db()
+        run = session.get(RenewalRun, run_id)
+        if run is None:
+            session.close()
+            raise HTTPException(status_code=404, detail="no such run")
+        policy = session.get(Policy, run.policy_id)
+        client = session.get(Client, policy.client_id)
+
+        sides, extra_fields = [], {}
+        for label, document_id in (
+            ("Prior", run.prior_document_id),
+            ("Renewal", run.renewal_document_id),
+        ):
+            extraction = _latest_extraction(session, document_id)
+            values = effective_values(session, extraction.id)
+            fields = (
+                session.query(ExtractedField)
+                .filter_by(extraction_id=extraction.id)
+                .order_by(ExtractedField.field_path)
+                .all()
+            )
+            for field in fields:
+                field.effective_value = values.get(field.field_path, field.value)
+            emitted = {field.field_path for field in fields}
+            extra_fields[extraction.id] = [
+                (path, value) for path, value in values.items() if path not in emitted
+            ]
+            sides.append((label, extraction, fields))
+
+        page = TEMPLATES.TemplateResponse(
+            request,
+            "run_review.html",
+            {
+                "run": run,
+                "policy": policy,
+                "client": client,
+                "sides": sides,
+                "extra_fields": extra_fields,
+            },
+        )
+        session.close()
+        return page
+
+    @app.post("/fields/{field_id}/correct", status_code=204)
+    def correct_field(field_id: int, corrected_value: str = Form(...)):
+        session = db()
+        field = session.get(ExtractedField, field_id)
+        if field is None:
+            session.close()
+            raise HTTPException(status_code=404, detail="no such field")
+        record_correction(
+            session,
+            extraction_id=field.extraction_id,
+            extracted_field_id=field.id,
+            field_path=field.field_path,
+            kind="wrong_value",
+            extracted_value=field.value,
+            corrected_value=corrected_value,
+        )
+        session.commit()
+        session.close()
+        return Response(status_code=204)
+
+    @app.post("/fields/{field_id}/reject", status_code=204)
+    def reject_field(field_id: int):
+        session = db()
+        field = session.get(ExtractedField, field_id)
+        if field is None:
+            session.close()
+            raise HTTPException(status_code=404, detail="no such field")
+        record_correction(
+            session,
+            extraction_id=field.extraction_id,
+            extracted_field_id=field.id,
+            field_path=field.field_path,
+            kind="hallucination",
+            extracted_value=field.value,
+        )
+        session.commit()
+        session.close()
+        return Response(status_code=204)
+
+    @app.post("/extractions/{extraction_id}/fields", status_code=204)
+    def add_missing_field(
+        extraction_id: int,
+        field_path: str = Form(...),
+        corrected_value: str = Form(...),
+    ):
+        session = db()
+        record_correction(
+            session,
+            extraction_id=extraction_id,
+            field_path=field_path,
+            kind="omission",
+            corrected_value=corrected_value,
+        )
+        session.commit()
+        session.close()
+        return Response(status_code=204)
+
+    return app

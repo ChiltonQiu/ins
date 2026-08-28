@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Renewal comparison{% endblock %}</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 70rem;
+           color: #111; }
+    h1, h2 { font-weight: 600; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border-bottom: 1px solid #ddd; padding: .4rem .6rem; text-align: left;
+             vertical-align: top; }
+    th { background: #f4f4f4; font-weight: 600; }
+    .source { color: #555; font-size: 13px; }
+    .flag { color: #a00; font-weight: 600; }
+    .saved { color: #070; }
+    input[type=text] { font: inherit; padding: .2rem .3rem; width: 14rem; }
+    .cols { display: flex; gap: 2rem; }
+    .cols > * { flex: 1; min-width: 0; }
+    form.inline { display: inline; }
+  </style>
+</head>
+<body>
+  <p><a href="/">Renewal comparison</a></p>
+  {% block content %}{% endblock %}
+  <script src="/static/app.js"></script>
+</body>
+</html>

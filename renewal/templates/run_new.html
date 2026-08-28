@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>New renewal</h1>
+{% if error %}<p class="flag">{{ error }}</p>{% endif %}
+<form method="post" action="/runs" enctype="multipart/form-data">
+  <p>
+    <label>Policy
+      <select name="policy_id" required>
+        {% for client, policy in policies %}
+        <option value="{{ policy.id }}">
+          {{ client.display_name }} — {{ policy.carrier_name }}
+          {{ policy.policy_number }} ({{ policy.line_of_business }})
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+  </p>
+  <p><label>Prior term PDF <input type="file" name="prior" accept="application/pdf"
+       required></label></p>
+  <p><label>Renewal term PDF <input type="file" name="renewal"
+       accept="application/pdf" required></label></p>
+  <p><label><input type="checkbox" name="confirm_same" value="1">
+     These really are the same document</label></p>
+  <p><button type="submit">Ingest and extract</button></p>
+</form>
+
+<h2>Add a client</h2>
+<form method="post" action="/clients">
+  <input type="text" name="display_name" placeholder="Client name" required>
+  <button type="submit">Add client</button>
+</form>
+
+<h2>Add a policy</h2>
+<form method="post" action="/policies">
+  <select name="client_id" required>
+    {% for client in clients %}
+    <option value="{{ client.id }}">{{ client.display_name }}</option>
+    {% endfor %}
+  </select>
+  <input type="text" name="carrier_name" placeholder="Carrier" required>
+  <input type="text" name="policy_number" placeholder="Policy number" required>
+  <input type="text" name="line_of_business" value="personal_auto" required>
+  <button type="submit">Add policy</button>
+</form>
+{% endblock %}

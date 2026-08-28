@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Run #{{ run.id }} — review</h1>
+<p>{{ client.display_name }} — {{ policy.carrier_name }} {{ policy.policy_number }}</p>
+
+<div class="cols">
+  {% for side, extraction, fields in sides %}
+  <div>
+    <h2>{{ side }} term</h2>
+    <p class="source">
+      extraction #{{ extraction.id }} · {{ extraction.extractor_version }} ·
+      {{ extraction.model_id }} · status {{ extraction.status }}
+    </p>
+    <table>
+      <tr><th>Field</th><th>Value</th><th>Source</th></tr>
+      {% for field in fields %}
+      <tr>
+        <td>{{ field.field_path }}</td>
+        <td>
+          <input type="text" value="{{ field.effective_value or '' }}"
+                 data-field-id="{{ field.id }}"
+                 data-original="{{ field.value or '' }}"
+                 class="correctable">
+          <form class="inline" method="post" action="/fields/{{ field.id }}/reject">
+            <button type="submit" title="Not on the document">not present</button>
+          </form>
+          <span class="saved" data-saved-for="{{ field.id }}"></span>
+        </td>
+        <td class="source">
+          {% if field.needs_review %}<span class="flag">needs review</span>{% endif %}
+          confidence {{ "%.2f"|format(field.confidence) }} · page {{ field.source_page }}
+          {% if field.validation_error %}
+            <br><span class="flag">{{ field.validation_error }}</span>
+          {% endif %}
+          <br>{{ field.source_text_span }}
+        </td>
+      </tr>
+      {% endfor %}
+      {% for path, value in extra_fields[extraction.id] %}
+      <tr>
+        <td>{{ path }}</td>
+        <td>{{ value }}</td>
+        <td class="source">added by hand</td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <form method="post" action="/extractions/{{ extraction.id }}/fields"
+          class="add-missing">
+      <input type="text" name="field_path" placeholder="field path" required>
+      <input type="text" name="corrected_value" placeholder="value" required>
+      <button type="submit">Add missing field</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
