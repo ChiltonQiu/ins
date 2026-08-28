@@ -1,6 +1,6 @@
 # Renewal Comparison Tool v0 — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Given a prior-term and a renewal declarations page, extract both with full provenance, diff them, classify each difference by materiality, and produce a draft client explanation a licensed agent reviews and edits.
 
@@ -70,7 +70,7 @@
 - Consumes: nothing.
 - Produces: `BlobStore(root: Path)` with `put(data: bytes) -> str` (sha256 hex), `get(sha256: str) -> bytes`, `path_for(sha256: str) -> Path`; exception `BlobNotFound`.
 
-- [ ] **Step 1: Create the project skeleton**
+- [x] **Step 1: Create the project skeleton**
 
 `pyproject.toml`:
 
@@ -114,7 +114,7 @@ touch renewal/__init__.py tests/__init__.py
 `tests/__init__.py` matters: `evals/` imports `tests.pdfmaker`, which only works
 if `tests` is a package and the repo root is on the path.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/test_blobstore.py`:
 
@@ -157,12 +157,12 @@ def test_get_unknown_hash_raises(tmp_path):
         BlobStore(tmp_path).get("0" * 64)
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `pytest tests/test_blobstore.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.blobstore'`
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `renewal/blobstore.py`:
 
@@ -209,12 +209,12 @@ class BlobStore:
         return path.read_bytes()
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_blobstore.py -v`
 Expected: 5 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pyproject.toml renewal/__init__.py renewal/blobstore.py tests/test_blobstore.py
@@ -233,7 +233,7 @@ git commit -m "feat: content-addressed blob store with dedup"
 - Consumes: nothing.
 - Produces: `Settings` (fields `database_url`, `blob_root`, `anthropic_api_key`, `extraction_model`, `draft_model`, `confidence_threshold`, `materiality_config`) and `load_settings() -> Settings`; `Base`, `get_engine()`, `session_scope()`; models `Client`, `Policy`, `PolicyTerm`, `Coverage`, `InsuredItem`, `Document`, `Extraction`, `ExtractedField`, `Correction`, `RenewalRun`, `Comparison`, `Difference`, `Reclassification`, `Draft`; pytest fixtures `engine`, `session`, `store`.
 
-- [ ] **Step 1: Write config, env template, and privacy note**
+- [x] **Step 1: Write config, env template, and privacy note**
 
 `renewal/config.py`:
 
@@ -321,7 +321,7 @@ most important thing to disclose to an agency before they use the tool.
 - Real PDFs and the blob store are excluded from version control.
 ```
 
-- [ ] **Step 2: Write the failing test and the test fixtures**
+- [x] **Step 2: Write the failing test and the test fixtures**
 
 `conftest.py` at the repo root — not under `tests/`, because `evals/` needs the
 same fixtures:
@@ -532,12 +532,12 @@ def test_correction_kind_is_constrained(session):
         session.flush()
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `pytest tests/test_models.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.models'`
 
-- [ ] **Step 4: Write the models**
+- [x] **Step 4: Write the models**
 
 `renewal/models.py`:
 
@@ -826,7 +826,7 @@ def session_scope() -> Iterator[Session]:
         session.close()
 ```
 
-- [ ] **Step 5: Generate and apply the migration**
+- [x] **Step 5: Generate and apply the migration**
 
 ```bash
 alembic init migrations
@@ -855,12 +855,12 @@ Read the generated migration and confirm it contains all fourteen tables, both
 `CheckConstraint`s, and the nullable `coverage.insured_item_id` and
 `correction.extracted_field_id` columns.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_models.py -v`
 Expected: 4 passed
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/config.py renewal/db.py renewal/models.py alembic.ini migrations \
@@ -880,7 +880,7 @@ git commit -m "feat: insert-only schema, migrations, and settings"
 - Consumes: nothing.
 - Produces: `PageText(page_number: int, text: str)` (1-based); `PdfInfo(page_count: int, has_text_layer: bool, pages: list[PageText])`; `read_pdf(data: bytes) -> PdfInfo`; `layout_text(info: PdfInfo) -> str`; `rasterize(data: bytes, dpi: int = 200) -> list[bytes]`. Test helpers `make_text_pdf(pages: list[list[str]]) -> bytes` and `make_scanned_pdf(pages: list[list[str]]) -> bytes`.
 
-- [ ] **Step 1: Write the test PDF helpers**
+- [x] **Step 1: Write the test PDF helpers**
 
 Real dec pages never enter the repo, so tests build synthetic PDFs.
 
@@ -916,7 +916,7 @@ def make_scanned_pdf(pages: list[list[str]]) -> bytes:
     return out.tobytes()
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/test_pdftext.py`:
 
@@ -963,12 +963,12 @@ def test_rasterize_returns_one_png_per_page():
     assert all(png.startswith(b"\x89PNG") for png in pngs)
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `pytest tests/test_pdftext.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.pdftext'`
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `renewal/pdftext.py`:
 
@@ -1021,12 +1021,12 @@ def rasterize(data: bytes, dpi: int = 200) -> list[bytes]:
     return pngs
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_pdftext.py -v`
 Expected: 5 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/pdftext.py tests/pdfmaker.py tests/test_pdftext.py
@@ -1045,7 +1045,7 @@ git commit -m "feat: pdf text extraction, text-layer detection, rasterization"
 - Consumes: `BlobStore` (Task 1), `Document` (Task 2), `read_pdf` (Task 3).
 - Produces: `ingest_pdf(session, store, *, data: bytes, original_filename: str, doc_type: str = "dec_page") -> Document`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_ingest.py`:
 
@@ -1096,12 +1096,12 @@ def test_scanned_document_is_flagged_without_text_layer(session, store):
     assert doc.has_text_layer is False
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_ingest.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.ingest'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `renewal/ingest.py`:
 
@@ -1154,17 +1154,17 @@ def ingest_pdf(
     return document
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_ingest.py -v`
 Expected: 4 passed
 
-- [ ] **Step 5: Run the whole suite — build-order step 1 is complete**
+- [x] **Step 5: Run the whole suite — build-order step 1 is complete**
 
 Run: `pytest -v`
 Expected: all passing. Ingest, dedup, and retrieval are proven.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/ingest.py tests/test_ingest.py
@@ -1182,7 +1182,7 @@ git commit -m "feat: pdf ingest with content-addressed dedup"
 - Consumes: nothing.
 - Produces: `fieldpath.is_valid(path: str) -> bool`; `fieldpath.item_key(*, vin, year, make, model) -> str`; `fieldpath.glob_match(pattern: str, path: str) -> bool`; `schema.FieldPayload` (pydantic: `field_path`, `value`, `confidence`, `source_page`, `source_text`); `schema.ExtractionPayload` (`fields: list[FieldPayload]`); `schema.parse_payload(raw: str) -> ExtractionPayload`.
 
-- [ ] **Step 1: Write the failing tests for the grammar**
+- [x] **Step 1: Write the failing tests for the grammar**
 
 `tests/test_fieldpath.py`:
 
@@ -1239,12 +1239,12 @@ def test_double_star_matches_any_depth():
     )
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_fieldpath.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.fieldpath'`
 
-- [ ] **Step 3: Write the grammar module**
+- [x] **Step 3: Write the grammar module**
 
 `renewal/fieldpath.py`:
 
@@ -1310,7 +1310,7 @@ def glob_match(pattern: str, path: str) -> bool:
     return re.match("^" + "".join(out) + "$", path) is not None
 ```
 
-- [ ] **Step 4: Write the failing tests for the response contract**
+- [x] **Step 4: Write the failing tests for the response contract**
 
 `tests/test_extract_schema.py`:
 
@@ -1367,12 +1367,12 @@ def test_unparseable_response_raises_value_error():
         parse_payload("the document was unreadable")
 ```
 
-- [ ] **Step 5: Run the tests to verify they fail**
+- [x] **Step 5: Run the tests to verify they fail**
 
 Run: `pytest tests/test_extract_schema.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.extract'`
 
-- [ ] **Step 6: Write the contract**
+- [x] **Step 6: Write the contract**
 
 `renewal/extract/__init__.py`: empty file.
 
@@ -1418,12 +1418,12 @@ def parse_payload(raw: str) -> ExtractionPayload:
     return ExtractionPayload.model_validate(json.loads(match.group(0)))
 ```
 
-- [ ] **Step 7: Run both test files to verify they pass**
+- [x] **Step 7: Run both test files to verify they pass**
 
 Run: `pytest tests/test_fieldpath.py tests/test_extract_schema.py -v`
 Expected: 13 passed
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/fieldpath.py renewal/extract tests/test_fieldpath.py \
@@ -1443,7 +1443,7 @@ git commit -m "feat: field-path grammar and strict extraction response contract"
 - Consumes: `FieldPayload`, `ExtractionPayload` (Task 5), `PdfInfo` (Task 3), `fieldpath.is_valid` (Task 5).
 - Produces: `ValidatedField(payload: FieldPayload, confidence: float, validation_error: str | None, needs_review: bool)`; `validate_fields(payload: ExtractionPayload, pdf: PdfInfo, threshold: float) -> list[ValidatedField]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_extract_validate.py`:
 
@@ -1523,12 +1523,12 @@ def test_failed_fields_are_kept_not_dropped():
     assert len(validate_fields(payload, PDF, threshold=0.80)) == 2
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_extract_validate.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.extract.validate'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `renewal/extract/validate.py`:
 
@@ -1591,12 +1591,12 @@ def validate_fields(
     return results
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_extract_validate.py -v`
 Expected: 7 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/extract/validate.py tests/test_extract_validate.py
@@ -1620,7 +1620,7 @@ the session, blob store, and model client, which is what makes it testable witho
 network access. Purity with respect to the document is preserved: same document,
 same version, same prompt, temperature 0.
 
-- [ ] **Step 1: Write the frozen prompt**
+- [x] **Step 1: Write the frozen prompt**
 
 `renewal/extract/prompt_v1.py`:
 
@@ -1696,7 +1696,7 @@ USER_IMAGE_INSTRUCTION = (
 PROMPTS = {VERSION: SYSTEM}
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/test_extract_runner.py`:
 
@@ -1893,12 +1893,12 @@ def test_no_extracted_content_reaches_the_logs(session, store, settings, caplog)
     assert str(document.id) in logged
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `pytest tests/test_extract_runner.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.extract.runner'`
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `renewal/extract/runner.py`:
 
@@ -2040,17 +2040,17 @@ def extract(
     return extraction
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_extract_runner.py -v`
 Expected: 8 passed
 
-- [ ] **Step 6: Run the whole suite — build-order step 2 is complete**
+- [x] **Step 6: Run the whole suite — build-order step 2 is complete**
 
 Run: `pytest -v`
 Expected: all passing. Text-layer extraction with provenance and confidence works.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/extract/prompt_v1.py renewal/extract/runner.py \
@@ -2070,7 +2070,7 @@ git commit -m "feat: versioned extractor runner with provenance and failure reco
 - Consumes: `Correction`, `ExtractedField`, `Extraction` (Task 2).
 - Produces: `record_correction(session, *, extraction_id, field_path, kind, extracted_field_id=None, extracted_value=None, corrected_value=None, note=None) -> Correction`; `effective_values(session, extraction_id) -> dict[str, str | None]`; `export_rows(session) -> list[dict]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_corrections.py`:
 
@@ -2229,12 +2229,12 @@ def test_export_rows_emit_all_three_kinds_with_the_extractor_version(
     json.dumps(rows)  # must be serializable as-is
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_corrections.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.corrections'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `renewal/corrections.py`:
 
@@ -2362,12 +2362,12 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_corrections.py -v`
 Expected: 6 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/corrections.py scripts/export_corrections.py tests/test_corrections.py
@@ -2385,7 +2385,7 @@ git commit -m "feat: corrections with omission and hallucination kinds, plus exp
 - Consumes: `ingest_pdf`, `extract`, `record_correction`, `effective_values`, models, `Settings`, `BlobStore`.
 - Produces: `create_app(*, settings, store, model_client, session_factory) -> FastAPI`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_web_review.py`:
 
@@ -2605,12 +2605,12 @@ def test_identical_documents_in_both_slots_are_refused_without_confirmation(
     assert "same document" in response.text
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_web_review.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.web'`
 
-- [ ] **Step 3: Write the templates**
+- [x] **Step 3: Write the templates**
 
 `renewal/templates/base.html`:
 
@@ -2825,7 +2825,7 @@ document.querySelectorAll("form.inline, form.add-missing").forEach(function (for
 });
 ```
 
-- [ ] **Step 4: Write the application**
+- [x] **Step 4: Write the application**
 
 `renewal/web.py`:
 
@@ -3116,7 +3116,7 @@ app = create_app(
 )
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_review.py -v`
 Expected: 7 passed
@@ -3128,7 +3128,7 @@ client and a policy, upload two dec pages, and correct a field. Confirm with
 `psql renewal -c "select kind, field_path, extracted_value, corrected_value from correction"`
 that the correction was written and the extracted field is unchanged.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/web.py renewal/app.py renewal/templates renewal/static \
@@ -3148,7 +3148,7 @@ git commit -m "feat: review UI with one-keystroke corrections"
 - Consumes: `extract`, `effective_values`, `ingest_pdf`, `BlobStore`.
 - Produces: `Fixture(fixture_id, carrier, pdf_filename, fields: dict[str, str])`; `load_fixtures(directory: Path) -> list[Fixture]`; `score(expected: dict, actual: dict) -> dict[str, bool]`; `accuracy(results: dict[str, bool]) -> float`; `regressions(baseline: dict, current: dict) -> list[str]`; `report(results_by_fixture) -> str`.
 
-- [ ] **Step 1: Write the failing tests for the scoring library**
+- [x] **Step 1: Write the failing tests for the scoring library**
 
 Scoring is pure and gets a normal unit test, so the harness itself is covered by
 the default run. Only the extractor test hits the API.
@@ -3236,12 +3236,12 @@ def test_report_breaks_accuracy_down_by_carrier_and_field_path():
     assert "50" in text  # 1 of 2 correct
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_accuracy.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'evals.accuracy'`
 
-- [ ] **Step 3: Write the scoring library**
+- [x] **Step 3: Write the scoring library**
 
 `evals/__init__.py`: empty file.
 
@@ -3327,12 +3327,12 @@ def report(results_by_fixture: dict[str, dict]) -> str:
     return "\n".join(lines)
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_accuracy.py -v`
 Expected: 8 passed
 
-- [ ] **Step 5: Write the fixture format and the API-hitting harness**
+- [x] **Step 5: Write the fixture format and the API-hitting harness**
 
 `evals/fixtures/README.md`:
 
@@ -3455,7 +3455,7 @@ def test_extractor_accuracy_against_fixtures(engine, tmp_path, capsys):
 {}
 ```
 
-- [ ] **Step 6: Write the corpus scripts**
+- [x] **Step 6: Write the corpus scripts**
 
 `scripts/reextract.py`:
 
@@ -3585,7 +3585,7 @@ Read the per-field report before accepting the baseline. A field that is wrong
 everywhere is a prompt problem; a field wrong on one carrier is a document
 problem.
 
-- [ ] **Step 8: Commit — build-order step 4 is complete**
+- [x] **Step 8: Commit — build-order step 4 is complete**
 
 ```bash
 git add evals scripts/reextract.py scripts/compare_versions.py tests/test_accuracy.py
@@ -3608,7 +3608,7 @@ the form number and `attributes={"edition_date": ...}`. They are not insured
 things, but they must live on the term for the diff to see them, and the
 `forms.<number>.edition_date` noise rule depends on that.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_promote.py`:
 
@@ -3808,12 +3808,12 @@ def test_promoting_twice_creates_a_second_term_and_keeps_the_first(
     assert session.get(type(first), first.id).total_premium == "1840.00"
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_promote.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.promote'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `renewal/promote.py`:
 
@@ -3971,12 +3971,12 @@ def promote(
     return term
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_promote.py -v`
 Expected: 8 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/promote.py tests/test_promote.py
@@ -3995,7 +3995,7 @@ git commit -m "feat: promotion snapshot gated on unresolved fields"
 - Consumes: `PolicyTerm`, `Coverage`, `InsuredItem` (Task 2).
 - Produces: `RawDifference(field_path: str, prior_value: str | None, renewal_value: str | None)`; `term_field_map(session, term) -> dict[str, str | None]`; `normalize(field_path: str, value: str | None) -> str | None`; `diff_terms(session, prior, renewal) -> list[RawDifference]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_diff.py`:
 
@@ -4199,12 +4199,12 @@ def test_sub_dollar_rounding_still_emits_a_difference(session, policy):
     )
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_diff.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.diff'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `renewal/diff.py`:
 
@@ -4307,12 +4307,12 @@ def diff_terms(
     return differences
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_diff.py -v`
 Expected: 9 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/diff.py tests/test_diff.py
@@ -4331,7 +4331,7 @@ git commit -m "feat: term diff with per-vehicle coverage matching"
 - Consumes: `RawDifference` (Task 12), `fieldpath.glob_match` (Task 5).
 - Produces: `Rule`, `RuleSet`, `load_rules(path: Path) -> RuleSet`, `classify(difference, rules) -> tuple[str, str]` returning `(materiality, rule_id)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_materiality.py`:
 
@@ -4434,12 +4434,12 @@ def test_first_matching_rule_wins(tmp_path):
     ) == ("material", "first")
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_materiality.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.materiality'`
 
-- [ ] **Step 3: Write the rule set**
+- [x] **Step 3: Write the rule set**
 
 `config/materiality.yaml`:
 
@@ -4518,7 +4518,7 @@ rules:
     materiality: noise
 ```
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `renewal/materiality.py`:
 
@@ -4638,12 +4638,12 @@ def classify(difference: RawDifference, rules: RuleSet) -> tuple[str, str]:
     return rules.default, "default"
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_materiality.py -v`
 Expected: 11 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/materiality.py config/materiality.yaml tests/test_materiality.py
@@ -4662,7 +4662,7 @@ git commit -m "feat: declarative materiality rules with recorded rule ids"
 - Consumes: `term_field_map` output shape (Task 12).
 - Produces: `Attribution(label: str, field_path: str | None, amount: Decimal)`; `PremiumBreakdown(available: bool, total_delta: Decimal | None, lines: list[Attribution], residual: Decimal | None, reason: str | None)`; `attribute_premium(prior_map, renewal_map) -> PremiumBreakdown`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_premium.py`:
 
@@ -4764,12 +4764,12 @@ def test_labels_name_the_vehicle_and_coverage():
     assert result.lines[0].label == "COLL on 1FTEW1EP0JKD00001"
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_premium.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.premium'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `renewal/premium.py`:
 
@@ -4864,12 +4864,12 @@ def attribute_premium(
     )
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_premium.py -v`
 Expected: 8 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/premium.py tests/test_premium.py
@@ -4887,7 +4887,7 @@ git commit -m "feat: arithmetic premium attribution with explicit residual"
 - Consumes: `diff_terms`, `term_field_map` (Task 12), `classify`, `load_rules` (Task 13), `attribute_premium` (Task 14), `Comparison`, `Difference`, `Draft`, `Reclassification` (Task 2).
 - Produces: `build_comparison(session, *, run_id, prior_term, renewal_term, rules) -> Comparison`; `breakdown_for(session, comparison) -> PremiumBreakdown`; `reclassify(session, difference, to_materiality, note=None) -> Reclassification`; `build_prompt(differences, breakdown) -> str`; `generate_draft(session, comparison, differences, breakdown, *, client, settings) -> Draft`; `save_edit(session, draft, final_text) -> Draft`; `latest_draft(session, comparison_id) -> Draft | None`.
 
-- [ ] **Step 1: Write the failing tests for comparison assembly**
+- [x] **Step 1: Write the failing tests for comparison assembly**
 
 `tests/test_comparison.py`:
 
@@ -5056,12 +5056,12 @@ def test_reclassifying_logs_the_change_and_leaves_the_difference(
     assert difference.materiality == "material"  # the difference row is frozen
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_comparison.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.comparison'`
 
-- [ ] **Step 3: Write the comparison module**
+- [x] **Step 3: Write the comparison module**
 
 `renewal/comparison.py`:
 
@@ -5141,7 +5141,7 @@ def reclassify(
     return log
 ```
 
-- [ ] **Step 4: Write the failing tests for draft generation**
+- [x] **Step 4: Write the failing tests for draft generation**
 
 `tests/test_draft.py`:
 
@@ -5334,12 +5334,12 @@ def test_editing_a_draft_inserts_a_new_row(session, settings, comparison):
     assert latest_draft(session, comparison.id).id == edited.id
 ```
 
-- [ ] **Step 5: Run the tests to verify they fail**
+- [x] **Step 5: Run the tests to verify they fail**
 
 Run: `pytest tests/test_draft.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.draft'`
 
-- [ ] **Step 6: Write the draft module**
+- [x] **Step 6: Write the draft module**
 
 `renewal/draft.py`:
 
@@ -5451,12 +5451,12 @@ def latest_draft(session: Session, comparison_id: int) -> Draft | None:
     )
 ```
 
-- [ ] **Step 7: Run both test files to verify they pass**
+- [x] **Step 7: Run both test files to verify they pass**
 
 Run: `pytest tests/test_comparison.py tests/test_draft.py -v`
 Expected: 11 passed
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/comparison.py renewal/draft.py tests/test_comparison.py \
@@ -5477,7 +5477,7 @@ git commit -m "feat: comparison assembly, reclassification log, draft generation
 - Consumes: `promote`, `PromotionBlocked` (Task 11), `build_comparison`, `breakdown_for`, `reclassify` (Task 15), `generate_draft`, `save_edit`, `latest_draft` (Task 15), `load_rules` (Task 13).
 - Produces: routes `POST /runs/{run_id}/promote`, `GET /comparisons/{comparison_id}`, `POST /comparisons/{comparison_id}/draft`, `POST /differences/{difference_id}/reclassify`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_web_comparison.py`:
 
@@ -5697,12 +5697,12 @@ def test_acknowledging_a_field_allows_promotion(app, policy_id, engine):
     assert response.status_code == 303
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_web_comparison.py -v`
 Expected: FAIL — 404 on `/runs/{id}/promote`
 
-- [ ] **Step 3: Write the comparison template**
+- [x] **Step 3: Write the comparison template**
 
 `renewal/templates/comparison.html`:
 
@@ -5800,7 +5800,7 @@ In `renewal/templates/run_review.html`, add this above the closing `{% endblock 
 </form>
 ```
 
-- [ ] **Step 4: Add the routes**
+- [x] **Step 4: Add the routes**
 
 In `renewal/web.py`, extend the imports:
 
@@ -5978,12 +5978,12 @@ and `run_review.html`. Then add these routes before `return app`:
         return Response(status_code=204)
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_comparison.py -v`
 Expected: 6 passed
 
-- [ ] **Step 6: Run the whole suite — build-order steps 5 and 6 are complete**
+- [x] **Step 6: Run the whole suite — build-order steps 5 and 6 are complete**
 
 Run: `pytest -v`
 Expected: all passing.
@@ -5995,7 +5995,7 @@ promote, and read the draft against the diff table. Check every claim in the
 draft against a source column. Note which differences were misclassified and
 reclassify them — those rows are the first evidence about which rules are wrong.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/web.py renewal/templates/comparison.html \
@@ -6015,7 +6015,7 @@ git commit -m "feat: comparison screen with draft, diff table, and reclassificat
 - Consumes: `rasterize` (Task 3), `extract` (Task 7).
 - Produces: no new interfaces. The image branch of `_build_content` already exists; this task proves it works end to end and fixes it if it does not.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_extract_scanned.py`:
 
@@ -6135,7 +6135,7 @@ def test_source_text_cannot_be_verified_on_a_scanned_page(session, store, settin
     assert extraction.fields[0].needs_review is True
 ```
 
-- [ ] **Step 2: Run the tests**
+- [x] **Step 2: Run the tests**
 
 Run: `pytest tests/test_extract_scanned.py -v`
 Expected: the first two pass (the image branch already exists); the third
@@ -6150,7 +6150,7 @@ flagged `needs_review`, which means promotion forces a full read-through. Confir
 that is workable in practice; if it is not, that is a design conversation about
 verification on scans, not a change to make quietly.
 
-- [ ] **Step 4: Commit — build-order step 7 is complete**
+- [x] **Step 4: Commit — build-order step 7 is complete**
 
 ```bash
 git add tests/test_extract_scanned.py
