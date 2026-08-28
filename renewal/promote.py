@@ -12,7 +12,16 @@ import datetime as dt
 from sqlalchemy.orm import Session
 
 from renewal.corrections import effective_values
-from renewal.models import Coverage, ExtractedField, Extraction, InsuredItem, PolicyTerm
+from renewal.models import (
+    Correction,
+    Coverage,
+    ExtractedField,
+    Extraction,
+    InsuredItem,
+    PolicyTerm,
+)
+
+_DATE_PATHS = ("policy.effective_date", "policy.expiration_date")
 
 
 class PromotionBlocked(Exception):
@@ -26,7 +35,12 @@ class PromotionBlocked(Exception):
 def unresolved_field_paths(
     session: Session, extraction_id: int, acknowledged: frozenset[str] = frozenset()
 ) -> list[str]:
-    values = effective_values(session, extraction_id)
+    corrected_paths = {
+        correction.field_path
+        for correction in session.query(Correction).filter_by(
+            extraction_id=extraction_id
+        )
+    }
     flagged = (
         session.query(ExtractedField)
         .filter_by(extraction_id=extraction_id, needs_review=True)
@@ -37,8 +51,8 @@ def unresolved_field_paths(
     for field in flagged:
         if field.field_path in acknowledged:
             continue
-        if values.get(field.field_path) != field.value:
-            continue  # a correction replaced or removed it
+        if field.field_path in corrected_paths:
+            continue  # a correction was recorded, even if it reverted to the original value
         out.append(field.field_path)
     return out
 
@@ -50,6 +64,17 @@ def _parse_date(value: str | None) -> dt.date | None:
         return dt.date.fromisoformat(value)
     except ValueError:
         return None
+
+
+def _malformed_date_paths(values: dict[str, str | None]) -> list[str]:
+    """Date paths that are present and non-empty but do not parse as ISO
+    dates. An absent or empty date is legitimate (the carrier didn't print
+    it) and is not reported here — only a value that is there but wrong."""
+    return [
+        path
+        for path in _DATE_PATHS
+        if values.get(path) and _parse_date(values[path]) is None
+    ]
 
 
 def _assert_stringy(attributes: dict) -> None:
@@ -69,11 +94,14 @@ def promote(
     *,
     acknowledged: frozenset[str] = frozenset(),
 ) -> PolicyTerm:
-    blocked = unresolved_field_paths(session, extraction.id, acknowledged)
+    values = effective_values(session, extraction.id)
+    blocked = list(unresolved_field_paths(session, extraction.id, acknowledged))
+    for path in _malformed_date_paths(values):
+        if path not in blocked:
+            blocked.append(path)
     if blocked:
         raise PromotionBlocked(blocked)
 
-    values = effective_values(session, extraction.id)
     term = PolicyTerm(
         policy_id=policy_id,
         carrier_name=values.get("policy.carrier_name"),

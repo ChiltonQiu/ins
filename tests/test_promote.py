@@ -201,3 +201,76 @@ def test_attribute_values_round_trip_as_strings(session, policy, extraction):
     vehicle = next(i for i in term.items if i.item_type == "vehicle")
     assert isinstance(vehicle.attributes["garaging_zip"], str)
     assert vehicle.attributes["garaging_zip"] == "78704"
+
+
+def test_a_correction_that_reverts_to_the_original_value_still_resolves_the_block(
+    session, policy, extraction
+):
+    """Resolution is decided by whether a Correction row exists for the path,
+    not by whether the effective value differs from the extracted value. A
+    human can correct a flagged field and later revert it back to the
+    model's original value; the correction record still exists and the
+    field must not block forever."""
+    field = (
+        session.query(ExtractedField)
+        .filter_by(extraction_id=extraction.id, field_path="coverage.BI.limit_value")
+        .one()
+    )
+    field.needs_review = True
+    session.flush()
+    record_correction(
+        session,
+        extraction_id=extraction.id,
+        extracted_field_id=field.id,
+        field_path=field.field_path,
+        kind="wrong_value",
+        extracted_value=field.value,
+        corrected_value="250/500",
+    )
+    record_correction(
+        session,
+        extraction_id=extraction.id,
+        extracted_field_id=field.id,
+        field_path=field.field_path,
+        kind="wrong_value",
+        extracted_value="250/500",
+        corrected_value=field.value,  # reverted back to the original "100/300"
+    )
+    assert unresolved_field_paths(session, extraction.id) == []
+    assert promote(session, extraction, policy.id) is not None
+
+
+def test_malformed_effective_date_blocks_promotion(session, policy, extraction):
+    field = (
+        session.query(ExtractedField)
+        .filter_by(extraction_id=extraction.id, field_path="policy.effective_date")
+        .one()
+    )
+    field.value = "03/01/2026"  # not ISO — the model was confident but wrong
+    session.flush()
+    with pytest.raises(PromotionBlocked) as excinfo:
+        promote(session, extraction, policy.id)
+    assert "policy.effective_date" in excinfo.value.paths
+
+
+def test_absent_effective_date_still_promotes_with_null_column(
+    session, policy, extraction
+):
+    """An absent date is legitimate — the carrier simply didn't print it —
+    and must not be confused with a malformed one."""
+    field = (
+        session.query(ExtractedField)
+        .filter_by(extraction_id=extraction.id, field_path="policy.effective_date")
+        .one()
+    )
+    record_correction(
+        session,
+        extraction_id=extraction.id,
+        extracted_field_id=field.id,
+        field_path=field.field_path,
+        kind="hallucination",
+        extracted_value=field.value,
+        corrected_value=None,
+    )
+    term = promote(session, extraction, policy.id)
+    assert term.effective_date is None
