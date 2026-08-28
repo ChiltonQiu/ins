@@ -942,16 +942,20 @@ Append to `tests/test_web_review.py`:
 
 ```python
 def test_review_screen_shows_the_verification_rate(app, seeded):
-    """The fixture's stub returns one field whose source_text really is on the
-    page, so the rate is 100%."""
+    """That file's stub returns the same response for both documents, citing
+    the prior page's premium. So the prior side verifies and the renewal side
+    cannot: one screen shows both ends of the scale."""
     _, policy_id = seeded
     with TestClient(app) as client:
         location = _upload(client, policy_id).headers["location"]
         page = client.get(location)
-    assert "100% verified" in page.text
+    assert "100% verified" in page.text  # prior: the quote is on the page
+    assert "0% verified" in page.text  # renewal: the quote is not
 ```
 
 `app`, `seeded` and `_upload` already exist in that file; do not add fixtures.
+Do not change `FakeClient` or `_response` to make both sides verify — the
+asymmetry is what makes this test worth having.
 
 - [ ] **Step 6: Run it to verify it fails**
 
