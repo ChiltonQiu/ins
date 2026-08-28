@@ -7,6 +7,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+PROVIDER_KEY_ENV: dict[str, str | None] = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "grok": "XAI_API_KEY",
+    "ollama": None,
+    "huggingface": "HF_TOKEN",
+    "custom": "LLM_API_KEY",
+}
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -16,10 +26,15 @@ class Settings:
     draft_model: str
     confidence_threshold: float
     materiality_config: Path
+    provider: str = "anthropic"
+    llm_base_url: str | None = None
+    llm_api_key: str = ""
 
 
 def load_settings() -> Settings:
     load_dotenv()
+    provider = os.environ.get("PROVIDER", "anthropic")
+    key_env = PROVIDER_KEY_ENV.get(provider)
     return Settings(
         database_url=os.environ.get(
             "DATABASE_URL", "postgresql+psycopg:///renewal"
@@ -32,4 +47,7 @@ def load_settings() -> Settings:
         materiality_config=Path(
             os.environ.get("MATERIALITY_CONFIG", "config/materiality.yaml")
         ),
+        provider=provider,
+        llm_base_url=os.environ.get("LLM_BASE_URL") or None,
+        llm_api_key=os.environ.get(key_env, "") if key_env else "",
     )

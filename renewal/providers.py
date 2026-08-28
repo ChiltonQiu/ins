@@ -8,9 +8,12 @@ touches the pipeline and no vendor's message shape leaks into the runner.
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
+
+from renewal.config import PROVIDER_KEY_ENV, Settings
 
 
 def text_block(text: str) -> dict:
@@ -125,3 +128,44 @@ class OpenAICompatClient:
             )
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
+
+
+@dataclass(frozen=True)
+class Preset:
+    base_url: str | None
+
+
+PRESETS: dict[str, Preset] = {
+    "anthropic": Preset(base_url=None),
+    "openai": Preset(base_url="https://api.openai.com/v1"),
+    "grok": Preset(base_url="https://api.x.ai/v1"),
+    "ollama": Preset(base_url="http://localhost:11434/v1"),
+    "huggingface": Preset(base_url="https://router.huggingface.co/v1"),
+    "custom": Preset(base_url=None),
+}
+
+
+def build_client(settings: Settings) -> ModelClient:
+    """The only place a model client is constructed.
+
+    Raises rather than returning a client that cannot work, so a missing key is
+    a startup failure instead of a failure on the first upload.
+    """
+    if settings.provider not in PRESETS:
+        known = ", ".join(sorted(PRESETS))
+        raise ValueError(f"unknown provider {settings.provider!r}; known: {known}")
+
+    if settings.provider == "anthropic":
+        if not settings.anthropic_api_key:
+            raise ValueError("provider 'anthropic' needs ANTHROPIC_API_KEY")
+        return AnthropicClient(settings.anthropic_api_key)
+
+    base_url = settings.llm_base_url or PRESETS[settings.provider].base_url
+    if not base_url:
+        raise ValueError(f"provider {settings.provider!r} needs LLM_BASE_URL")
+
+    key_env = PROVIDER_KEY_ENV.get(settings.provider)
+    if key_env and not settings.llm_api_key:
+        raise ValueError(f"provider {settings.provider!r} needs {key_env}")
+
+    return OpenAICompatClient(base_url, settings.llm_api_key)

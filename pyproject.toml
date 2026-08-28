@@ -15,10 +15,11 @@ dependencies = [
   "pydantic>=2.8",
   "pyyaml>=6.0",
   "python-dotenv>=1.0",
+  "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "httpx>=0.27"]
+dev = ["pytest>=8.0"]
 
 # Declared explicitly: `evals`, `migrations`, and `config` sit at the top level
 # but are not part of the distribution, and setuptools refuses to guess between

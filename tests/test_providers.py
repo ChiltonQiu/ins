@@ -146,3 +146,81 @@ def test_a_trailing_slash_on_the_base_url_does_not_double_up():
     client = OpenAICompatClient("http://x/v1/", "", transport=_stub(handler))
     client.complete(model="m", system="s", content=[text_block("hi")])
     assert str(handler.request.url) == "http://x/v1/chat/completions"
+
+
+from renewal.config import Settings
+from renewal.providers import AnthropicClient, build_client
+
+
+def _settings(**overrides):
+    base = dict(
+        database_url="postgresql+psycopg:///renewal_test",
+        blob_root="/tmp/blobs",
+        anthropic_api_key="",
+        extraction_model="m",
+        draft_model="m",
+        confidence_threshold=0.80,
+        materiality_config="config/materiality.yaml",
+    )
+    base.update(overrides)
+    return Settings(**base)
+
+
+def test_settings_default_to_anthropic_so_existing_config_keeps_working():
+    settings = _settings()
+    assert settings.provider == "anthropic"
+    assert settings.llm_base_url is None
+    assert settings.llm_api_key == ""
+
+
+def test_anthropic_provider_builds_the_native_client():
+    client = build_client(_settings(provider="anthropic", anthropic_api_key="sk-x"))
+    assert isinstance(client, AnthropicClient)
+
+
+@pytest.mark.parametrize(
+    "provider,expected_url",
+    [
+        ("openai", "https://api.openai.com/v1"),
+        ("grok", "https://api.x.ai/v1"),
+        ("ollama", "http://localhost:11434/v1"),
+        ("huggingface", "https://router.huggingface.co/v1"),
+    ],
+)
+def test_each_preset_resolves_to_its_base_url(provider, expected_url):
+    client = build_client(_settings(provider=provider, llm_api_key="key"))
+    assert client.base_url == expected_url
+
+
+def test_ollama_needs_no_key():
+    client = build_client(_settings(provider="ollama"))
+    assert client.base_url == "http://localhost:11434/v1"
+
+
+def test_llm_base_url_overrides_the_preset():
+    client = build_client(
+        _settings(provider="ollama", llm_base_url="http://gpu-box:8000/v1")
+    )
+    assert client.base_url == "http://gpu-box:8000/v1"
+
+
+def test_custom_without_a_base_url_raises_at_construction():
+    """Failing here means the app refuses to start, rather than failing on the
+    first upload with two documents already ingested."""
+    with pytest.raises(ValueError, match="LLM_BASE_URL"):
+        build_client(_settings(provider="custom", llm_api_key="k"))
+
+
+def test_a_provider_whose_key_is_missing_raises_at_construction():
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        build_client(_settings(provider="openai"))
+
+
+def test_anthropic_without_a_key_raises_at_construction():
+    with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+        build_client(_settings(provider="anthropic"))
+
+
+def test_an_unknown_provider_names_the_ones_that_exist():
+    with pytest.raises(ValueError, match="ollama"):
+        build_client(_settings(provider="not-a-provider"))
