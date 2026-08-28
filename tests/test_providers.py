@@ -49,3 +49,100 @@ def test_an_unknown_block_type_raises_rather_than_being_dropped(translate):
     and there would be nothing in the response to reveal it."""
     with pytest.raises(ValueError, match="audio"):
         translate([{"type": "audio", "data": b""}])
+
+
+import httpx
+
+from renewal.providers import OpenAICompatClient
+
+
+def _stub(handler):
+    return httpx.MockTransport(handler)
+
+
+def _ok(payload="extracted json here"):
+    def handler(request):
+        handler.request = request
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": payload}}]}
+        )
+
+    return handler
+
+
+def test_openai_client_posts_to_chat_completions_and_returns_the_text():
+    handler = _ok()
+    client = OpenAICompatClient(
+        "http://localhost:11434/v1", "", transport=_stub(handler)
+    )
+
+    result = client.complete(
+        model="qwen2.5:7b", system="be exact", content=[text_block("hello")]
+    )
+
+    assert result == "extracted json here"
+    assert str(handler.request.url) == "http://localhost:11434/v1/chat/completions"
+
+
+def test_openai_client_sends_temperature_zero_and_the_system_message():
+    import json
+
+    handler = _ok()
+    client = OpenAICompatClient(
+        "https://api.x.ai/v1", "key", transport=_stub(handler)
+    )
+    client.complete(model="grok", system="be exact", content=[text_block("hi")])
+
+    body = json.loads(handler.request.content)
+    assert body["temperature"] == 0
+    assert body["model"] == "grok"
+    assert body["messages"][0] == {"role": "system", "content": "be exact"}
+    assert body["messages"][1]["content"] == [{"type": "text", "text": "hi"}]
+
+
+def test_openai_client_sends_the_bearer_token_when_there_is_one():
+    handler = _ok()
+    client = OpenAICompatClient(
+        "https://api.openai.com/v1", "sk-abc", transport=_stub(handler)
+    )
+    client.complete(model="gpt", system="s", content=[text_block("hi")])
+    assert handler.request.headers["authorization"] == "Bearer sk-abc"
+
+
+def test_openai_client_omits_the_auth_header_when_there_is_no_key():
+    """Ollama needs no key, and some local servers reject an empty bearer."""
+    handler = _ok()
+    client = OpenAICompatClient(
+        "http://localhost:11434/v1", "", transport=_stub(handler)
+    )
+    client.complete(model="qwen2.5:7b", system="s", content=[text_block("hi")])
+    assert "authorization" not in handler.request.headers
+
+
+def test_openai_client_translates_images_to_data_uris():
+    import json
+
+    handler = _ok()
+    client = OpenAICompatClient("http://x/v1", "", transport=_stub(handler))
+    client.complete(model="m", system="s", content=[image_block(PNG)])
+
+    body = json.loads(handler.request.content)
+    assert body["messages"][1]["content"][0]["type"] == "image_url"
+
+
+def test_openai_client_raises_on_a_non_2xx_response():
+    """A 401 must not be parsed as if it were a completion."""
+
+    def handler(request):
+        return httpx.Response(401, json={"error": "bad key"})
+
+    client = OpenAICompatClient("http://x/v1", "nope", transport=_stub(handler))
+    with pytest.raises(httpx.HTTPStatusError):
+        client.complete(model="m", system="s", content=[text_block("hi")])
+
+
+def test_a_trailing_slash_on_the_base_url_does_not_double_up():
+    handler = _ok()
+    client = OpenAICompatClient("http://x/v1/", "", transport=_stub(handler))
+    client.complete(model="m", system="s", content=[text_block("hi")])
+    assert str(handler.request.url) == "http://x/v1/chat/completions"
