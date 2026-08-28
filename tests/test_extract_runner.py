@@ -6,7 +6,7 @@ import pytest
 from renewal.config import Settings
 from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
-from renewal.models import ExtractedField
+from renewal.models import Document, ExtractedField
 from tests.pdfmaker import make_text_pdf
 
 LINES = [
@@ -188,3 +188,27 @@ def test_no_extracted_content_reaches_the_logs(session, store, settings, caplog)
     assert "AU-4471" not in logged
     assert "100/300" not in logged
     assert str(document.id) in logged
+
+
+def test_missing_blob_is_recorded_as_failed_not_raised(session, store, settings):
+    # A document row whose blob was never written to the store (or has since
+    # gone missing) must not raise out of extract() — the attempt still gets
+    # an Extraction row, same as an API failure.
+    document = Document(
+        blob_sha256="0" * 64,
+        original_filename="missing.pdf",
+        page_count=1,
+        has_text_layer=True,
+        doc_type="dec_page",
+    )
+    session.add(document)
+    session.flush()
+
+    extraction = extract(
+        session, store, document, "v1", client=FakeClient(_good_response()),
+        settings=settings,
+    )
+
+    assert extraction.status == "failed"
+    assert extraction.raw_response["error"]
+    assert extraction.fields == []

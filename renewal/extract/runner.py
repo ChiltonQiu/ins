@@ -19,7 +19,7 @@ from renewal.extract import prompt_v1
 from renewal.extract.schema import parse_payload
 from renewal.extract.validate import validate_fields
 from renewal.models import Document, ExtractedField, Extraction
-from renewal.pdftext import layout_text, rasterize, read_pdf
+from renewal.pdftext import PdfInfo, layout_text, rasterize, read_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,9 @@ class AnthropicClient:
         return "".join(block.text for block in message.content if block.type == "text")
 
 
-def _build_content(prompt, data: bytes, has_text_layer: bool) -> list[dict]:
+def _build_content(prompt, data: bytes, pdf: PdfInfo, has_text_layer: bool) -> list[dict]:
     if has_text_layer:
-        text = prompt.USER_TEXT_TEMPLATE.format(document_text=layout_text(read_pdf(data)))
+        text = prompt.USER_TEXT_TEMPLATE.format(document_text=layout_text(pdf))
         return [{"type": "text", "text": text}]
     blocks: list[dict] = [{"type": "text", "text": prompt.USER_IMAGE_INSTRUCTION}]
     for png in rasterize(data):
@@ -76,8 +76,6 @@ def extract(
     settings: Settings,
 ) -> Extraction:
     prompt = PROMPTS[version]
-    data = store.get(document.blob_sha256)
-    content = _build_content(prompt, data, document.has_text_layer)
 
     def _record(status: str, raw: dict | None) -> Extraction:
         extraction = Extraction(
@@ -101,6 +99,9 @@ def extract(
         return extraction
 
     try:
+        data = store.get(document.blob_sha256)
+        pdf = read_pdf(data)
+        content = _build_content(prompt, data, pdf, document.has_text_layer)
         raw_text = client.complete(
             model=settings.extraction_model, system=prompt.SYSTEM, content=content
         )
@@ -112,9 +113,7 @@ def extract(
     except Exception:  # noqa: BLE001 - unparseable text is kept verbatim
         return _record("invalid_response", {"text": raw_text})
 
-    validated = validate_fields(
-        payload, read_pdf(data), settings.confidence_threshold
-    )
+    validated = validate_fields(payload, pdf, settings.confidence_threshold)
     status = "partial" if any(v.validation_error for v in validated) else "ok"
     extraction = _record(status, {"text": raw_text})
     for item in validated:
