@@ -27,9 +27,11 @@ Local by default — nothing leaves the host unless `LLM_BASE_URL` redirects it:
 | `ollama` | a model running on this machine |
 | `custom` | whatever `LLM_BASE_URL` points at — local if that is a local address, third-party if it is not |
 
-`LLM_BASE_URL` overrides the address for **any** provider, so a `PROVIDER` value
-above describes the default destination, not a guarantee. Read `LLM_BASE_URL`
-alongside `PROVIDER` before answering the question for a running install.
+`LLM_BASE_URL` overrides the address for every provider **except**
+`anthropic`, which always reaches Anthropic's own API. So for any other value
+above, `PROVIDER` names the default destination rather than a guarantee, and
+`LLM_BASE_URL` can point a nominally local provider at a remote host. Read both
+before answering the question for a running install.
 
 To answer this for a specific install, read `PROVIDER` in its `.env`. Extractions
 recorded since this change also carry the provider in `extraction.model_id`, so
