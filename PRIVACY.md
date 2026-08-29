@@ -3,12 +3,37 @@
 This tool processes real client insurance documents. They contain names,
 addresses, VINs, and sometimes dates of birth.
 
-## Documents are sent to a third-party model API
+## Where documents go depends on PROVIDER
 
-Declarations pages uploaded to this tool are transmitted to Anthropic's API for
-extraction and for drafting the client explanation. Documents with a text layer
-are sent as text; scanned documents are sent as page images. This is the single
-most important thing to disclose to an agency before they use the tool.
+This tool sends declarations pages to a model for extraction and for drafting
+the client explanation. Documents with a text layer are sent as text; scanned
+documents are sent as page images. **Which model, and therefore whether the
+document leaves this machine, is set by `PROVIDER` in `.env`.**
+
+Third-party providers — the document is transmitted to a company outside your
+control, subject to that company's terms and retention policy:
+
+| `PROVIDER` | Documents are sent to |
+|---|---|
+| `anthropic` | Anthropic |
+| `openai` | OpenAI |
+| `grok` | xAI |
+| `huggingface` | HuggingFace, and the inference provider it routes to |
+
+Local providers — nothing leaves the host:
+
+| `PROVIDER` | Documents are sent to |
+|---|---|
+| `ollama` | a model running on this machine |
+| `custom` | whatever `LLM_BASE_URL` points at — local if that is a local address, third-party if it is not |
+
+`custom` is only as private as the address configured, so read `LLM_BASE_URL`
+before answering the question for a running install.
+
+To answer this for a specific install, read `PROVIDER` in its `.env`. Every
+extraction also records the provider and model it used in
+`extraction.model_id`, so the question can be answered retrospectively for any
+document already processed.
 
 ## What is stored, and where
 
