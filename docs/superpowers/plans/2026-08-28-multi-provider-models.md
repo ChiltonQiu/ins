@@ -1101,24 +1101,47 @@ from pathlib import Path
 from evals.accuracy import baseline_path
 
 
-def test_baseline_path_names_the_provider_model_and_version():
+def test_baseline_path_starts_with_a_readable_slug():
     path = baseline_path(Path("evals/baselines"), "anthropic", "claude-opus-5", "v1")
-    assert path.name == "anthropic__claude-opus-5__v1.json"
+    assert path.name.startswith("anthropic__claude-opus-5__v1-")
+    assert path.suffix == ".json"
 
 
 def test_characters_that_are_illegal_in_a_filename_are_replaced():
     """Ollama model names carry a colon; HuggingFace repo ids carry a slash."""
-    assert (
-        baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1").name
-        == "ollama__qwen2.5-7b__v1.json"
+    assert baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1").name.startswith(
+        "ollama__qwen2.5-7b__v1-"
     )
+    assert baseline_path(
+        Path("b"), "huggingface", "meta-llama/Llama-3.1-8B", "v1"
+    ).name.startswith("huggingface__meta-llama-Llama-3.1-8B__v1-")
+
+
+def test_the_path_is_stable_across_calls():
+    args = (Path("b"), "ollama", "qwen2.5:7b", "v1")
+    assert baseline_path(*args) == baseline_path(*args)
+
+
+def test_models_differing_only_by_an_illegal_character_do_not_collide():
+    """The readable slug alone maps both of these to "ollama__qwen2.5-7b__v1".
+    A collision here would silently gate one model's run against another
+    model's recorded baseline."""
     assert (
-        baseline_path(Path("b"), "huggingface", "meta-llama/Llama-3.1-8B", "v1").name
-        == "huggingface__meta-llama-Llama-3.1-8B__v1.json"
+        baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1")
+        != baseline_path(Path("b"), "ollama", "qwen2.5-7b", "v1")
     )
 
 
-def test_two_models_never_share_a_baseline_file():
+def test_the_separator_cannot_be_forged_out_of_a_provider_or_model_name():
+    """"_" survives sanitisation, so slug text alone is ambiguous about where
+    the provider ends and the model begins."""
+    assert (
+        baseline_path(Path("b"), "a_", "b", "v1")
+        != baseline_path(Path("b"), "a", "_b", "v1")
+    )
+
+
+def test_two_different_models_never_share_a_baseline_file():
     a = baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1")
     b = baseline_path(Path("b"), "anthropic", "claude-opus-5", "v1")
     assert a != b
@@ -1131,7 +1154,8 @@ Expected: FAIL — `ImportError: cannot import name 'baseline_path'`
 
 - [ ] **Step 3: Write the implementation**
 
-Add `import re` to the imports in `evals/accuracy.py`, then append:
+Add `import hashlib` and `import re` to the imports in `evals/accuracy.py`,
+then append:
 
 ```python
 def baseline_path(directory: Path, provider: str, model: str, version: str) -> Path:
@@ -1140,9 +1164,18 @@ def baseline_path(directory: Path, provider: str, model: str, version: str) -> P
     A single baseline keyed by fixture alone would compare one model's results
     against another's — either failing spuriously or, worse, passing silently
     over a real regression.
+
+    The readable slug is for humans and is not unique on its own: collapsing
+    every illegal character onto "-" maps "qwen2.5:7b" and "qwen2.5-7b" to the
+    same name, and "_" surviving means provider "a_" with model "b" collides
+    with provider "a" and model "_b". The digest of the raw triple is what
+    actually keeps two models apart.
     """
-    slug = f"{provider}__{model}__{version}"
-    return Path(directory) / (re.sub(r"[^A-Za-z0-9._-]", "-", slug) + ".json")
+    digest = hashlib.sha256(
+        "\x00".join((provider, model, version)).encode()
+    ).hexdigest()[:8]
+    slug = re.sub(r"[^A-Za-z0-9._-]", "-", f"{provider}__{model}__{version}")
+    return Path(directory) / f"{slug}-{digest}.json"
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
