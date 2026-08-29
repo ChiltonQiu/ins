@@ -115,6 +115,7 @@ class OpenAICompatClient:
         payload = {
             "model": model,
             "temperature": 0,
+            "max_tokens": 8192,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": to_openai(content)},
@@ -127,12 +128,22 @@ class OpenAICompatClient:
                 f"{self.base_url}/chat/completions", headers=headers, json=payload
             )
             response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
+            body = response.json()
+            try:
+                content_text = body["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError):
+                content_text = None
+            if content_text is None:
+                raise ValueError(
+                    f"unexpected response shape from {self.base_url}"
+                )
+            return content_text
 
 
 @dataclass(frozen=True)
 class Preset:
     base_url: str | None
+    requires_key: bool = True
 
 
 PRESETS: dict[str, Preset] = {
@@ -141,7 +152,7 @@ PRESETS: dict[str, Preset] = {
     "grok": Preset(base_url="https://api.x.ai/v1"),
     "ollama": Preset(base_url="http://localhost:11434/v1"),
     "huggingface": Preset(base_url="https://router.huggingface.co/v1"),
-    "custom": Preset(base_url=None),
+    "custom": Preset(base_url=None, requires_key=False),
 }
 
 
@@ -165,7 +176,7 @@ def build_client(settings: Settings) -> ModelClient:
         raise ValueError(f"provider {settings.provider!r} needs LLM_BASE_URL")
 
     key_env = PROVIDER_KEY_ENV.get(settings.provider)
-    if key_env and not settings.llm_api_key:
+    if key_env and PRESETS[settings.provider].requires_key and not settings.llm_api_key:
         raise ValueError(f"provider {settings.provider!r} needs {key_env}")
 
     return OpenAICompatClient(base_url, settings.llm_api_key)

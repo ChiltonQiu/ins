@@ -95,6 +95,7 @@ def test_openai_client_sends_temperature_zero_and_the_system_message():
 
     body = json.loads(handler.request.content)
     assert body["temperature"] == 0
+    assert body["max_tokens"] == 8192
     assert body["model"] == "grok"
     assert body["messages"][0] == {"role": "system", "content": "be exact"}
     assert body["messages"][1]["content"] == [{"type": "text", "text": "hi"}]
@@ -224,3 +225,105 @@ def test_anthropic_without_a_key_raises_at_construction():
 def test_an_unknown_provider_names_the_ones_that_exist():
     with pytest.raises(ValueError, match="ollama"):
         build_client(_settings(provider="not-a-provider"))
+
+
+def test_custom_with_a_base_url_and_no_key_builds_a_client():
+    """custom is the documented route to vLLM, LM Studio, TGI and llama.cpp,
+    none of which require auth by default; the app must not refuse to start
+    against exactly the keyless local servers the privacy story depends on."""
+    client = build_client(
+        _settings(provider="custom", llm_base_url="http://localhost:8000/v1")
+    )
+    assert client.base_url == "http://localhost:8000/v1"
+
+
+def test_custom_with_a_base_url_and_a_key_still_builds_a_client():
+    client = build_client(
+        _settings(
+            provider="custom",
+            llm_base_url="http://localhost:8000/v1",
+            llm_api_key="k",
+        )
+    )
+    assert client.base_url == "http://localhost:8000/v1"
+
+
+def test_openai_without_a_key_still_raises_the_relaxation_does_not_leak():
+    """custom no longer demands a key; that must not loosen a third-party
+    preset like openai, which still needs one."""
+    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+        build_client(_settings(provider="openai"))
+
+
+from renewal.providers import PRESETS
+from renewal.config import PROVIDER_KEY_ENV
+
+
+def test_the_two_provider_registries_list_the_same_providers():
+    assert set(PRESETS) == set(PROVIDER_KEY_ENV)
+
+
+def test_anthropic_client_complete_translates_content_through_to_anthropic():
+    """Nothing else proves complete() passes translated content rather than
+    the raw IR blocks straight through to the SDK."""
+
+    class _TextBlock:
+        def __init__(self, text):
+            self.type = "text"
+            self.text = text
+
+    class _Message:
+        def __init__(self, content):
+            self.content = content
+
+    class _StubMessages:
+        def __init__(self):
+            self.calls = []
+
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            return _Message([_TextBlock("ok")])
+
+    class _StubAnthropic:
+        def __init__(self):
+            self.messages = _StubMessages()
+
+    client = AnthropicClient(api_key="sk-x")
+    stub = _StubAnthropic()
+    client._client = stub
+
+    result = client.complete(
+        model="claude-opus-5",
+        system="be exact",
+        content=[text_block("hi"), image_block(PNG)],
+    )
+
+    assert result == "ok"
+    sent = stub.messages.calls[0]["messages"][0]["content"]
+    assert sent[0] == {"type": "text", "text": "hi"}
+    assert sent[1]["type"] == "image"
+    assert sent[1]["source"]["type"] == "base64"
+    assert sent[1]["source"]["media_type"] == "image/png"
+    assert base64.b64decode(sent[1]["source"]["data"]) == PNG
+
+
+def test_openai_client_raises_a_diagnostic_when_choices_is_missing():
+    """A 200 carrying an error body must not surface as a bare KeyError."""
+
+    def handler(request):
+        return httpx.Response(200, json={"error": "backend exploded"})
+
+    client = OpenAICompatClient("http://x/v1", "", transport=_stub(handler))
+    with pytest.raises(ValueError, match="unexpected response shape"):
+        client.complete(model="m", system="s", content=[text_block("hi")])
+
+
+def test_openai_client_raises_a_diagnostic_when_content_is_null():
+    def handler(request):
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": None}}]}
+        )
+
+    client = OpenAICompatClient("http://x/v1", "", transport=_stub(handler))
+    with pytest.raises(ValueError, match="unexpected response shape"):
+        client.complete(model="m", system="s", content=[text_block("hi")])

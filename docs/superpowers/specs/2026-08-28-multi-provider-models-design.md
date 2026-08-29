@@ -216,13 +216,19 @@ a silent pass over a real regression.
 **Baselines become one file per provider, model, and extractor version:**
 
 ```
-evals/baselines/<provider>__<model>__<extractor_version>.json
+evals/baselines/<provider>__<model>__<extractor_version>-<digest>.json
 ```
 
-with `/` and `:` in model names replaced by `-` so the name is a legal filename. The
-regression gate only ever compares like with like. Each file stays small and diffs
-readably. The existing `evals/baseline.json` holds `{}`, so there is nothing to migrate;
-it is removed.
+where `<provider>__<model>__<extractor_version>` is a human-readable slug with every
+character illegal in a filename collapsed to `-`, and `<digest>` is the first 8 hex
+characters of the SHA-256 hash of the raw `provider`, `model`, and `extractor_version`
+values joined with NUL. The slug alone is not unique: collapsing illegal characters onto
+`-` maps `qwen2.5:7b` and `qwen2.5-7b` to the same slug, and `_` surviving the collapse
+means provider `a_` with model `b` collides with provider `a` and model `_b`. The digest
+of the raw triple is what actually keeps two distinct triples apart; the slug stays only
+so the filename remains readable. The regression gate only ever compares like with like.
+Each file stays small and diffs readably. The existing `evals/baseline.json` holds `{}`,
+so there is nothing to migrate; it is removed.
 
 `evals/test_extraction.py` builds its client through `build_client` and writes to the
 baseline path for whatever provider and model it ran under. `scripts/compare_versions.py`

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from renewal.config import Settings
 from renewal.models import Comparison, Difference, Draft
 from renewal.premium import PremiumBreakdown
+from renewal.providers import text_block
 
 SYSTEM = """You write short, plain-English notes that an insurance agent sends
 to a client explaining what changed at renewal.
@@ -86,7 +87,7 @@ def generate_draft(
     text = client.complete(
         model=settings.draft_model,
         system=SYSTEM,
-        content=[{"type": "text", "text": build_prompt(differences, breakdown)}],
+        content=[text_block(build_prompt(differences, breakdown))],
     )
     draft = Draft(comparison_id=comparison.id, generated_text=text)
     session.add(draft)

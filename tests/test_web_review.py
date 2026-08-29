@@ -234,5 +234,5 @@ def test_review_screen_shows_the_verification_rate(app, seeded):
     with TestClient(app) as client:
         location = _upload(client, policy_id).headers["location"]
         page = client.get(location)
-    assert "100% verified" in page.text  # prior: the quote is on the page
-    assert "0% verified" in page.text  # renewal: the quote is not
+    assert "100.0% verified" in page.text  # prior: the quote is on the page
+    assert "0.0% verified" in page.text  # renewal: the quote is not

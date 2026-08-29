@@ -20,20 +20,21 @@ control, subject to that company's terms and retention policy:
 | `grok` | xAI |
 | `huggingface` | HuggingFace, and the inference provider it routes to |
 
-Local providers — nothing leaves the host:
+Local by default — nothing leaves the host unless `LLM_BASE_URL` redirects it:
 
 | `PROVIDER` | Documents are sent to |
 |---|---|
 | `ollama` | a model running on this machine |
 | `custom` | whatever `LLM_BASE_URL` points at — local if that is a local address, third-party if it is not |
 
-`custom` is only as private as the address configured, so read `LLM_BASE_URL`
-before answering the question for a running install.
+`LLM_BASE_URL` overrides the address for **any** provider, so a `PROVIDER` value
+above describes the default destination, not a guarantee. Read `LLM_BASE_URL`
+alongside `PROVIDER` before answering the question for a running install.
 
-To answer this for a specific install, read `PROVIDER` in its `.env`. Every
-extraction also records the provider and model it used in
-`extraction.model_id`, so the question can be answered retrospectively for any
-document already processed.
+To answer this for a specific install, read `PROVIDER` in its `.env`. Extractions
+recorded since this change also carry the provider in `extraction.model_id`, so
+the question can be answered retrospectively for those; rows written before it
+carry a model name only and cannot be attributed from the database alone.
 
 ## What is stored, and where
 

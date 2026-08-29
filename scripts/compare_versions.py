@@ -34,13 +34,14 @@ def main(path_a: str, path_b: str) -> None:
     a = accuracy_by_path(field_results(Path(path_a)))
     b = accuracy_by_path(field_results(Path(path_b)))
     label_a, label_b = Path(path_a).stem, Path(path_b).stem
+    width = max(24, len(label_a), len(label_b))
 
-    print(f"{'field path':<44} {label_a:>24} {label_b:>24}   delta")
+    print(f"{'field path':<44} {label_a:>{width}} {label_b:>{width}}   delta")
     for field_path in sorted(set(a) | set(b)):
         a_pct, b_pct = a.get(field_path, 0.0), b.get(field_path, 0.0)
         if a_pct != b_pct:
             print(
-                f"{field_path:<44} {a_pct:23.1f}% {b_pct:23.1f}% "
+                f"{field_path:<44} {a_pct:{width - 1}.1f}% {b_pct:{width - 1}.1f}% "
                 f" {b_pct - a_pct:+6.1f}"
             )
 

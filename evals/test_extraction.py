@@ -2,6 +2,11 @@
 
 Marked `eval` because it makes real API calls; excluded from the default run.
 Run it with: pytest -m eval evals/test_extraction.py -s
+
+Each run writes `<name>.latest.json` beside the baseline it compared against.
+Promoting a run's results to the new baseline means copying that file over
+`<name>.json`, so the provider/model/version digest in the filename is carried
+along rather than retyped.
 """
 
 from __future__ import annotations

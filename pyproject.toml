@@ -31,7 +31,7 @@ packages = ["renewal", "renewal.extract"]
 renewal = ["templates/*.html", "static/*.js"]
 
 [tool.pytest.ini_options]
-markers = ["eval: hits the real Anthropic API; excluded from the default run"]
+markers = ["eval: hits the real model provider API; excluded from the default run"]
 addopts = "-m 'not eval'"
 testpaths = ["tests", "evals"]
 pythonpath = ["."]

@@ -14,7 +14,7 @@
         no fields returned
       {% else %}
         <span {% if rates[extraction.id] < 0.5 %}class="flag"{% endif %}>
-          {{ "%.0f"|format(100 * rates[extraction.id]) }}% verified
+          {{ "%.1f"|format(100 * rates[extraction.id]) }}% verified
         </span>
       {% endif %}
     </p>
