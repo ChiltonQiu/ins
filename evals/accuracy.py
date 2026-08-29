@@ -4,6 +4,7 @@ itself is tested in the default run.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -84,6 +85,15 @@ def baseline_path(directory: Path, provider: str, model: str, version: str) -> P
     A single baseline keyed by fixture alone would compare one model's results
     against another's — either failing spuriously or, worse, passing silently
     over a real regression.
+
+    The readable slug is for humans and is not unique on its own: collapsing
+    every illegal character onto "-" maps "qwen2.5:7b" and "qwen2.5-7b" to the
+    same name, and "_" surviving means provider "a_" with model "b" collides
+    with provider "a" and model "_b". The digest of the raw triple is what
+    actually keeps two models apart.
     """
-    slug = f"{provider}__{model}__{version}"
-    return Path(directory) / (re.sub(r"[^A-Za-z0-9._-]", "-", slug) + ".json")
+    digest = hashlib.sha256(
+        "\x00".join((provider, model, version)).encode()
+    ).hexdigest()[:8]
+    slug = re.sub(r"[^A-Za-z0-9._-]", "-", f"{provider}__{model}__{version}")
+    return Path(directory) / f"{slug}-{digest}.json"

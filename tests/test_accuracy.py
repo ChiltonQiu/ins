@@ -83,24 +83,47 @@ from pathlib import Path
 from evals.accuracy import baseline_path
 
 
-def test_baseline_path_names_the_provider_model_and_version():
+def test_baseline_path_starts_with_a_readable_slug():
     path = baseline_path(Path("evals/baselines"), "anthropic", "claude-opus-5", "v1")
-    assert path.name == "anthropic__claude-opus-5__v1.json"
+    assert path.name.startswith("anthropic__claude-opus-5__v1-")
+    assert path.suffix == ".json"
 
 
 def test_characters_that_are_illegal_in_a_filename_are_replaced():
     """Ollama model names carry a colon; HuggingFace repo ids carry a slash."""
-    assert (
-        baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1").name
-        == "ollama__qwen2.5-7b__v1.json"
+    assert baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1").name.startswith(
+        "ollama__qwen2.5-7b__v1-"
     )
+    assert baseline_path(
+        Path("b"), "huggingface", "meta-llama/Llama-3.1-8B", "v1"
+    ).name.startswith("huggingface__meta-llama-Llama-3.1-8B__v1-")
+
+
+def test_the_path_is_stable_across_calls():
+    args = (Path("b"), "ollama", "qwen2.5:7b", "v1")
+    assert baseline_path(*args) == baseline_path(*args)
+
+
+def test_models_differing_only_by_an_illegal_character_do_not_collide():
+    """The readable slug alone maps both of these to "ollama__qwen2.5-7b__v1".
+    A collision here would silently gate one model's run against another
+    model's recorded baseline."""
     assert (
-        baseline_path(Path("b"), "huggingface", "meta-llama/Llama-3.1-8B", "v1").name
-        == "huggingface__meta-llama-Llama-3.1-8B__v1.json"
+        baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1")
+        != baseline_path(Path("b"), "ollama", "qwen2.5-7b", "v1")
     )
 
 
-def test_two_models_never_share_a_baseline_file():
+def test_the_separator_cannot_be_forged_out_of_a_provider_or_model_name():
+    """"_" survives sanitisation, so slug text alone is ambiguous about where
+    the provider ends and the model begins."""
+    assert (
+        baseline_path(Path("b"), "a_", "b", "v1")
+        != baseline_path(Path("b"), "a", "_b", "v1")
+    )
+
+
+def test_two_different_models_never_share_a_baseline_file():
     a = baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1")
     b = baseline_path(Path("b"), "anthropic", "claude-opus-5", "v1")
     assert a != b
