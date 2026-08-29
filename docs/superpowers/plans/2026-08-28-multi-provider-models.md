@@ -678,7 +678,7 @@ git commit -m "feat: provider registry selected by one PROVIDER setting"
 ## Task 4: Move the runner onto the neutral IR
 
 **Files:**
-- Modify: `renewal/extract/runner.py`, `renewal/app.py`, `evals/test_extraction.py`, `scripts/compare_versions.py`
+- Modify: `renewal/extract/runner.py`, `renewal/app.py`, `evals/test_extraction.py`, `scripts/compare_versions.py`, `scripts/reextract.py`
 - Test: `tests/test_extract_scanned.py`, `tests/test_extract_runner.py`
 
 **Interfaces:**
@@ -768,7 +768,7 @@ to:
             model_id=f"{settings.provider}:{settings.extraction_model}",
 ```
 
-- [ ] **Step 5: Update the three modules that imported AnthropicClient**
+- [ ] **Step 5: Update the four modules that imported AnthropicClient**
 
 In `renewal/app.py`, replace the whole file with:
 
@@ -839,8 +839,44 @@ to:
     client = build_client(settings)
 ```
 
+In `scripts/reextract.py`, make the identical pair of changes. Its import line:
+
+```python
+from renewal.extract.runner import AnthropicClient, extract
+```
+
+becomes:
+
+```python
+from renewal.extract.runner import extract
+from renewal.providers import build_client
+```
+
+and:
+
+```python
+    client = AnthropicClient(settings.anthropic_api_key)
+```
+
+becomes:
+
+```python
+    client = build_client(settings)
+```
+
 `evals/test_extraction.py` is imported at collection time even though it is
 deselected, so a stale import here fails the whole run, not just the eval.
+
+`scripts/` is NOT on `testpaths`, so a stale import in either script leaves the
+suite green while the script is broken. Grep to confirm you have them all
+before you commit:
+
+```bash
+grep -rn 'AnthropicClient' --include=*.py . | grep -v '/.venv/'
+```
+
+The only hits left should be in `renewal/providers.py` and
+`tests/test_providers.py`.
 
 - [ ] **Step 6: Run the whole suite**
 
@@ -851,8 +887,8 @@ Expected: all passing.
 
 ```bash
 git add renewal/extract/runner.py renewal/app.py evals/test_extraction.py \
-        scripts/compare_versions.py tests/test_extract_scanned.py \
-        tests/test_extract_runner.py
+        scripts/compare_versions.py scripts/reextract.py \
+        tests/test_extract_scanned.py tests/test_extract_runner.py
 git commit -m "refactor: runner emits neutral content IR and records the provider"
 ```
 
