@@ -76,3 +76,31 @@ def test_report_breaks_accuracy_down_by_carrier_and_field_path():
     assert "Progressive" in text
     assert "policy.total_premium" in text
     assert "50" in text  # 1 of 2 correct
+
+
+from pathlib import Path
+
+from evals.accuracy import baseline_path
+
+
+def test_baseline_path_names_the_provider_model_and_version():
+    path = baseline_path(Path("evals/baselines"), "anthropic", "claude-opus-5", "v1")
+    assert path.name == "anthropic__claude-opus-5__v1.json"
+
+
+def test_characters_that_are_illegal_in_a_filename_are_replaced():
+    """Ollama model names carry a colon; HuggingFace repo ids carry a slash."""
+    assert (
+        baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1").name
+        == "ollama__qwen2.5-7b__v1.json"
+    )
+    assert (
+        baseline_path(Path("b"), "huggingface", "meta-llama/Llama-3.1-8B", "v1").name
+        == "huggingface__meta-llama-Llama-3.1-8B__v1.json"
+    )
+
+
+def test_two_models_never_share_a_baseline_file():
+    a = baseline_path(Path("b"), "ollama", "qwen2.5:7b", "v1")
+    b = baseline_path(Path("b"), "anthropic", "claude-opus-5", "v1")
+    assert a != b

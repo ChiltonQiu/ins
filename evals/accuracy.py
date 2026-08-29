@@ -5,6 +5,7 @@ itself is tested in the default run.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -75,3 +76,14 @@ def report(results_by_fixture: dict[str, dict]) -> str:
         pct = 100 * sum(values) / len(values)
         lines.append(f"  {path:<44} {pct:5.1f}%  ({sum(values)}/{len(values)})")
     return "\n".join(lines)
+
+
+def baseline_path(directory: Path, provider: str, model: str, version: str) -> Path:
+    """One baseline per provider, model, and extractor version.
+
+    A single baseline keyed by fixture alone would compare one model's results
+    against another's — either failing spuriously or, worse, passing silently
+    over a real regression.
+    """
+    slug = f"{provider}__{model}__{version}"
+    return Path(directory) / (re.sub(r"[^A-Za-z0-9._-]", "-", slug) + ".json")

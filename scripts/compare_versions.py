@@ -1,69 +1,48 @@
-"""Per-field accuracy diff between two extractor versions over the fixtures.
+"""Per-field accuracy diff between two recorded baselines.
 
-Usage: python scripts/compare_versions.py v1 v2
+Usage: python scripts/compare_versions.py <baseline-a.json> <baseline-b.json>
 
-Makes real API calls. Prints one line per field path whose accuracy moved, so a
-change that helps overall but quietly breaks one carrier is still visible.
+Reads files only — no API calls. The two baselines may differ in extractor
+version, provider, model, or all three, which is what makes this a model
+comparison as well as a version comparison.
 """
 
 from __future__ import annotations
 
+import json
 import sys
-import tempfile
 from pathlib import Path
 
-from sqlalchemy.orm import sessionmaker
 
-from evals.accuracy import load_fixtures, score
-from renewal.blobstore import BlobStore
-from renewal.config import load_settings
-from renewal.corrections import effective_values
-from renewal.db import get_engine
-from renewal.extract.runner import extract
-from renewal.ingest import ingest_pdf
-from renewal.providers import build_client
-
-FIXTURE_DIR = Path(__file__).parent.parent / "evals" / "fixtures"
-PDF_DIR = Path(__file__).parent.parent / "evals" / "pdfs"
+def field_results(path: Path) -> dict[str, dict[str, bool]]:
+    data = json.loads(Path(path).read_text())
+    return {fixture: entry["fields"] for fixture, entry in data.items()}
 
 
-def run_version(version: str) -> dict[str, dict[str, bool]]:
-    settings = load_settings()
-    client = build_client(settings)
-    session = sessionmaker(bind=get_engine())()
-    out: dict[str, dict[str, bool]] = {}
-    with tempfile.TemporaryDirectory() as tmp:
-        store = BlobStore(Path(tmp))
-        for fixture in load_fixtures(FIXTURE_DIR):
-            pdf = PDF_DIR / fixture.pdf_filename
-            if not pdf.exists():
-                continue
-            document = ingest_pdf(
-                session, store, data=pdf.read_bytes(),
-                original_filename=fixture.pdf_filename,
-            )
-            extraction = extract(
-                session, store, document, version, client=client, settings=settings
-            )
-            out[fixture.fixture_id] = score(
-                fixture.fields, effective_values(session, extraction.id)
-            )
-    session.rollback()
-    session.close()
-    return out
+def accuracy_by_path(results: dict[str, dict[str, bool]]) -> dict[str, float]:
+    totals: dict[str, list[bool]] = {}
+    for fields in results.values():
+        for field_path, passed in fields.items():
+            totals.setdefault(field_path, []).append(passed)
+    return {
+        field_path: 100 * sum(values) / len(values)
+        for field_path, values in totals.items()
+    }
 
 
-def main(version_a: str, version_b: str) -> None:
-    a, b = run_version(version_a), run_version(version_b)
-    paths = {p for fields in a.values() for p in fields}
-    print(f"{'field path':<44} {version_a:>8} {version_b:>8}   delta")
-    for path in sorted(paths):
-        a_vals = [f[path] for f in a.values() if path in f]
-        b_vals = [f[path] for f in b.values() if path in f]
-        a_pct = 100 * sum(a_vals) / len(a_vals) if a_vals else 0.0
-        b_pct = 100 * sum(b_vals) / len(b_vals) if b_vals else 0.0
+def main(path_a: str, path_b: str) -> None:
+    a = accuracy_by_path(field_results(Path(path_a)))
+    b = accuracy_by_path(field_results(Path(path_b)))
+    label_a, label_b = Path(path_a).stem, Path(path_b).stem
+
+    print(f"{'field path':<44} {label_a:>24} {label_b:>24}   delta")
+    for field_path in sorted(set(a) | set(b)):
+        a_pct, b_pct = a.get(field_path, 0.0), b.get(field_path, 0.0)
         if a_pct != b_pct:
-            print(f"{path:<44} {a_pct:7.1f}% {b_pct:7.1f}%  {b_pct - a_pct:+6.1f}")
+            print(
+                f"{field_path:<44} {a_pct:23.1f}% {b_pct:23.1f}% "
+                f" {b_pct - a_pct:+6.1f}"
+            )
 
 
 if __name__ == "__main__":
