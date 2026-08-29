@@ -9,7 +9,14 @@
     <h2>{{ side }} term</h2>
     <p class="source">
       extraction #{{ extraction.id }} · {{ extraction.extractor_version }} ·
-      {{ extraction.model_id }} · status {{ extraction.status }}
+      {{ extraction.model_id }} · status {{ extraction.status }} ·
+      {% if rates[extraction.id] is none %}
+        no fields returned
+      {% else %}
+        <span {% if rates[extraction.id] < 0.5 %}class="flag"{% endif %}>
+          {{ "%.0f"|format(100 * rates[extraction.id]) }}% verified
+        </span>
+      {% endif %}
     </p>
     <table>
       <tr><th>Field</th><th>Value</th><th>Source</th></tr>

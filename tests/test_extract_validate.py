@@ -85,3 +85,31 @@ def test_whitespace_only_source_text_is_a_validation_error():
     assert result.validation_error == "source_text is empty"
     assert result.confidence == 0.0
     assert result.needs_review is True
+
+
+from dataclasses import dataclass
+
+from renewal.extract.validate import verification_rate
+
+
+@dataclass
+class Row:
+    validation_error: str | None
+
+
+def test_rate_is_one_when_every_field_was_verified():
+    assert verification_rate([Row(None), Row(None)]) == 1.0
+
+
+def test_rate_counts_only_fields_whose_source_text_was_found():
+    rows = [Row(None), Row("source_text not found on cited page"), Row(None), Row("x")]
+    assert verification_rate(rows) == 0.5
+
+
+def test_rate_is_zero_when_nothing_could_be_verified():
+    """The honest reading of a scanned page, and of a model that paraphrases."""
+    assert verification_rate([Row("source_text not found on cited page")]) == 0.0
+
+
+def test_rate_is_none_rather_than_a_division_by_zero_for_an_empty_extraction():
+    assert verification_rate([]) is None

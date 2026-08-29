@@ -56,3 +56,20 @@ def validate_fields(
             )
         )
     return results
+
+
+def verification_rate(fields) -> float | None:
+    """Share of returned fields whose source text was found on the cited page.
+
+    Computed on read, never stored: a stored copy could disagree with the rows
+    it summarises. `None` for an extraction that returned no fields at all,
+    which is a different fact from a rate of zero.
+
+    Accepts anything carrying `validation_error` — both `ValidatedField` and the
+    persisted `ExtractedField`.
+    """
+    fields = list(fields)
+    if not fields:
+        return None
+    verified = sum(1 for field in fields if field.validation_error is None)
+    return verified / len(fields)

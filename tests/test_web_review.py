@@ -224,3 +224,15 @@ def test_session_is_closed_when_a_handler_raises(app, engine):
         )
         assert response.status_code == 404
         assert engine.pool.checkedout() == baseline
+
+
+def test_review_screen_shows_the_verification_rate(app, seeded):
+    """That file's stub returns the same response for both documents, citing
+    the prior page's premium. So the prior side verifies and the renewal side
+    cannot: one screen shows both ends of the scale."""
+    _, policy_id = seeded
+    with TestClient(app) as client:
+        location = _upload(client, policy_id).headers["location"]
+        page = client.get(location)
+    assert "100% verified" in page.text  # prior: the quote is on the page
+    assert "0% verified" in page.text  # renewal: the quote is not

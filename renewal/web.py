@@ -19,6 +19,7 @@ from renewal.config import Settings
 from renewal.corrections import effective_values, record_correction
 from renewal.draft import generate_draft, latest_draft, save_edit
 from renewal.extract.runner import extract
+from renewal.extract.validate import verification_rate
 from renewal.ingest import ingest_pdf
 from renewal.materiality import load_rules
 from renewal.models import (
@@ -166,7 +167,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
             policy = session.get(Policy, run.policy_id)
             client = session.get(Client, policy.client_id)
 
-            sides, extra_fields, blocked = [], {}, []
+            sides, extra_fields, blocked, rates = [], {}, [], {}
             for label, document_id in (
                 ("Prior", run.prior_document_id),
                 ("Renewal", run.renewal_document_id),
@@ -188,6 +189,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                     if path not in emitted
                 ]
                 blocked.extend(unresolved_field_paths(session, extraction.id))
+                rates[extraction.id] = verification_rate(fields)
                 sides.append((label, extraction, fields))
 
             return TEMPLATES.TemplateResponse(
@@ -200,6 +202,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                     "sides": sides,
                     "extra_fields": extra_fields,
                     "blocked": sorted(set(blocked)),
+                    "rates": rates,
                 },
             )
 
