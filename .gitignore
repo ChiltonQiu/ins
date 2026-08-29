@@ -3,5 +3,7 @@ evals/pdfs/
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
 .venv/
 *.egg-info/
