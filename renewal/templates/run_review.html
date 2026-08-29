@@ -1,80 +1,125 @@
 {% extends "base.html" %}
+{% block title %}Run #{{ run.id }} review{% endblock %}
+{% block crumb %}
+<span class="crumb">{{ client.display_name }} · {{ policy.carrier_name }}
+  {{ policy.policy_number }}</span>
+{% endblock %}
 {% block content %}
-<h1>Run #{{ run.id }} — review</h1>
-<p>{{ client.display_name }} — {{ policy.carrier_name }} {{ policy.policy_number }}</p>
+<div class="pagehead">
+  <h1>Run #{{ run.id }} review</h1>
+  <span class="sub">correct what the extractor got wrong, then promote</span>
+</div>
 
 <div class="cols">
   {% for side, extraction, fields in sides %}
-  <div>
-    <h2>{{ side }} term</h2>
-    <p class="source">
-      extraction #{{ extraction.id }} · {{ extraction.extractor_version }} ·
-      {{ extraction.model_id }} · status {{ extraction.status }} ·
-      {% if rates[extraction.id] is none %}
-        no fields returned
-      {% else %}
-        <span {% if rates[extraction.id] < 0.5 %}class="flag"{% endif %}>
-          {{ "%.1f"|format(100 * rates[extraction.id]) }}% verified
-        </span>
-      {% endif %}
+  <section class="panel">
+    <header>
+      <h2>{{ side }} term</h2>
+      <span class="rate">
+        {% if rates[extraction.id] is none %}
+          <span class="flag">no fields returned</span>
+        {% elif rates[extraction.id] < 0.5 %}
+          <span class="flag">{{ "%.1f"|format(100 * rates[extraction.id]) }}% verified</span>
+        {% else %}
+          <span class="ok">{{ "%.1f"|format(100 * rates[extraction.id]) }}% verified</span>
+        {% endif %}
+      </span>
+    </header>
+    <p class="meta">
+      extraction #{{ extraction.id }} · {{ extraction.extractor_version }}
+      <br>{{ extraction.model_id }}, status {{ extraction.status }}
     </p>
-    <table>
-      <tr><th>Field</th><th>Value</th><th>Source</th></tr>
-      {% for field in fields %}
-      <tr>
-        <td>{{ field.field_path }}</td>
-        <td>
-          <input type="text" value="{{ field.effective_value or '' }}"
-                 data-field-id="{{ field.id }}"
-                 data-original="{{ field.value or '' }}"
-                 class="correctable">
-          <form class="inline" method="post" action="/fields/{{ field.id }}/reject">
-            <button type="submit" title="Not on the document">not present</button>
-          </form>
-          <span class="saved" data-saved-for="{{ field.id }}"></span>
-        </td>
-        <td class="source">
-          {% if field.needs_review %}<span class="flag">needs review</span>{% endif %}
-          confidence {{ "%.2f"|format(field.confidence) }} · page {{ field.source_page }}
-          {% if field.validation_error %}
-            <br><span class="flag">{{ field.validation_error }}</span>
-          {% endif %}
-          <br>{{ field.source_text_span }}
-        </td>
-      </tr>
-      {% endfor %}
-      {% for path, value in extra_fields[extraction.id] %}
-      <tr>
-        <td>{{ path }}</td>
-        <td>{{ value }}</td>
-        <td class="source">added by hand</td>
-      </tr>
-      {% endfor %}
+
+    {% if fields or extra_fields[extraction.id] %}
+    <table class="fields">
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Value</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for field in fields %}
+        <tr {% if field.needs_review %}class="attn"{% endif %}>
+          <td class="path">{{ field.field_path | wbr }}</td>
+          <td>
+            <div class="value-cell">
+              <input type="text" value="{{ field.effective_value or '' }}"
+                     aria-label="{{ field.field_path }}"
+                     data-field-id="{{ field.id }}"
+                     data-original="{{ field.value or '' }}"
+                     class="correctable">
+              <form class="inline" method="post" action="/fields/{{ field.id }}/reject">
+                <button class="btn quiet" type="submit"
+                        title="This value is not on the document">not present</button>
+              </form>
+              <span class="saved" data-saved-for="{{ field.id }}" aria-live="polite"></span>
+            </div>
+          </td>
+          <td class="meta">
+            {% if field.needs_review %}<span class="flag">needs review</span> · {% endif %}
+            confidence {{ "%.2f"|format(field.confidence) }}, page {{ field.source_page }}
+            {% if field.validation_error %}
+              <br><span class="flag">{{ field.validation_error }}</span>
+            {% endif %}
+            {% if field.source_text_span %}
+              <br>{{ field.source_text_span }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% for path, value in extra_fields[extraction.id] %}
+        <tr>
+          <td class="path">{{ path | wbr }}</td>
+          <td class="path">{{ value }}</td>
+          <td class="meta">added by hand</td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
+    {% else %}
+    <div class="empty">
+      <p>This extraction returned no fields.</p>
+      <p>
+        Usually the PDF is a scan the text layer missed. Add the fields you
+        need by hand below, or re-upload a better copy as a new run.
+      </p>
+    </div>
+    {% endif %}
 
     <form method="post" action="/extractions/{{ extraction.id }}/fields"
           class="add-missing">
-      <input type="text" name="field_path" placeholder="field path" required>
-      <input type="text" name="corrected_value" placeholder="value" required>
-      <button type="submit">Add missing field</button>
+      <input type="text" name="field_path" aria-label="Field path"
+             placeholder="field path, e.g. policy.total_premium" required>
+      <input type="text" name="corrected_value" aria-label="Value"
+             placeholder="value" required>
+      <button class="btn" type="submit">Add missing field</button>
     </form>
-  </div>
+  </section>
   {% endfor %}
 </div>
 
-<h2>Promote and compare</h2>
-{% if blocked %}
-<p class="flag">
-  These fields still need review: {{ blocked|join(", ") }}. Correct them, or tick
-  them below to accept the extracted value as-is.
-</p>
-{% endif %}
-<form method="post" action="/runs/{{ run.id }}/promote">
-  {% for path in blocked %}
-  <label>
-    <input type="checkbox" name="acknowledged" value="{{ path }}"> {{ path }} is correct
-  </label><br>
-  {% endfor %}
-  <p><button type="submit">Promote and compare</button></p>
-</form>
+<section class="promote">
+  <h2>Promote and compare</h2>
+  {% if blocked %}
+  <p class="notice bad">
+    These fields still need review: {{ blocked|join(", ") }}. Correct them
+    above, or tick them here to accept the extracted value as it stands.
+  </p>
+  {% endif %}
+  <form method="post" action="/runs/{{ run.id }}/promote">
+    {% if blocked %}
+    <fieldset class="ack">
+      {% for path in blocked %}
+      <label class="inline">
+        <input type="checkbox" name="acknowledged" value="{{ path }}">
+        {{ path }} is correct
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
+    <button class="btn primary" type="submit">Promote and compare</button>
+  </form>
+</section>
 {% endblock %}

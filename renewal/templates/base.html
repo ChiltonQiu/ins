@@ -2,27 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Renewal comparison{% endblock %}</title>
-  <style>
-    body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 70rem;
-           color: #111; }
-    h1, h2 { font-weight: 600; }
-    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-    th, td { border-bottom: 1px solid #ddd; padding: .4rem .6rem; text-align: left;
-             vertical-align: top; }
-    th { background: #f4f4f4; font-weight: 600; }
-    .source { color: #555; font-size: 13px; }
-    .flag { color: #a00; font-weight: 600; }
-    .saved { color: #070; }
-    input[type=text] { font: inherit; padding: .2rem .3rem; width: 14rem; }
-    .cols { display: flex; gap: 2rem; }
-    .cols > * { flex: 1; min-width: 0; }
-    form.inline { display: inline; }
-  </style>
+  <meta name="robots" content="noindex">
+  {# Two stacked marks, prior over renewal, the second one changed. #}
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23f6f4f1'/%3E%3Crect x='3' y='4' width='10' height='2' fill='%23a9a49c'/%3E%3Crect x='3' y='10' width='7' height='2' fill='%232c7a5d'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/app.css">
+  <script>
+    // Before first paint, or the page flashes the wrong theme on every load.
+    try {
+      var saved = localStorage.getItem("renewal:theme");
+      if (saved === "light" || saved === "dark") {
+        document.documentElement.dataset.theme = saved;
+      }
+    } catch (e) {
+      // Private windows and locked-down browsers throw here. Follow the OS.
+    }
+  </script>
 </head>
 <body>
-  <p><a href="/">Renewal comparison</a></p>
-  {% block content %}{% endblock %}
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="/">Renewal <span>compare</span></a>
+    <nav>
+      {% set path = request.url.path %}
+      <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Runs</a>
+      <a href="/runs/new" {% if path == "/runs/new" %}aria-current="page"{% endif %}>New renewal</a>
+    </nav>
+    <span class="spacer"></span>
+    {% block crumb %}{% endblock %}
+    <div class="themepick" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="system">System</button>
+      <button type="button" data-theme-set="light">Light</button>
+      <button type="button" data-theme-set="dark">Dark</button>
+    </div>
+  </header>
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
   <script src="/static/app.js"></script>
 </body>
 </html>

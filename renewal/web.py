@@ -11,7 +11,10 @@ from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup, escape
+from sqlalchemy import case
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from renewal.blobstore import BlobStore
 from renewal.comparison import breakdown_for, build_comparison, reclassify
@@ -31,11 +34,40 @@ from renewal.models import (
     Extraction,
     Policy,
     PolicyTerm,
+    Reclassification,
     RenewalRun,
 )
 from renewal.promote import PromotionBlocked, promote, unresolved_field_paths
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def _wbr(path: str) -> Markup:
+    """Let a long field path wrap at its dots. Breaking inside a segment
+    ("deductib / le_value") costs a beat every time you scan the column."""
+    return Markup(escape(path).replace(".", Markup(".<wbr>")))
+
+
+TEMPLATES.env.filters["wbr"] = _wbr
+
+# Reading order on the review screen. Alphabetical puts policy.total_premium
+# below every coverage and form line, and the premium is the first thing anyone
+# checks. Within a group the order stays alphabetical.
+_FIELD_GROUP = case(
+    (ExtractedField.field_path.like("policy.%"), 0),
+    (ExtractedField.field_path.like("coverage.%"), 1),
+    (ExtractedField.field_path.like("item.%"), 2),
+    (ExtractedField.field_path.like("forms.%"), 3),
+    else_=4,
+)
+
+# Same idea on the comparison screen: material differences are the conversation
+# with the client, noise is only there to be audited.
+_MATERIALITY_ORDER = case(
+    (Difference.materiality == "material", 0),
+    (Difference.materiality == "informational", 1),
+    else_=2,
+)
 
 
 def create_app(*, settings: Settings, store: BlobStore, model_client, session_factory):
@@ -45,6 +77,22 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
         StaticFiles(directory=str(Path(__file__).parent / "static")),
         name="static",
     )
+
+    @app.exception_handler(StarletteHTTPException)
+    def html_error(request: Request, exc: StarletteHTTPException):
+        """Every error here lands in front of the person doing the review, not
+        a client library, so it gets a page rather than a JSON blob."""
+        titles = {400: "That upload was rejected", 404: "Nothing here"}
+        return TEMPLATES.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "status": exc.status_code,
+                "title": titles.get(exc.status_code, "Something went wrong"),
+                "detail": exc.detail,
+            },
+            status_code=exc.status_code,
+        )
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
@@ -177,7 +225,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                 fields = (
                     session.query(ExtractedField)
                     .filter_by(extraction_id=extraction.id)
-                    .order_by(ExtractedField.field_path)
+                    .order_by(_FIELD_GROUP, ExtractedField.field_path)
                     .all()
                 )
                 for field in fields:
@@ -319,7 +367,21 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
             query = session.query(Difference).filter_by(comparison_id=comparison_id)
             if not show_noise:
                 query = query.filter(Difference.materiality != "noise")
-            differences = query.order_by(Difference.field_path).all()
+            differences = query.order_by(_MATERIALITY_ORDER, Difference.field_path).all()
+
+            # A reclassification is recorded, not applied: the rule still says
+            # what the row is. The screen shows both so the disagreement is
+            # visible instead of looking like a control that did nothing.
+            disagreements = {
+                row.difference_id: row
+                for row in session.query(Reclassification)
+                .filter(
+                    Reclassification.difference_id.in_(
+                        [difference.id for difference in differences]
+                    )
+                )
+                .order_by(Reclassification.id)
+            }
 
             return TEMPLATES.TemplateResponse(
                 request,
@@ -329,6 +391,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
                     "policy": policy,
                     "client": client,
                     "differences": differences,
+                    "disagreements": disagreements,
                     "breakdown": breakdown_for(session, comparison),
                     "draft": latest_draft(session, comparison_id),
                     "show_noise": bool(show_noise),
