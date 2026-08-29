@@ -19,8 +19,9 @@ from renewal.blobstore import BlobStore
 from renewal.config import load_settings
 from renewal.corrections import effective_values
 from renewal.db import get_engine
-from renewal.extract.runner import AnthropicClient, extract
+from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
+from renewal.providers import build_client
 
 FIXTURE_DIR = Path(__file__).parent.parent / "evals" / "fixtures"
 PDF_DIR = Path(__file__).parent.parent / "evals" / "pdfs"
@@ -28,7 +29,7 @@ PDF_DIR = Path(__file__).parent.parent / "evals" / "pdfs"
 
 def run_version(version: str) -> dict[str, dict[str, bool]]:
     settings = load_settings()
-    client = AnthropicClient(settings.anthropic_api_key)
+    client = build_client(settings)
     session = sessionmaker(bind=get_engine())()
     out: dict[str, dict[str, bool]] = {}
     with tempfile.TemporaryDirectory() as tmp:

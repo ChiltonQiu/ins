@@ -84,7 +84,7 @@ def test_extraction_persists_fields_with_provenance(session, store, settings):
 
     assert extraction.status == "ok"
     assert extraction.extractor_version == "v1"
-    assert extraction.model_id == "claude-opus-5"
+    assert extraction.model_id == "anthropic:claude-opus-5"
     fields = {f.field_path: f for f in extraction.fields}
     assert fields["policy.total_premium"].value == "1840.00"
     assert fields["policy.total_premium"].source_page == 1

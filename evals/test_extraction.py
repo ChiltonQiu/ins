@@ -16,8 +16,9 @@ from evals.accuracy import accuracy, load_fixtures, regressions, report, score
 from renewal.blobstore import BlobStore
 from renewal.config import load_settings
 from renewal.corrections import effective_values
-from renewal.extract.runner import AnthropicClient, extract
+from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
+from renewal.providers import build_client
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 PDF_DIR = Path(__file__).parent / "pdfs"
@@ -34,7 +35,7 @@ def test_extractor_accuracy_against_fixtures(engine, tmp_path, capsys):
 
     settings = load_settings()
     store = BlobStore(tmp_path / "blobs")
-    client = AnthropicClient(settings.anthropic_api_key)
+    client = build_client(settings)
     session = sessionmaker(bind=engine)()
 
     results: dict[str, dict] = {}

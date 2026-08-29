@@ -1,4 +1,3 @@
-import base64
 import json
 
 import pytest
@@ -51,10 +50,9 @@ def test_scanned_document_is_sent_as_page_images(session, store, settings):
 
     content = client.calls[0]
     assert content[0]["type"] == "text"
-    images = [block for block in content if block["type"] == "image"]
+    images = [block for block in content if block["type"] == "image_png"]
     assert len(images) == 2
-    assert images[0]["source"]["media_type"] == "image/png"
-    assert base64.b64decode(images[0]["source"]["data"]).startswith(b"\x89PNG")
+    assert images[0]["data"].startswith(b"\x89PNG")
 
 
 def test_scanned_path_returns_the_same_structure_as_the_text_path(

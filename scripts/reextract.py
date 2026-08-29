@@ -13,14 +13,15 @@ import sys
 from renewal.blobstore import BlobStore
 from renewal.config import load_settings
 from renewal.db import session_scope
-from renewal.extract.runner import AnthropicClient, extract
+from renewal.extract.runner import extract
 from renewal.models import Document
+from renewal.providers import build_client
 
 
 def main(version: str) -> None:
     settings = load_settings()
     store = BlobStore(settings.blob_root)
-    client = AnthropicClient(settings.anthropic_api_key)
+    client = build_client(settings)
     with session_scope() as session:
         documents = session.query(Document).order_by(Document.id).all()
         for document in documents:

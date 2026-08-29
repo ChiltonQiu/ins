@@ -7,9 +7,7 @@ whole corpus and the results compared.
 
 from __future__ import annotations
 
-import base64
 import logging
-from typing import Protocol
 
 from sqlalchemy.orm import Session
 
@@ -20,49 +18,21 @@ from renewal.extract.schema import parse_payload
 from renewal.extract.validate import validate_fields
 from renewal.models import Document, ExtractedField, Extraction
 from renewal.pdftext import PdfInfo, layout_text, rasterize, read_pdf
+from renewal.providers import ModelClient, image_block, text_block
 
 logger = logging.getLogger(__name__)
 
 PROMPTS = {prompt_v1.VERSION: prompt_v1}
 
 
-class ModelClient(Protocol):
-    def complete(self, *, model: str, system: str, content: list[dict]) -> str: ...
-
-
-class AnthropicClient:
-    def __init__(self, api_key: str) -> None:
-        import anthropic
-
-        self._client = anthropic.Anthropic(api_key=api_key)
-
-    def complete(self, *, model: str, system: str, content: list[dict]) -> str:
-        message = self._client.messages.create(
-            model=model,
-            max_tokens=8192,
-            temperature=0,
-            system=system,
-            messages=[{"role": "user", "content": content}],
-        )
-        return "".join(block.text for block in message.content if block.type == "text")
-
-
 def _build_content(prompt, data: bytes, pdf: PdfInfo, has_text_layer: bool) -> list[dict]:
+    """Neutral content IR. Wire format belongs to the client, not here."""
     if has_text_layer:
-        text = prompt.USER_TEXT_TEMPLATE.format(document_text=layout_text(pdf))
-        return [{"type": "text", "text": text}]
-    blocks: list[dict] = [{"type": "text", "text": prompt.USER_IMAGE_INSTRUCTION}]
-    for png in rasterize(data):
-        blocks.append(
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": base64.b64encode(png).decode(),
-                },
-            }
-        )
+        return [
+            text_block(prompt.USER_TEXT_TEMPLATE.format(document_text=layout_text(pdf)))
+        ]
+    blocks = [text_block(prompt.USER_IMAGE_INSTRUCTION)]
+    blocks.extend(image_block(png) for png in rasterize(data))
     return blocks
 
 
@@ -81,7 +51,7 @@ def extract(
         extraction = Extraction(
             document_id=document.id,
             extractor_version=version,
-            model_id=settings.extraction_model,
+            model_id=f"{settings.provider}:{settings.extraction_model}",
             raw_response=raw,
             status=status,
         )
