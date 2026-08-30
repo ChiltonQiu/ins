@@ -1383,7 +1383,12 @@ class InboundMessage(Base):
         ),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
-    agency_id: Mapped[int] = mapped_column(ForeignKey("agency.id"))
+    # Nullable: quarantined and failed messages belong to no agency, and losing
+    # them would make a misconfigured forwarding rule invisible. Postgres treats
+    # NULLs as distinct in a unique constraint, so many such rows coexist.
+    agency_id: Mapped[int | None] = mapped_column(
+        ForeignKey("agency.id"), nullable=True
+    )
     message_id: Mapped[str] = mapped_column(Text)
     from_address: Mapped[str] = mapped_column(Text)
     to_address: Mapped[str] = mapped_column(Text)
@@ -1435,6 +1440,9 @@ Add to `Document`:
 - [ ] **Step 4: Generate and write the migration**
 
 Run: `alembic revision -m "inbound mail and attention"`
+
+`inbound_message.agency_id` is nullable; every other column on the three tables
+is NOT NULL apart from `subject` and `attention_item.due_date`.
 
 `upgrade()` creates the three tables, then adds `document.inbound_message_id`. The column is added here rather than in Task 6 because its target table does not exist until now. `downgrade()` drops the column first, then the tables.
 
