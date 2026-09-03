@@ -69,6 +69,7 @@ class PolicyTerm(Base):
     effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     expiration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     total_premium: Mapped[str | None] = mapped_column(Text, nullable=True)
+    billing_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_document_id: Mapped[int | None] = mapped_column(
         ForeignKey("document.id"), nullable=True
     )
@@ -295,5 +296,25 @@ class CarrierAdmittedStatus(Base):
     carrier_id: Mapped[int] = mapped_column(ForeignKey("carrier.id"))
     state: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text)
+    set_by: Mapped[str] = mapped_column(Text, server_default="human")
+    set_at: Mapped[datetime] = _created_at()
+
+
+class PolicyBillingType(Base):
+    """Her authoritative value, set by hand. Append-only; latest per policy_id
+    wins. PolicyTerm.billing_type holds what a dec page said, and the overview
+    flags a disagreement — because a disagreement means billing changed at
+    renewal, which is itself worth seeing."""
+
+    __tablename__ = "policy_billing_type"
+    __table_args__ = (
+        CheckConstraint(
+            "billing_type IN ('direct_bill', 'agency_bill', 'unknown')",
+            name="ck_policy_billing_type",
+        ),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    policy_id: Mapped[int] = mapped_column(ForeignKey("policy.id"))
+    billing_type: Mapped[str] = mapped_column(Text)
     set_by: Mapped[str] = mapped_column(Text, server_default="human")
     set_at: Mapped[datetime] = _created_at()
