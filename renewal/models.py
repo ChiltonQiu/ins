@@ -50,6 +50,7 @@ class Policy(Base):
     carrier_name: Mapped[str] = mapped_column(Text)
     policy_number: Mapped[str] = mapped_column(Text)
     line_of_business: Mapped[str] = mapped_column(Text)
+    state: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = _created_at()
     client: Mapped[Client] = relationship(back_populates="policies")
     terms: Mapped[list["PolicyTerm"]] = relationship(back_populates="policy")
@@ -243,3 +244,56 @@ class Draft(Base):
     edited_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class Agency(Base):
+    """One row. There is no auth and no tenancy; this exists so agency_id has
+    a target and so the ics token and intake address have a home she can
+    rotate from the UI."""
+
+    __tablename__ = "agency"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(Text, unique=True)
+    display_name: Mapped[str] = mapped_column(Text)
+    ics_token: Mapped[str] = mapped_column(Text, unique=True)
+    intake_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Carrier(Base):
+    __tablename__ = "carrier"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    display_name: Mapped[str] = mapped_column(Text, unique=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class CarrierAlias(Base):
+    """carrier_name is free text on Policy and PolicyTerm, so name variants
+    must resolve to one carrier. Exact normalized match only — a fuzzy carrier
+    match that silently picked the wrong company would be invisible."""
+
+    __tablename__ = "carrier_alias"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    carrier_id: Mapped[int] = mapped_column(ForeignKey("carrier.id"))
+    alias: Mapped[str] = mapped_column(Text, unique=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class CarrierAdmittedStatus(Base):
+    """Per state: the same carrier can be admitted in one and surplus-lines in
+    another. Human-set only, never inferred from a document. Append-only;
+    the latest row per (carrier_id, state) wins."""
+
+    __tablename__ = "carrier_admitted_status"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('admitted', 'non_admitted', 'unknown')",
+            name="ck_carrier_admitted_status",
+        ),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    carrier_id: Mapped[int] = mapped_column(ForeignKey("carrier.id"))
+    state: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text)
+    set_by: Mapped[str] = mapped_column(Text, server_default="human")
+    set_at: Mapped[datetime] = _created_at()

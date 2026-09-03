@@ -58,4 +58,9 @@ def clean_db(engine):
     but a committing test would otherwise leak rows into the next one."""
     with engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
+        # agency is reference data seeded by a migration, not test data. If it
+        # ever lands in TABLES the truncate would delete the row and reset the
+        # sequence, so every later test using agency_id=1 would fail somewhere
+        # far from the cause. Fail here instead.
+        assert conn.execute(text("SELECT count(*) FROM agency")).scalar() == 1
     yield
