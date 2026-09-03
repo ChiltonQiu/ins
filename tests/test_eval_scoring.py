@@ -1,7 +1,10 @@
+import json
+
 from evals.accuracy import (
     DateScore,
     MatchScore,
     score_classification,
+    load_fixtures,
     score_dates,
     score_match,
 )
@@ -90,3 +93,31 @@ def test_no_expected_client_and_nothing_offered_is_a_hit():
 
 def test_no_expected_client_but_something_offered_is_a_miss():
     assert score_match(None, [3]) == MatchScore(top1=False, in_top_k=False)
+
+
+def test_fixture_without_new_keys_still_loads(tmp_path):
+    """Existing fixture files predate these keys and must not break."""
+    (tmp_path / "a.json").write_text(json.dumps({
+        "fixture_id": "a", "carrier": "Progressive",
+        "pdf_filename": "a.pdf", "fields": {"policy.number": "X1"},
+    }))
+    fixture = load_fixtures(tmp_path)[0]
+    assert fixture.dates == []
+    assert fixture.doc_class == "unknown"
+    assert fixture.expected_client is None
+    assert fixture.billing_type == "unknown"
+
+
+def test_fixture_with_new_keys_loads_them(tmp_path):
+    (tmp_path / "b.json").write_text(json.dumps({
+        "fixture_id": "b", "carrier": "Progressive",
+        "pdf_filename": "b.pdf", "fields": {},
+        "doc_class": "declarations",
+        "expected_client": "Acme Landscaping LLC",
+        "billing_type": "direct_bill",
+        "dates": [{"date_value": "2026-07-01", "date_type": "policy_expiration"}],
+    }))
+    fixture = load_fixtures(tmp_path)[0]
+    assert fixture.doc_class == "declarations"
+    assert fixture.billing_type == "direct_bill"
+    assert fixture.dates[0]["date_type"] == "policy_expiration"

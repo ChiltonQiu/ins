@@ -7,7 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -17,9 +17,15 @@ class Fixture:
     carrier: str
     pdf_filename: str
     fields: dict[str, str]
+    dates: list[dict] = field(default_factory=list)
+    doc_class: str = "unknown"
+    expected_client: str | None = None
+    billing_type: str = "unknown"
 
 
 def load_fixtures(directory: Path) -> list[Fixture]:
+    """Keys added after the first fixtures were written all default, so an
+    older fixture file stays valid rather than needing a bulk rewrite."""
     fixtures = []
     for path in sorted(Path(directory).glob("*.json")):
         data = json.loads(path.read_text())
@@ -29,6 +35,10 @@ def load_fixtures(directory: Path) -> list[Fixture]:
                 carrier=data["carrier"],
                 pdf_filename=data["pdf_filename"],
                 fields=data["fields"],
+                dates=data.get("dates", []),
+                doc_class=data.get("doc_class", "unknown"),
+                expected_client=data.get("expected_client"),
+                billing_type=data.get("billing_type", "unknown"),
             )
         )
     return fixtures

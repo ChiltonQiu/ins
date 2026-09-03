@@ -13,5 +13,18 @@
     "item.REDACTEDVIN0000001.descriptor": "2018 Ford F-150",
     "item.REDACTEDVIN0000001.coverage.COLL.deductible_value": "500",
     "item.REDACTEDVIN0000001.coverage.COLL.premium": "412.00"
-  }
+  },
+  "doc_class": "declarations",
+  "expected_client": null,
+  "billing_type": "unknown",
+  "dates": [
+    {
+      "date_value": "2026-03-01",
+      "date_type": "policy_effective"
+    },
+    {
+      "date_value": "2026-09-01",
+      "date_type": "policy_expiration"
+    }
+  ]
 }
