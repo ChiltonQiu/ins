@@ -44,3 +44,16 @@ def rasterize(data: bytes, dpi: int = 200) -> list[bytes]:
         for page in doc:
             pngs.append(page.get_pixmap(dpi=dpi).tobytes("png"))
     return pngs
+
+
+def rasterize_page(data: bytes, page_number: int, dpi: int = 300) -> bytes:
+    """One page, 1-based, at OCR resolution.
+
+    300 dpi rather than the 200 used for the vision model: Tesseract's accuracy
+    on small print falls off below that, and the pixmap is discarded
+    immediately either way.
+    """
+    with fitz.open(stream=data, filetype="pdf") as doc:
+        if not 1 <= page_number <= doc.page_count:
+            raise ValueError(f"page {page_number} out of range")
+        return doc[page_number - 1].get_pixmap(dpi=dpi).tobytes("png")
