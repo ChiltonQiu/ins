@@ -97,3 +97,48 @@ def baseline_path(directory: Path, provider: str, model: str, version: str) -> P
     ).hexdigest()[:8]
     slug = re.sub(r"[^A-Za-z0-9._-]", "-", f"{provider}__{model}__{version}")
     return Path(directory) / f"{slug}-{digest}.json"
+
+
+@dataclass(frozen=True)
+class DateScore:
+    tp: int
+    fp: int
+    fn: int
+    precision: float
+    recall: float
+
+
+def _key(entry: dict) -> tuple[str, str]:
+    return (entry["date_value"], entry["date_type"])
+
+
+def score_dates(
+    expected: list[dict], actual: list[dict], *, billing_type: str = "unknown"
+) -> DateScore:
+    """Precision and recall over (date_value, date_type) pairs.
+
+    Both extraction passes store their own row for the same date, so actual is
+    deduplicated before scoring: two rows for one real date is one hit, not a
+    hit plus a false positive.
+
+    payment_due is dropped entirely for a direct-bill policy. Those dates are
+    not knowable from the documents she receives, so scoring them would chase
+    recall on a field that genuinely is not there.
+    """
+    drop_payment_due = billing_type == "direct_bill"
+
+    def keep(entry: dict) -> bool:
+        return not (drop_payment_due and entry["date_type"] == "payment_due")
+
+    want = {_key(e) for e in expected if keep(e)}
+    got = {_key(a) for a in actual if keep(a)}
+    tp = len(want & got)
+    fp = len(got - want)
+    fn = len(want - got)
+    return DateScore(
+        tp=tp,
+        fp=fp,
+        fn=fn,
+        precision=1.0 if not got else tp / len(got),
+        recall=1.0 if not want else tp / len(want),
+    )
