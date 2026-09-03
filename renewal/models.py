@@ -11,15 +11,18 @@ from datetime import date, datetime
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Text,
+    UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -120,6 +123,10 @@ class Document(Base):
     page_count: Mapped[int] = mapped_column(Integer)
     has_text_layer: Mapped[bool] = mapped_column(Boolean)
     doc_type: Mapped[str] = mapped_column(Text)  # 'dec_page' in v0
+    source: Mapped[str] = mapped_column(Text, server_default="manual_upload")
+    agency_id: Mapped[int | None] = mapped_column(
+        ForeignKey("agency.id"), nullable=True
+    )
     uploaded_at: Mapped[datetime] = _created_at()
 
 
@@ -318,3 +325,45 @@ class PolicyBillingType(Base):
     billing_type: Mapped[str] = mapped_column(Text)
     set_by: Mapped[str] = mapped_column(Text, server_default="human")
     set_at: Mapped[datetime] = _created_at()
+
+
+class DocumentText(Base):
+    """Every document, always. This path has no judgment in it: search and date
+    extraction read from here and never depend on field-extraction accuracy."""
+
+    __tablename__ = "document_text"
+    __table_args__ = (
+        UniqueConstraint("document_id", "page_number", "extractor_version",
+                         name="uq_document_text_page_version"),
+        Index("ix_document_text_tsv", "tsv", postgresql_using="gin"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
+    page_number: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    extraction_method: Mapped[str] = mapped_column(Text)
+    extractor_version: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    tsv: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', text)", persisted=True),
+    )
+
+
+class DocumentClassification(Base):
+    """A coarse, low-stakes label that drives routing and display only. It never
+    gates storage, search, or date extraction. Latest row wins.
+
+    doc_class is deliberately unconstrained at the database level: a check
+    constraint would turn a future label into a migration, and the value is
+    display-only. The allowed set lives in renewal/classify/prompt_v1.py.
+    """
+
+    __tablename__ = "document_classification"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
+    doc_class: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float)
+    classifier_version: Mapped[str] = mapped_column(Text)
+    model_id: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()

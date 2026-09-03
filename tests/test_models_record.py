@@ -1,9 +1,16 @@
+import pytest
+from sqlalchemy import text as sql
+from sqlalchemy.exc import IntegrityError
+
 from renewal.models import (
     Agency,
     Carrier,
     CarrierAdmittedStatus,
     CarrierAlias,
     Client,
+    Document,
+    DocumentClassification,
+    DocumentText,
     Policy,
     PolicyBillingType,
     PolicyTerm,
@@ -102,3 +109,80 @@ def test_policy_term_billing_type_may_be_null(session):
     session.add(term)
     session.flush()
     assert session.get(PolicyTerm, term.id).billing_type is None
+
+
+def _document(session, agency_id=1):
+    document = Document(blob_sha256="a" * 64, original_filename="d.pdf",
+                        page_count=1, has_text_layer=True, doc_type="dec_page",
+                        source="bulk_import", agency_id=agency_id)
+    session.add(document)
+    session.flush()
+    return document
+
+
+def test_text_rows_are_unique_per_page_and_version(session):
+    document = _document(session)
+    session.add(DocumentText(document_id=document.id, page_number=1,
+                             text="hello", extraction_method="pymupdf",
+                             extractor_version="text-v1"))
+    session.flush()
+    session.add(DocumentText(document_id=document.id, page_number=1,
+                             text="hello again", extraction_method="pymupdf",
+                             extractor_version="text-v1"))
+    with pytest.raises(IntegrityError):
+        session.flush()
+
+
+def test_a_page_may_be_re_extracted_at_a_new_version(session):
+    document = _document(session)
+    session.add(DocumentText(document_id=document.id, page_number=1, text="a",
+                             extraction_method="pymupdf",
+                             extractor_version="text-v1"))
+    session.add(DocumentText(document_id=document.id, page_number=1, text="b",
+                             extraction_method="ocr_tesseract",
+                             extractor_version="text-v2"))
+    session.flush()
+    assert session.query(DocumentText).count() == 2
+
+
+def test_tsvector_is_populated_automatically(session):
+    document = _document(session)
+    session.add(DocumentText(document_id=document.id, page_number=1,
+                             text="cancellation effective July 2026",
+                             extraction_method="pymupdf",
+                             extractor_version="text-v1"))
+    session.flush()
+    found = session.execute(sql(
+        "SELECT count(*) FROM document_text "
+        "WHERE tsv @@ websearch_to_tsquery('english', 'cancellation')"
+    )).scalar()
+    assert found == 1
+
+
+def test_an_empty_page_still_gets_a_row(session):
+    """So the skip logic can tell 'processed, nothing there' from 'not yet
+    processed'."""
+    document = _document(session)
+    session.add(DocumentText(document_id=document.id, page_number=1, text="",
+                             extraction_method="pymupdf",
+                             extractor_version="text-v1"))
+    session.flush()
+    assert session.query(DocumentText).filter_by(document_id=document.id).count() == 1
+
+
+def test_classification_is_appended_not_updated(session):
+    document = _document(session)
+    session.add(DocumentClassification(document_id=document.id,
+                                       doc_class="unknown", confidence=0.2,
+                                       classifier_version="classify-v1",
+                                       model_id="anthropic:haiku"))
+    session.flush()
+    session.add(DocumentClassification(document_id=document.id,
+                                       doc_class="cancellation_notice",
+                                       confidence=0.9,
+                                       classifier_version="classify-v2",
+                                       model_id="anthropic:haiku"))
+    session.flush()
+    rows = session.query(DocumentClassification).order_by(
+        DocumentClassification.id).all()
+    assert [r.doc_class for r in rows] == ["unknown", "cancellation_notice"]
