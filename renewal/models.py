@@ -392,3 +392,102 @@ class DocumentLink(Base):
     confidence: Mapped[float] = mapped_column(Float)
     candidates: Mapped[list] = mapped_column(JSONB, default=list)
     created_at: Mapped[datetime] = _created_at()
+
+
+DATE_TYPES = (
+    "policy_effective", "policy_expiration", "renewal_due",
+    "cancellation_effective", "non_renewal_effective", "payment_due",
+    "inspection_deadline", "remediation_deadline", "audit_date", "other",
+)
+_DATE_TYPE_SQL = ", ".join(f"'{t}'" for t in DATE_TYPES)
+
+
+class DocumentDate(Base):
+    """An immutable extracted fact. Human judgment lands in DateEvent.
+
+    No client_id: it is derived through the document's latest DocumentLink, so
+    re-assigning a misfiled document moves every date on it with no backfill
+    and no stale rows.
+
+    is_derived marks a value the system calculated rather than read. That is
+    the one place in this design where a rendered date was never printed on the
+    document, and it can never be auto-confirmed.
+    """
+
+    __tablename__ = "document_date"
+    __table_args__ = (
+        CheckConstraint(f"date_type IN ({_DATE_TYPE_SQL})",
+                        name="ck_document_date_type"),
+        # The attribute is pass_name because `pass` is a Python keyword; the
+        # column keeps the spec's name, so the constraint quotes it.
+        CheckConstraint("\"pass\" IN ('regex', 'llm')",
+                        name="ck_document_date_pass"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"), index=True)
+    date_value: Mapped[date] = mapped_column(Date, index=True)
+    date_type: Mapped[str] = mapped_column(Text)
+    source_page: Mapped[int] = mapped_column(Integer)
+    source_text: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float)
+    extractor_version: Mapped[str] = mapped_column(Text)
+    pass_name: Mapped[str] = mapped_column("pass", Text)
+    is_derived: Mapped[bool] = mapped_column(Boolean, default=False)
+    anchor_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    anchor_source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class DateEvent(Base):
+    """'superseded' is written when a re-extraction at a newer version replaces
+    a row she had already acted on, so her judgment is preserved rather than
+    silently attached to a stale row."""
+
+    __tablename__ = "date_event"
+    __table_args__ = (
+        CheckConstraint("action IN ('confirmed', 'dismissed', 'superseded')",
+                        name="ck_date_event_action"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_date_id: Mapped[int] = mapped_column(
+        ForeignKey("document_date.id"), index=True
+    )
+    action: Mapped[str] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor: Mapped[str] = mapped_column(Text, server_default="human")
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ManualDate(Base):
+    __tablename__ = "manual_date"
+    __table_args__ = (
+        CheckConstraint(f"date_type IN ({_DATE_TYPE_SQL})",
+                        name="ck_manual_date_type"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    agency_id: Mapped[int] = mapped_column(ForeignKey("agency.id"))
+    client_id: Mapped[int | None] = mapped_column(
+        ForeignKey("client.id"), nullable=True
+    )
+    title: Mapped[str] = mapped_column(Text)
+    date_value: Mapped[date] = mapped_column(Date, index=True)
+    date_type: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str] = mapped_column(Text, server_default="human")
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ManualDateEvent(Base):
+    __tablename__ = "manual_date_event"
+    __table_args__ = (
+        CheckConstraint("action IN ('confirmed', 'dismissed', 'superseded')",
+                        name="ck_manual_date_event_action"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    manual_date_id: Mapped[int] = mapped_column(
+        ForeignKey("manual_date.id"), index=True
+    )
+    action: Mapped[str] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor: Mapped[str] = mapped_column(Text, server_default="human")
+    created_at: Mapped[datetime] = _created_at()

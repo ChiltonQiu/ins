@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from sqlalchemy import text as sql
 from sqlalchemy.exc import IntegrityError
@@ -8,10 +10,14 @@ from renewal.models import (
     CarrierAdmittedStatus,
     CarrierAlias,
     Client,
+    DateEvent,
     Document,
     DocumentClassification,
+    DocumentDate,
     DocumentLink,
     DocumentText,
+    ManualDate,
+    ManualDateEvent,
     Policy,
     PolicyBillingType,
     PolicyTerm,
@@ -229,3 +235,99 @@ def test_a_link_may_have_no_policy(session):
     session.add(link)
     session.flush()
     assert session.get(DocumentLink, link.id).policy_id is None
+
+
+def test_a_date_stores_its_provenance(session):
+    document = _document(session)
+    row = DocumentDate(
+        document_id=document.id, date_value=date(2026, 7, 1),
+        date_type="policy_expiration", source_page=2,
+        source_text="Expiration Date: 07/01/2026", confidence=0.5,
+        extractor_version="dates-regex-v1", pass_name="regex",
+    )
+    session.add(row)
+    session.flush()
+    stored = session.get(DocumentDate, row.id)
+    assert stored.source_page == 2
+    assert stored.source_text == "Expiration Date: 07/01/2026"
+
+
+def test_a_date_has_no_client_id(session):
+    """Derived through the document's latest link instead, so a re-link moves
+    it with no backfill."""
+    assert not hasattr(DocumentDate, "client_id")
+
+
+def test_a_date_is_unconfirmed_until_an_event_says_otherwise(session):
+    document = _document(session)
+    row = DocumentDate(document_id=document.id, date_value=date(2026, 7, 1),
+                       date_type="other", source_page=1, source_text="07/01/2026",
+                       confidence=0.3, extractor_version="dates-regex-v1",
+                       pass_name="regex")
+    session.add(row)
+    session.flush()
+    assert session.query(DateEvent).filter_by(document_date_id=row.id).count() == 0
+
+
+def test_confirming_appends_an_event_and_leaves_the_date_untouched(session):
+    document = _document(session)
+    row = DocumentDate(document_id=document.id, date_value=date(2026, 7, 1),
+                       date_type="policy_expiration", source_page=1,
+                       source_text="07/01/2026", confidence=0.5,
+                       extractor_version="dates-regex-v1", pass_name="regex")
+    session.add(row)
+    session.flush()
+    session.add(DateEvent(document_date_id=row.id, action="confirmed",
+                          actor="human"))
+    session.add(DateEvent(document_date_id=row.id, action="dismissed",
+                          actor="human"))
+    session.flush()
+    events = session.query(DateEvent).order_by(DateEvent.id).all()
+    assert [e.action for e in events] == ["confirmed", "dismissed"]
+
+
+def test_a_derived_date_records_its_arithmetic(session):
+    document = _document(session)
+    row = DocumentDate(
+        document_id=document.id, date_value=date(2026, 7, 1),
+        date_type="cancellation_effective", source_page=1,
+        source_text="within 30 days of the date of this notice",
+        confidence=0.6, extractor_version="dates-llm-v1", pass_name="llm",
+        is_derived=True, anchor_date=date(2026, 6, 1),
+        anchor_source_text="Dated: June 1, 2026",
+    )
+    session.add(row)
+    session.flush()
+    stored = session.get(DocumentDate, row.id)
+    assert stored.is_derived is True
+    assert stored.anchor_date == date(2026, 6, 1)
+
+
+def test_a_derived_date_may_have_an_unverified_anchor(session):
+    """Stored and flagged rather than dropped; the UI warns instead."""
+    document = _document(session)
+    row = DocumentDate(document_id=document.id, date_value=date(2026, 7, 1),
+                       date_type="cancellation_effective", source_page=1,
+                       source_text="within 30 days of this notice",
+                       confidence=0.4, extractor_version="dates-llm-v1",
+                       pass_name="llm", is_derived=True, anchor_date=None,
+                       anchor_source_text=None)
+    session.add(row)
+    session.flush()
+    assert session.get(DocumentDate, row.id).anchor_date is None
+
+
+def test_a_manual_date_needs_no_document(session):
+    """The only way this replaces the handwritten list."""
+    client = Client(display_name="Acme Landscaping LLC")
+    session.add(client)
+    session.flush()
+    row = ManualDate(agency_id=1, client_id=client.id, title="Call about audit",
+                     date_value=date(2026, 9, 1), date_type="audit_date",
+                     created_by="human")
+    session.add(row)
+    session.flush()
+    session.add(ManualDateEvent(manual_date_id=row.id, action="dismissed",
+                                actor="human"))
+    session.flush()
+    assert session.query(ManualDateEvent).count() == 1
