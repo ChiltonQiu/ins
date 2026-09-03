@@ -161,3 +161,57 @@ if (restored !== null) {
   sessionStorage.removeItem(SCROLL_KEY);
   window.scrollTo({ top: Number(restored), behavior: "instant" });
 }
+
+// Agenda keys. Dismissal has to be one keystroke or over-extraction stops
+// paying for itself: the whole design assumes clearing a wrong date is cheaper
+// than missing a right one.
+(function () {
+  var rows = Array.prototype.slice.call(
+    document.querySelectorAll(".agenda [data-entry]")
+  );
+  if (!rows.length) return;
+
+  function post(row, which) {
+    var action = row.dataset[which];
+    if (!action) return;
+    var form = document.createElement("form");
+    form.method = "post";
+    form.action = action;
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  function move(from, step) {
+    var index = rows.indexOf(from);
+    var next = rows[index < 0 ? 0 : index + step];
+    if (next) next.focus();
+  }
+
+  document.addEventListener("keydown", function (event) {
+    // Never steal a key from a field she is typing in.
+    var tag = (event.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "select" || tag === "textarea") return;
+    if (event.target.isContentEditable) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    var row = event.target.closest ? event.target.closest("[data-entry]") : null;
+
+    if (event.key === "j" || event.key === "k") {
+      event.preventDefault();
+      if (!row) {
+        rows[0].focus();
+        return;
+      }
+      move(row, event.key === "j" ? 1 : -1);
+      return;
+    }
+    if (!row) return;
+    if (event.key === "d") {
+      event.preventDefault();
+      post(row, "dismiss");
+    } else if (event.key === "c") {
+      event.preventDefault();
+      post(row, "confirm");
+    }
+  });
+})();

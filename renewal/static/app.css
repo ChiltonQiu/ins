@@ -892,6 +892,158 @@ table.diffs td.renewal {
   color: var(--ink-2);
 }
 
+
+/* The calendar. */
+.addrow,
+.filters {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.filters {
+  background: var(--surface-sunk);
+}
+
+.keyhint {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+}
+
+.agenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.entry:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.entry .when {
+  min-width: 6.5em;
+}
+
+.entry .who {
+  min-width: 12em;
+  font-weight: 600;
+}
+
+.entry .src {
+  margin-left: auto;
+}
+
+.entry .rowactions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Escalation has to read at a glance without relying on colour: a colourblind
+   reader gets the heavier left rule and the bold weight instead. */
+.entry.escalated {
+  border-left-width: 6px;
+  border-left-color: var(--danger);
+  font-weight: 600;
+}
+
+/* An unconfirmed date is not a fact. It is set back from a confirmed one in
+   weight and colour, and it also carries the word, since style alone is not a
+   claim anyone can read. */
+.entry.unconfirmed {
+  border-style: dashed;
+  color: var(--ink-2);
+}
+
+.entry.confirmed {
+  border-left-color: var(--accent);
+}
+
+.entry .status-flag,
+.entry .escalated-flag,
+.entry .derived {
+  font-size: 12px;
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+}
+
+.entry .derived {
+  font-style: italic;
+}
+
+.monthgrid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.monthgrid th,
+.monthgrid td {
+  border: 1px solid var(--rule);
+  vertical-align: top;
+  padding: 4px 6px;
+}
+
+.monthgrid td {
+  height: 6.5em;
+}
+
+.monthgrid td.othermonth {
+  background: var(--surface-sunk);
+  color: var(--ink-2);
+}
+
+.monthgrid td.today {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.daynum {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.daylist {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.daylist li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daylist li.escalated {
+  font-weight: 700;
+  border-left: 3px solid var(--danger);
+  padding-left: 4px;
+}
+
+.daylist li.unconfirmed {
+  font-style: italic;
+  color: var(--ink-2);
+}
+
 @media (max-width: 1059px) {
   thead th {
     top: 0;
