@@ -1,4 +1,10 @@
-from evals.accuracy import DateScore, score_dates
+from evals.accuracy import (
+    DateScore,
+    MatchScore,
+    score_classification,
+    score_dates,
+    score_match,
+)
 
 
 def _d(value, type_):
@@ -48,3 +54,39 @@ def test_payment_due_is_scored_against_an_agency_bill_policy():
 
 def test_empty_expectation_has_perfect_recall():
     assert score_dates([], []).recall == 1.0
+
+def test_correct_label():
+    assert score_classification("declarations", "declarations") == "correct"
+
+
+def test_unknown_is_declined_not_wrong():
+    assert score_classification("declarations", "unknown") == "declined"
+
+
+def test_confident_wrong_guess_is_wrong():
+    assert score_classification("declarations", "invoice") == "wrong"
+
+
+def test_expected_unknown_answered_unknown_is_correct():
+    assert score_classification("unknown", "unknown") == "correct"
+
+
+def test_top1_match():
+    assert score_match(7, [7, 3, 9]) == MatchScore(top1=True, in_top_k=True)
+
+
+def test_right_answer_offered_but_not_first():
+    assert score_match(7, [3, 9, 7]) == MatchScore(top1=False, in_top_k=True)
+
+
+def test_right_answer_never_offered():
+    assert score_match(7, [3, 9]) == MatchScore(top1=False, in_top_k=False)
+
+
+def test_no_expected_client_and_nothing_offered_is_a_hit():
+    """A document that genuinely matches no client is correctly unmatched."""
+    assert score_match(None, []) == MatchScore(top1=True, in_top_k=True)
+
+
+def test_no_expected_client_but_something_offered_is_a_miss():
+    assert score_match(None, [3]) == MatchScore(top1=False, in_top_k=False)

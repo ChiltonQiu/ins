@@ -142,3 +142,35 @@ def score_dates(
         precision=1.0 if not got else tp / len(got),
         recall=1.0 if not want else tp / len(want),
     )
+
+
+def score_classification(expected: str, actual: str) -> str:
+    """'declined' is its own outcome. The spec prefers unknown to a confident
+    wrong guess, so folding unknown into 'wrong' would score the harness
+    against the behavior we want."""
+    if actual == expected:
+        return "correct"
+    if actual == "unknown":
+        return "declined"
+    return "wrong"
+
+
+@dataclass(frozen=True)
+class MatchScore:
+    top1: bool
+    in_top_k: bool
+
+
+def score_match(
+    expected_client_id: int | None, ranked: list[int], k: int = 5
+) -> MatchScore:
+    """Top-1 and recall@k, so a wrong auto-link and a bad candidate list are
+    distinguishable failures. expected None means the document should match no
+    existing client, which offering nothing satisfies."""
+    if expected_client_id is None:
+        hit = not ranked
+        return MatchScore(top1=hit, in_top_k=hit)
+    return MatchScore(
+        top1=bool(ranked) and ranked[0] == expected_client_id,
+        in_top_k=expected_client_id in ranked[:k],
+    )
