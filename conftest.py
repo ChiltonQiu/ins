@@ -48,7 +48,10 @@ def store(tmp_path):
 TABLES = (
     "client, policy, policy_term, coverage, insured_item, document, extraction,"
     " extracted_field, correction, renewal_run, comparison, difference,"
-    " reclassification, draft"
+    " reclassification, draft, carrier, carrier_alias, carrier_admitted_status,"
+    " policy_billing_type, document_text, document_classification,"
+    " document_link, document_date, date_event, manual_date, manual_date_event,"
+    " inbound_message, attention_item, attention_event"
 )
 
 

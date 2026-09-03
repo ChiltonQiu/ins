@@ -127,6 +127,9 @@ class Document(Base):
     agency_id: Mapped[int | None] = mapped_column(
         ForeignKey("agency.id"), nullable=True
     )
+    inbound_message_id: Mapped[int | None] = mapped_column(
+        ForeignKey("inbound_message.id"), nullable=True
+    )
     uploaded_at: Mapped[datetime] = _created_at()
 
 
@@ -486,6 +489,67 @@ class ManualDateEvent(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     manual_date_id: Mapped[int] = mapped_column(
         ForeignKey("manual_date.id"), index=True
+    )
+    action: Mapped[str] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor: Mapped[str] = mapped_column(Text, server_default="human")
+    created_at: Mapped[datetime] = _created_at()
+
+
+class InboundMessage(Base):
+    """The message body is stored as a document too, not only its attachments:
+    the carrier's explanation is frequently in the body while the attachment is
+    a bare form, and deadlines are very often stated in prose in the body."""
+
+    __tablename__ = "inbound_message"
+    __table_args__ = (
+        UniqueConstraint("agency_id", "message_id", name="uq_inbound_message_id"),
+        CheckConstraint(
+            "processing_status IN ('received', 'processed', 'quarantined',"
+            " 'duplicate', 'failed')",
+            name="ck_inbound_message_status",
+        ),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Nullable: quarantined and failed messages belong to no agency, and losing
+    # them would make a misconfigured forwarding rule invisible. Postgres treats
+    # NULLs as distinct in a unique constraint, so many such rows coexist.
+    agency_id: Mapped[int | None] = mapped_column(
+        ForeignKey("agency.id"), nullable=True
+    )
+    message_id: Mapped[str] = mapped_column(Text)
+    from_address: Mapped[str] = mapped_column(Text)
+    to_address: Mapped[str] = mapped_column(Text)
+    subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    raw_mime_blob_sha256: Mapped[str] = mapped_column(Text)
+    body_text: Mapped[str] = mapped_column(Text)
+    processing_status: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class AttentionItem(Base):
+    """Not a task manager: a list of documents that appear to need a human
+    response, with a suggested reason. Never auto-resolves, never auto-acts."""
+
+    __tablename__ = "attention_item"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"), index=True)
+    reason_code: Mapped[str] = mapped_column(Text)
+    reason_text: Mapped[str] = mapped_column(Text)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class AttentionEvent(Base):
+    __tablename__ = "attention_event"
+    __table_args__ = (
+        CheckConstraint("action IN ('done', 'dismissed')",
+                        name="ck_attention_event_action"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    attention_item_id: Mapped[int] = mapped_column(
+        ForeignKey("attention_item.id"), index=True
     )
     action: Mapped[str] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 from sqlalchemy import text as sql
@@ -6,6 +6,8 @@ from sqlalchemy.exc import IntegrityError
 
 from renewal.models import (
     Agency,
+    AttentionEvent,
+    AttentionItem,
     Carrier,
     CarrierAdmittedStatus,
     CarrierAlias,
@@ -16,6 +18,7 @@ from renewal.models import (
     DocumentDate,
     DocumentLink,
     DocumentText,
+    InboundMessage,
     ManualDate,
     ManualDateEvent,
     Policy,
@@ -331,3 +334,47 @@ def test_a_manual_date_needs_no_document(session):
                                 actor="human"))
     session.flush()
     assert session.query(ManualDateEvent).count() == 1
+
+
+def test_message_id_is_unique_per_agency(session):
+    """Forwarded mail arrives multiple times; the second arrival does no work."""
+    for _ in range(2):
+        session.add(InboundMessage(
+            agency_id=1, message_id="<abc@carrier.example>",
+            from_address="underwriting@carrier.example",
+            to_address="intake+default@example.com", subject="Cancellation",
+            received_at=datetime.now(timezone.utc),
+            raw_mime_blob_sha256="b" * 64, body_text="",
+            processing_status="received",
+        ))
+    with pytest.raises(IntegrityError):
+        session.flush()
+
+
+def test_quarantined_mail_is_stored_not_dropped(session):
+    message = InboundMessage(
+        agency_id=1, message_id="<x@y>", from_address="stranger@example.com",
+        to_address="intake+nobody@example.com", subject="hi",
+        received_at=datetime.now(timezone.utc), raw_mime_blob_sha256="c" * 64,
+        body_text="", processing_status="quarantined",
+    )
+    session.add(message)
+    session.flush()
+    assert session.get(InboundMessage, message.id).processing_status == "quarantined"
+
+
+def test_attention_item_has_no_client_id(session):
+    """Derived through the document's latest link, same as dates."""
+    assert not hasattr(AttentionItem, "client_id")
+
+
+def test_resolving_an_item_appends_an_event(session):
+    document = _document(session)
+    item = AttentionItem(document_id=document.id, reason_code="cancellation_notice",
+                         reason_text="Classified as a cancellation notice")
+    session.add(item)
+    session.flush()
+    session.add(AttentionEvent(attention_item_id=item.id, action="done",
+                               actor="human"))
+    session.flush()
+    assert session.query(AttentionEvent).filter_by(action="done").count() == 1
