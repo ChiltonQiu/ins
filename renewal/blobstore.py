@@ -11,7 +11,10 @@ import hashlib
 import re
 from pathlib import Path
 
+from renewal.crypto import is_sealed, seal, unseal
+
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+_EXT = re.compile(r"[a-z0-9]{1,8}")
 
 
 class BlobNotFound(KeyError):
@@ -19,27 +22,39 @@ class BlobNotFound(KeyError):
 
 
 class BlobStore:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, key: bytes | None = None) -> None:
         self.root = Path(root)
+        self.key = key
 
-    def path_for(self, sha256: str) -> Path:
+    def path_for(self, sha256: str, ext: str = "pdf") -> Path:
         if not _SHA256_HEX.fullmatch(sha256):
             raise ValueError(f"not a sha256 hex digest: {sha256!r}")
-        return self.root / sha256[:2] / sha256[2:4] / f"{sha256}.pdf"
+        if not _EXT.fullmatch(ext):
+            raise ValueError(f"not a usable extension: {ext!r}")
+        return self.root / sha256[:2] / sha256[2:4] / f"{sha256}.{ext}"
 
-    def put(self, data: bytes) -> str:
+    def put(self, data: bytes, ext: str = "pdf") -> str:
+        """The digest is of the plaintext, so sealing changes nothing about
+        content addressing or deduplication."""
         digest = hashlib.sha256(data).hexdigest()
-        path = self.path_for(digest)
+        path = self.path_for(digest, ext)
         if path.exists():
             return digest
         path.parent.mkdir(parents=True, exist_ok=True)
+        payload = seal(data, self.key) if self.key else data
         tmp = path.with_suffix(".tmp")
-        tmp.write_bytes(data)
+        tmp.write_bytes(payload)
         tmp.replace(path)
         return digest
 
-    def get(self, sha256: str) -> bytes:
-        path = self.path_for(sha256)
+    def get(self, sha256: str, ext: str = "pdf") -> bytes:
+        """Unsealed blobs still read back on a keyed store: an existing archive
+        is sealed by scripts/encrypt_blobs.py, and reads must keep working
+        while that runs."""
+        path = self.path_for(sha256, ext)
         if not path.exists():
             raise BlobNotFound(sha256)
-        return path.read_bytes()
+        raw = path.read_bytes()
+        if self.key and is_sealed(raw):
+            return unseal(raw, self.key)
+        return raw

@@ -29,6 +29,7 @@ class Settings:
     provider: str = "anthropic"
     llm_base_url: str | None = None
     llm_api_key: str = ""
+    blob_encryption_key: str = ""
 
 
 def load_settings() -> Settings:
@@ -50,4 +51,5 @@ def load_settings() -> Settings:
         provider=provider,
         llm_base_url=os.environ.get("LLM_BASE_URL") or None,
         llm_api_key=os.environ.get(key_env, "") if key_env else "",
+        blob_encryption_key=os.environ.get("BLOB_ENCRYPTION_KEY", ""),
     )
