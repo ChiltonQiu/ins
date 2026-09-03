@@ -367,3 +367,28 @@ class DocumentClassification(Base):
     classifier_version: Mapped[str] = mapped_column(Text)
     model_id: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
+
+
+class DocumentLink(Base):
+    """Append-only; the latest row per document_id wins. A document with no row
+    here is unmatched and appears in the queue — there is no status column to
+    disagree with reality.
+
+    candidates records the ranked list that was shown at the time. A manual row
+    replacing an auto row is training data: these were offered, this was right.
+    """
+
+    __tablename__ = "document_link"
+    __table_args__ = (
+        CheckConstraint("method IN ('auto', 'manual')", name="ck_document_link_method"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"), index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client.id"))
+    policy_id: Mapped[int | None] = mapped_column(
+        ForeignKey("policy.id"), nullable=True
+    )
+    method: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float)
+    candidates: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = _created_at()

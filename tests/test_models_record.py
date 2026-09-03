@@ -10,6 +10,7 @@ from renewal.models import (
     Client,
     Document,
     DocumentClassification,
+    DocumentLink,
     DocumentText,
     Policy,
     PolicyBillingType,
@@ -186,3 +187,45 @@ def test_classification_is_appended_not_updated(session):
     rows = session.query(DocumentClassification).order_by(
         DocumentClassification.id).all()
     assert [r.doc_class for r in rows] == ["unknown", "cancellation_notice"]
+
+
+def test_unmatched_is_the_absence_of_a_link(session):
+    document = _document(session)
+    assert session.query(DocumentLink).filter_by(document_id=document.id).count() == 0
+
+
+def test_manual_assignment_appends_and_carries_the_candidates_offered(session):
+    """The superseded auto row plus this candidates list is the Correction
+    equivalent: what was offered, and what was right."""
+    document = _document(session)
+    client = Client(display_name="Acme Landscaping LLC")
+    other = Client(display_name="Acme Landscaping Inc")
+    session.add_all([client, other])
+    session.flush()
+    session.add(DocumentLink(document_id=document.id, client_id=other.id,
+                             method="auto", confidence=1.0, candidates=[]))
+    session.flush()
+    session.add(DocumentLink(
+        document_id=document.id, client_id=client.id, method="manual",
+        confidence=1.0,
+        candidates=[{"client_id": other.id, "score": 0.91},
+                    {"client_id": client.id, "score": 0.88}],
+    ))
+    session.flush()
+    rows = session.query(DocumentLink).order_by(DocumentLink.id).all()
+    assert [r.method for r in rows] == ["auto", "manual"]
+    assert rows[-1].candidates[0]["score"] == 0.91
+
+
+def test_a_link_may_have_no_policy(session):
+    """She can know the client without knowing which policy the document is for."""
+    document = _document(session)
+    client = Client(display_name="Acme Landscaping LLC")
+    session.add(client)
+    session.flush()
+    link = DocumentLink(document_id=document.id, client_id=client.id,
+                        policy_id=None, method="manual", confidence=1.0,
+                        candidates=[])
+    session.add(link)
+    session.flush()
+    assert session.get(DocumentLink, link.id).policy_id is None
