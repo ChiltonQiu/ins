@@ -11,3 +11,6 @@ __pycache__/
 .playwright/
 .playwright-cli/
 .superpowers/
+import/
+mime/
+*.eml
