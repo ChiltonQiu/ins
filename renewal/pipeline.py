@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from renewal.blobstore import BlobStore
 from renewal.ingest import ingest_pdf
 from renewal.models import Document
+from renewal.resolve.service import resolve_document
 from renewal.text.store import extract_text, has_text
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,13 @@ def run_text_stage(session: Session, store: BlobStore, document: Document) -> No
             document.id,
             document.blob_sha256,
         )
+
+
+def run_resolve_stage(session: Session, document: Document) -> None:
+    try:
+        resolve_document(session, document)
+    except Exception:  # noqa: BLE001 - the document survives a failed stage
+        logger.exception("resolve stage failed document_id=%s", document.id)
 
 
 def ingest_document(
@@ -62,4 +70,5 @@ def ingest_document(
         inbound_message_id=inbound_message_id,
     )
     run_text_stage(session, store, document)
+    run_resolve_stage(session, document)
     return document
