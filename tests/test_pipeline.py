@@ -45,3 +45,30 @@ def test_text_extraction_failure_does_not_lose_the_document(session, store, monk
                                agency_id=1)
     assert session.get(Document, document.id) is not None
     assert session.query(DocumentText).filter_by(document_id=document.id).count() == 0
+
+
+def test_the_dates_stage_runs_and_stores_the_regex_floor(session, store):
+    """No model is configured here, and dates still land: that is the point of
+    the regex pass being free and unconditional."""
+    from renewal.models import DocumentDate
+
+    document = ingest_document(
+        session, store, data=make_text_pdf([["Expiration Date: 07/01/2026"]]),
+        original_filename="dec.pdf", source="bulk_import", agency_id=1,
+    )
+    rows = session.query(DocumentDate).filter_by(document_id=document.id).all()
+    assert [r.pass_name for r in rows] == ["regex"]
+    assert rows[0].date_type == "policy_expiration"
+
+
+def test_a_failing_dates_stage_does_not_lose_the_document(session, store, monkeypatch):
+    import renewal.pipeline as pipeline
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("date extraction exploded")
+
+    monkeypatch.setattr(pipeline, "extract_dates", boom)
+    document = ingest_document(session, store, data=make_text_pdf([["x"]]),
+                               original_filename="a.pdf", source="bulk_import",
+                               agency_id=1)
+    assert session.get(Document, document.id) is not None

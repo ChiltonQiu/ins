@@ -17,11 +17,17 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from sqlalchemy import select
+
 from renewal.blobstore import BlobStore
+from renewal.config import Settings
+from renewal.dates.service import extract_dates
 from renewal.ingest import ingest_pdf
-from renewal.models import Document
+from renewal.models import Document, DocumentText
+from renewal.pdftext import PageText
+from renewal.providers import ModelClient
 from renewal.resolve.service import resolve_document
-from renewal.text.store import extract_text, has_text
+from renewal.text.store import TEXT_VERSION, extract_text, has_text
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +54,36 @@ def run_resolve_stage(session: Session, document: Document) -> None:
         logger.exception("resolve stage failed document_id=%s", document.id)
 
 
+def stored_pages(session: Session, document_id: int) -> list[PageText]:
+    """Read the text back out of DocumentText rather than out of the PDF.
+
+    That is what makes date extraction work identically for an email body,
+    which has no PDF behind it at all."""
+    rows = session.execute(
+        select(DocumentText.page_number, DocumentText.text)
+        .where(DocumentText.document_id == document_id)
+        .where(DocumentText.extractor_version == TEXT_VERSION)
+        .order_by(DocumentText.page_number)
+    ).all()
+    return [PageText(page_number, text) for page_number, text in rows]
+
+
+def run_dates_stage(
+    session: Session,
+    document: Document,
+    *,
+    client: ModelClient | None = None,
+    settings: Settings | None = None,
+) -> None:
+    try:
+        extract_dates(
+            session, document, stored_pages(session, document.id),
+            client=client, settings=settings,
+        )
+    except Exception:  # noqa: BLE001 - the document survives a failed stage
+        logger.exception("dates stage failed document_id=%s", document.id)
+
+
 def ingest_document(
     session: Session,
     store: BlobStore,
@@ -57,6 +93,8 @@ def ingest_document(
     source: str,
     agency_id: int,
     inbound_message_id: int | None = None,
+    model_client: ModelClient | None = None,
+    settings: Settings | None = None,
 ) -> Document:
     if source not in SOURCES:
         raise ValueError(f"unknown document source: {source!r}")
@@ -71,4 +109,8 @@ def ingest_document(
     )
     run_text_stage(session, store, document)
     run_resolve_stage(session, document)
+    # Optional rather than required: with no model configured the regex pass
+    # still runs, and a caller with no model still gets the recall floor
+    # instead of no dates at all.
+    run_dates_stage(session, document, client=model_client, settings=settings)
     return document
