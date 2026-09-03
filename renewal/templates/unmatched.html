@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Unmatched documents{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Unmatched</h1>
+  {% if rows %}<span class="sub">{{ rows|length }} waiting, newest first</span>{% endif %}
+</div>
+
+{% if rows %}
+{% for row in rows %}
+<section class="panel unmatched">
+  <div class="pagehead">
+    <h2 class="path">{{ row.document.original_filename }}</h2>
+    <span class="sub muted">
+      {{ row.document.page_count }} page{{ "" if row.document.page_count == 1 else "s" }},
+      uploaded {{ row.document.uploaded_at.strftime("%Y-%m-%d %H:%M") }}
+    </span>
+  </div>
+
+  {% if row.snippet %}<pre class="snippet">{{ row.snippet }}</pre>{% endif %}
+
+  {% if row.candidates %}
+  {# The score is shown on purpose: she should be able to see how close the
+     near-miss was before picking the one above it. #}
+  <ul class="candidates">
+    {% for candidate in row.candidates %}
+    <li>
+      <form method="post" action="/unmatched/{{ row.document.id }}/assign">
+        <input type="hidden" name="client_id" value="{{ candidate.client_id }}">
+        {% if candidate.policy_id %}
+        <input type="hidden" name="policy_id" value="{{ candidate.policy_id }}">
+        {% endif %}
+        <button class="btn" type="submit">{{ candidate.name }}</button>
+        <span class="num">{{ "%.0f"|format(candidate.score * 100) }}%</span>
+        <span class="muted">{{ candidate.reason }}</span>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nothing matched. Name the client below.</p>
+  {% endif %}
+
+  <form class="formrow" method="post" action="/unmatched/{{ row.document.id }}/new-client">
+    <label for="new-client-{{ row.document.id }}">New client</label>
+    <input id="new-client-{{ row.document.id }}" name="display_name" required
+           placeholder="Client name as it should appear">
+    <button class="btn" type="submit">Create and file here</button>
+  </form>
+</section>
+{% endfor %}
+{% else %}
+<div class="empty">
+  <p>Nothing unmatched.</p>
+  <p>Every document that has come in is filed against a client.</p>
+</div>
+{% endif %}
+{% endblock %}

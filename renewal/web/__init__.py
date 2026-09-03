@@ -18,11 +18,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from renewal.blobstore import BlobStore
 from renewal.config import Settings
 from renewal.models import Client, Policy, RenewalRun
-from renewal.web import comparison, review, runs
+from renewal.web import comparison, review, runs, unmatched
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
-ROUTER_MODULES = (runs, review, comparison)
+ROUTER_MODULES = (runs, review, comparison, unmatched)
 
 
 def create_app(*, settings: Settings, store: BlobStore, model_client, session_factory):
