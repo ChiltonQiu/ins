@@ -1,6 +1,6 @@
-from types import SimpleNamespace
-
 import hashlib
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -114,6 +114,28 @@ def test_a_bad_extension_is_rejected(tmp_path):
     store = BlobStore(tmp_path)
     with pytest.raises(ValueError):
         store.path_for("a" * 64, ext="../../etc/passwd")
+
+
+def test_put_with_ext_tmp_renames_from_a_distinct_temp_path(tmp_path, monkeypatch):
+    """ext='tmp' is a legal extension (_EXT allows it). If the temp path were
+    computed as path.with_suffix(".tmp"), it would equal the destination for
+    this one extension, and the write-then-rename would degenerate into
+    renaming the file onto itself, silently losing atomicity."""
+    renamed_from = []
+    original_replace = Path.replace
+
+    def spy_replace(self, target):
+        renamed_from.append(self)
+        return original_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", spy_replace)
+
+    store = BlobStore(tmp_path)
+    digest = store.put(b"raw tmp bytes", ext="tmp")
+
+    dest = store.path_for(digest, ext="tmp")
+    assert renamed_from == [dest.with_name(dest.name + ".tmp")]
+    assert dest.read_bytes() == b"raw tmp bytes"
 
 
 def test_a_store_built_from_settings_carries_the_key(tmp_path):

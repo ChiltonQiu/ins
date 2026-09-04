@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 from pathlib import Path
 
 from renewal.config import load_settings
@@ -16,11 +17,21 @@ from renewal.crypto import is_sealed, load_key, seal
 
 logger = logging.getLogger(__name__)
 
+# A real blob's filename is exactly {64 lowercase hex}.{ext}, per
+# BlobStore.path_for (renewal/blobstore.py). Every scratch file this script or
+# BlobStore.put ever writes has an extra ".tmp" appended to that name, giving
+# it two dots (e.g. "<hex>.pdf.tmp" or "<hex>.tmp.tmp") -- which never matches
+# this single-dot pattern. So this filter, on its own, both skips the script's
+# own scratch files and includes a legitimate blob stored with ext="tmp".
+# Do not also skip on path.suffix == ".tmp": that would silently exclude a
+# real "<hex>.tmp" blob again.
+_BLOB_NAME = re.compile(r"[0-9a-f]{64}\.[a-z0-9]{1,8}")
+
 
 def seal_store(root: Path, key: bytes) -> tuple[int, int]:
     sealed = skipped = 0
     for path in sorted(Path(root).rglob("*")):
-        if not path.is_file() or path.suffix == ".tmp":
+        if not path.is_file() or not _BLOB_NAME.fullmatch(path.name):
             continue
         raw = path.read_bytes()
         if is_sealed(raw):

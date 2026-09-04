@@ -46,7 +46,11 @@ class BlobStore:
             return digest
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = seal(data, self.key) if self.key else data
-        tmp = path.with_suffix(".tmp")
+        # Appended, not substituted: ext="tmp" is a legal extension, and
+        # with_suffix(".tmp") would make the temp path equal the destination
+        # for that one extension, degenerating the write-then-rename into a
+        # rename onto itself and silently losing atomicity.
+        tmp = path.with_name(path.name + ".tmp")
         tmp.write_bytes(payload)
         tmp.replace(path)
         return digest
