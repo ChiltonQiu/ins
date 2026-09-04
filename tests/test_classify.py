@@ -10,11 +10,16 @@ from tests.pdfmaker import make_text_pdf
 from tests.test_dates_llm import StubClient, _settings
 
 
-# Over MIN_CHARS_FOR_TEXT_LAYER, so the page keeps its real text layer instead
-# of being routed to OCR. A short page would make these tests depend on whether
+# Several lines, not one long one: make_text_pdf writes each string as a line
+# and a long line runs off the page and is clipped. Together they clear
+# MIN_CHARS_FOR_TEXT_LAYER, so the page keeps its real text layer instead of
+# being routed to OCR — a short page would make these tests depend on whether
 # tesseract can read one character.
-PAGE = ("NOTICE OF CANCELLATION issued by the carrier for the policy named "
-        "below, with the effective date stated on this page.")
+PAGE = [
+    "NOTICE OF CANCELLATION",
+    "Issued by the carrier for the policy named below.",
+    "The effective date of cancellation is stated on this page.",
+]
 
 
 def _document(session, store, lines):
@@ -64,21 +69,25 @@ def test_classification_is_stored_with_its_version_and_model(session, store):
 
 
 def test_only_page_one_text_is_sent(session, store):
-    document = _document(session, store, [PAGE])
+    document = _document(session, store, PAGE)
     stub = StubClient(json.dumps({"doc_class": "unknown", "confidence": 0.1}))
     classify(session, document, client=stub, settings=_settings())
     assert "NOTICE OF CANCELLATION" in stub.calls[0][2][0]["text"]
 
 
 def test_the_classification_model_is_used(session, store):
-    document = _document(session, store, [PAGE])
+    document = _document(session, store, PAGE)
     stub = StubClient(json.dumps({"doc_class": "unknown", "confidence": 0.1}))
     classify(session, document, client=stub, settings=_settings())
     assert stub.calls[0][0] == "classification-model"
 
 
 def test_re_classification_appends_and_the_latest_wins(session, store):
-    document = _document(session, store, ["NOTICE OF CANCELLATION"])
+    document = _document(session, store, PAGE)
+    # Ingest already classified once, so the invariant is the delta: each
+    # re-classification appends a row rather than replacing one.
+    before = session.query(DocumentClassification).filter_by(
+        document_id=document.id).count()
     classify(session, document,
              client=StubClient(json.dumps({"doc_class": "unknown",
                                            "confidence": 0.1})),
@@ -88,7 +97,7 @@ def test_re_classification_appends_and_the_latest_wins(session, store):
                                            "confidence": 0.9})),
              settings=_settings())
     assert session.query(DocumentClassification).filter_by(
-        document_id=document.id).count() == 2
+        document_id=document.id).count() == before + 2
     assert latest_class(session, document.id) == "cancellation_notice"
 
 
@@ -98,7 +107,7 @@ def test_a_model_failure_records_unknown_rather_than_nothing(session, store):
         def complete(self, **kwargs):
             raise RuntimeError("provider down")
 
-    document = _document(session, store, [PAGE])
+    document = _document(session, store, PAGE)
     row = classify(session, document, client=Exploding(), settings=_settings())
     assert row.doc_class == "unknown"
 

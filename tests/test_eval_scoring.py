@@ -165,3 +165,25 @@ def test_date_report_of_an_empty_run_says_nothing_rather_than_dividing_by_zero()
     from evals.accuracy import date_report
 
     assert "overall" not in date_report({})
+
+
+def test_classification_report_counts_declined_beside_correct():
+    """Folding declined into wrong would train the harness against unknown,
+    which is the one answer the spec asks for when the model is unsure."""
+    from evals.accuracy import classification_report
+
+    out = classification_report({
+        "a": {"classification": "correct"},
+        "b": {"classification": "declined"},
+        "c": {"classification": "wrong"},
+        "d": {"classification": "correct"},
+    })
+    assert "correct      2   50.0%" in out
+    assert "declined     1   25.0%" in out
+    assert "wrong        1   25.0%" in out
+
+
+def test_classification_report_of_an_unscored_run_is_empty():
+    from evals.accuracy import classification_report
+
+    assert classification_report({"a": {"score": {}}}) == ""

@@ -17,9 +17,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 from evals.accuracy import (
-    baseline_path, date_report, load_fixtures, score_dates, score_match,
+    baseline_path, classification_report, date_report, load_fixtures,
+    score_classification, score_dates, score_match,
 )
 from renewal.blobstore import BlobStore
+from renewal.classify.runner import latest_class
 from renewal.config import load_settings
 from renewal.dates.service import extract_dates
 from renewal.models import Client, DocumentText
@@ -80,12 +82,16 @@ def test_date_recall_against_fixtures(engine, tmp_path, capsys):
                 select(Client.id).where(Client.display_name == fixture.expected_client)
             )
         results[fixture.fixture_id]["match"] = vars(score_match(expected_id, ranked))
+        results[fixture.fixture_id]["classification"] = score_classification(
+            fixture.doc_class, latest_class(session, document.id) or "unknown"
+        )
 
     session.rollback()
     session.close()
 
     with capsys.disabled():
         print(date_report(results))
+        print(classification_report(results))
 
     baseline = baseline_path(BASELINE_DIR, settings.provider,
                              settings.date_model, VERSION)

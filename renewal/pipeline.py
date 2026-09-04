@@ -20,6 +20,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from renewal.blobstore import BlobStore
+from renewal.classify.runner import (
+    FIELD_EXTRACTION_CLASSES, classify, latest_class,
+)
 from renewal.config import Settings
 from renewal.dates.service import extract_dates
 from renewal.ingest import ingest_pdf
@@ -84,6 +87,23 @@ def run_dates_stage(
         logger.exception("dates stage failed document_id=%s", document.id)
 
 
+def run_classify_stage(
+    session: Session, document: Document, *, client: ModelClient, settings: Settings
+) -> None:
+    if latest_class(session, document.id) is not None:
+        return
+    try:
+        classify(session, document, client=client, settings=settings)
+    except Exception:  # noqa: BLE001 - the document survives a failed stage
+        logger.exception("classify stage failed document_id=%s", document.id)
+
+
+def should_extract_fields(session: Session, document_id: int) -> bool:
+    """Routing only. A document that is not routed here is still stored,
+    searchable, and date-extracted."""
+    return latest_class(session, document_id) in FIELD_EXTRACTION_CLASSES
+
+
 def ingest_document(
     session: Session,
     store: BlobStore,
@@ -113,4 +133,11 @@ def ingest_document(
     # still runs, and a caller with no model still gets the recall floor
     # instead of no dates at all.
     run_dates_stage(session, document, client=model_client, settings=settings)
+    # After dates on purpose: date extraction must not be able to depend on a
+    # label, and running it first makes that impossible rather than merely
+    # untrue today.
+    if model_client is not None and settings is not None:
+        run_classify_stage(
+            session, document, client=model_client, settings=settings
+        )
     return document

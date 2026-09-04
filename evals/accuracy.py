@@ -221,3 +221,25 @@ def date_report(results_by_fixture: dict[str, dict]) -> str:
         lines.append(f"  client match top-1    {100 * top1 / len(matches):5.1f}%")
         lines.append(f"  client match recall@5 {100 * at_k / len(matches):5.1f}%")
     return "\n".join(lines)
+
+
+def classification_report(results_by_fixture: dict[str, dict]) -> str:
+    """Correct, declined, and wrong on three lines, never two.
+
+    Declined is reported beside correct rather than folded into wrong. A
+    harness that punished `unknown` would train exactly the behavior the spec
+    forbids — a confident wrong label instead of an honest refusal.
+    """
+    outcomes = [
+        entry["classification"]
+        for entry in results_by_fixture.values()
+        if entry.get("classification")
+    ]
+    if not outcomes:
+        return ""
+    total = len(outcomes)
+    lines = ["", "classification:"]
+    for name in ("correct", "declined", "wrong"):
+        count = sum(1 for outcome in outcomes if outcome == name)
+        lines.append(f"  {name:<9} {count:>4}  {100 * count / total:5.1f}%")
+    return "\n".join(lines)
