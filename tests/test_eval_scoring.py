@@ -121,3 +121,47 @@ def test_fixture_with_new_keys_loads_them(tmp_path):
     assert fixture.doc_class == "declarations"
     assert fixture.billing_type == "direct_bill"
     assert fixture.dates[0]["date_type"] == "policy_expiration"
+
+
+def _date_entry(recall=0.5, precision=0.25, match=None):
+    entry = {"carrier": "Progressive",
+             "score": {"tp": 1, "fp": 3, "fn": 1,
+                       "precision": precision, "recall": recall}}
+    if match is not None:
+        entry["match"] = match
+    return entry
+
+
+def test_date_report_leads_with_recall_per_fixture():
+    from evals.accuracy import date_report
+
+    out = date_report({"acme-dec": _date_entry()})
+    assert "acme-dec" in out
+    assert "recall  50.0%" in out
+    assert "overall recall     50.0%" in out
+
+
+def test_date_report_separates_top_1_from_recall_at_5():
+    """A wrong auto-link and a merely bad candidate list are different
+    failures, so one number must never hide the other."""
+    from evals.accuracy import date_report
+
+    out = date_report({
+        "a": _date_entry(match={"top1": False, "in_top_k": True}),
+        "b": _date_entry(match={"top1": True, "in_top_k": True}),
+    })
+    assert "client match top-1     50.0%" in out
+    assert "client match recall@5 100.0%" in out
+
+
+def test_date_report_omits_the_match_lines_when_nothing_was_scored():
+    from evals.accuracy import date_report
+
+    out = date_report({"a": _date_entry()})
+    assert "client match" not in out
+
+
+def test_date_report_of_an_empty_run_says_nothing_rather_than_dividing_by_zero():
+    from evals.accuracy import date_report
+
+    assert "overall" not in date_report({})

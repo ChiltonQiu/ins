@@ -184,3 +184,40 @@ def score_match(
         top1=bool(ranked) and ranked[0] == expected_client_id,
         in_top_k=expected_client_id in ranked[:k],
     )
+
+
+def date_report(results_by_fixture: dict[str, dict]) -> str:
+    """Recall first, and per fixture. It is the number that decides whether
+    this feature is safe to rely on."""
+    lines = ["", "date extraction:"]
+    recalls, precisions = [], []
+    for fixture_id, entry in sorted(results_by_fixture.items()):
+        score = entry["score"]
+        recalls.append(score["recall"])
+        precisions.append(score["precision"])
+        lines.append(
+            f"  {fixture_id:<28} recall {100 * score['recall']:5.1f}%  "
+            f"precision {100 * score['precision']:5.1f}%  "
+            f"(tp {score['tp']}, fp {score['fp']}, fn {score['fn']})"
+        )
+        match = entry.get("match")
+        if match is not None:
+            lines.append(
+                f"  {'':<28} match  top-1 {'hit ' if match['top1'] else 'miss'}"
+                f"      recall@5 {'hit ' if match['in_top_k'] else 'miss'}"
+            )
+    if recalls:
+        lines.append("")
+        lines.append(f"  overall recall    {100 * sum(recalls) / len(recalls):5.1f}%")
+        lines.append(
+            f"  overall precision {100 * sum(precisions) / len(precisions):5.1f}%"
+        )
+    matches = [e["match"] for e in results_by_fixture.values() if e.get("match")]
+    if matches:
+        top1 = sum(1 for m in matches if m["top1"])
+        at_k = sum(1 for m in matches if m["in_top_k"])
+        # Reported apart on purpose: a wrong auto-link and a merely bad
+        # candidate list are different failures with different fixes.
+        lines.append(f"  client match top-1    {100 * top1 / len(matches):5.1f}%")
+        lines.append(f"  client match recall@5 {100 * at_k / len(matches):5.1f}%")
+    return "\n".join(lines)
