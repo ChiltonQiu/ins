@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ o.client.display_name }}{% endblock %}
+
+{# unknown is rendered as the word, never as blank: blank reads as "nothing to
+   worry about", and unknown is not that. #}
+{% macro words(value) %}{{ (value or "unknown")|replace("_", " ")|replace("non admitted", "non-admitted") }}{% endmacro %}
+
+{% block content %}
+<div class="pagehead">
+  <h1>{{ o.client.display_name }}</h1>
+</div>
+
+<section class="panel settings">
+  <h2>Policies</h2>
+  {% if o.policies %}
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Carrier</th><th>Policy</th><th>Line</th><th>Term</th>
+        <th>Premium</th><th>Admitted</th><th>Billing</th><th>Renews</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in o.policies %}
+      <tr class="{{ 'unconfirmed' if p.admitted == 'unknown' }}">
+        <td>{{ p.carrier_name }}</td>
+        <td class="path">{{ p.policy_number }}</td>
+        <td>{{ words(p.line_of_business) }}</td>
+        <td class="path muted">
+          {% if p.effective_date %}{{ p.effective_date.strftime("%Y-%m-%d") }}{% else %}unknown{% endif %}
+          –
+          {% if p.expiration_date %}{{ p.expiration_date.strftime("%Y-%m-%d") }}{% else %}unknown{% endif %}
+        </td>
+        <td class="num">{{ p.total_premium or "unknown" }}</td>
+        <td>{{ words(p.admitted) }}{% if p.state %} <span class="muted">({{ p.state }})</span>{% endif %}</td>
+        <td>
+          {{ words(p.billing_type) }}
+          {% if p.billing_mismatch %}
+          <span class="flag mismatch">mismatch — the document says
+            {{ words(p.billing_type_from_term) }}</span>
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if p.days_to_renewal is none %}
+            <span class="muted">—</span>
+          {% elif p.days_to_renewal < 0 %}
+            <span class="flag overdue">overdue by {{ -p.days_to_renewal }} days</span>
+          {% else %}
+            {{ p.days_to_renewal }} days
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No policies on file.</p>
+  {% endif %}
+</section>
+
+<section class="panel settings">
+  <h2>Upcoming dates</h2>
+  {% if o.upcoming_dates %}
+  {# Marked exactly as on the calendar, so the two screens never disagree. #}
+  <ul class="agenda">
+    {% for entry in o.upcoming_dates %}
+    <li class="entry {{ 'escalated' if entry.escalated }} {{ entry.status }}">
+      <span class="num when">{{ entry.date_value.strftime("%Y-%m-%d") }}</span>
+      <span class="what">{{ entry.title }}</span>
+      {% if entry.escalated %}<span class="flag escalated-flag">escalated</span>{% endif %}
+      <span class="flag status-flag">{{ entry.status }}</span>
+      {% if entry.is_derived %}<span class="flag derived">computed</span>{% endif %}
+      <span class="src">
+        {% if entry.document_id %}
+        <a href="/documents/{{ entry.document_id }}">source p{{ entry.source_page }}</a>
+        {% else %}<span class="muted">typed in</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nothing upcoming.</p>
+  {% endif %}
+</section>
+
+<section class="panel settings">
+  <h2>Attention</h2>
+  {% if o.attention %}
+  <ul class="candidates">
+    {% for item in o.attention %}
+    <li><span class="flag">{{ words(item.reason) }}</span>
+      <a href="/documents/{{ item.document_id }}">open the document</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nothing open.</p>
+  {% endif %}
+</section>
+
+<section class="panel settings">
+  <h2>Recent messages</h2>
+  {% if o.messages %}
+  <ul class="candidates">
+    {% for message in o.messages %}
+    <li>
+      <span class="num muted">{{ message.received_at.strftime("%Y-%m-%d") }}</span>
+      <span>{{ message.subject or "(no subject)" }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No mail filed against this client.</p>
+  {% endif %}
+</section>
+
+<section class="panel settings">
+  <h2>Documents</h2>
+  {% if o.documents %}
+  <table class="list">
+    <thead><tr><th>File</th><th>Uploaded</th><th>Class</th><th>Source</th><th></th></tr></thead>
+    <tbody>
+      {% for d in o.documents %}
+      <tr>
+        <td class="path">{{ d.original_filename }}</td>
+        <td class="path muted">{{ d.uploaded_at.strftime("%Y-%m-%d") }}</td>
+        <td>{{ d.doc_class or "unclassified" }}</td>
+        <td class="muted">{{ words(d.source) }}</td>
+        <td><a href="/documents/{{ d.document_id }}">open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No documents filed against this client.</p>
+  {% endif %}
+</section>
+{% endblock %}

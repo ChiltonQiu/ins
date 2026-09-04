@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Clients</h1>
+  {% if rows %}<span class="sub">{{ rows|length }} total</span>{% endif %}
+</div>
+
+{% if rows %}
+<table class="list">
+  <thead>
+    <tr><th>Client</th><th>Policies</th><th>Next date</th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td><a href="/clients/{{ row.client.id }}">{{ row.client.display_name }}</a></td>
+      <td class="num">{{ row.policy_count }}</td>
+      <td class="path muted">
+        {% if row.next_date %}
+        {{ row.next_date.date_value.strftime("%Y-%m-%d") }} — {{ row.next_date.title }}
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <p>No clients yet.</p>
+  <p>A client appears here once a document is filed against one.</p>
+</div>
+{% endif %}
+{% endblock %}

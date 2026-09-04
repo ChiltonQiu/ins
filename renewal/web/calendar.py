@@ -10,16 +10,15 @@ confirmed one: the system is not allowed to show a guess as a fact.
 from __future__ import annotations
 
 import calendar as stdcalendar
-import re
 from datetime import date
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from renewal.calendarview.agenda import ALL_STATUSES, agenda
 from renewal.dates.service import confirm, dismiss
-from renewal.models import Client, Document, ManualDate, ManualDateEvent
+from renewal.models import Client, ManualDate, ManualDateEvent
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -44,16 +43,6 @@ def _back_to(request: Request) -> str:
         return parts.path + (f"?{parts.query}" if parts.query else "")
     return "/calendar"
 
-
-# A filename reaches us from whoever uploaded the document. A quote would end
-# the quoted string early and a newline would start a header of the attacker's
-# choosing, so the header carries only characters that can mean neither.
-_UNSAFE_IN_FILENAME = re.compile(r'[^A-Za-z0-9 ._-]')
-
-
-def _content_disposition(filename: str) -> str:
-    safe = _UNSAFE_IN_FILENAME.sub("_", filename).strip() or "document.pdf"
-    return f'inline; filename="{safe[:120]}"' 
 
 
 def register(app, deps: Deps) -> None:
@@ -176,21 +165,5 @@ def register(app, deps: Deps) -> None:
             )
             session.commit()
         return RedirectResponse(_back_to(request), status_code=303)
-
-    @router.get("/documents/{document_id}")
-    def show_document(document_id: int):
-        """The source behind an agenda row. Every claim on the calendar has to
-        be one click from the page it was read off."""
-        with session_factory() as session:
-            document = session.get(Document, document_id)
-            if document is None:
-                raise HTTPException(status_code=404, detail="no such document")
-            sha = document.blob_sha256
-            filename = document.original_filename
-        return Response(
-            content=store.get(sha),
-            media_type="application/pdf",
-            headers={"Content-Disposition": _content_disposition(filename)},
-        )
 
     app.include_router(router)

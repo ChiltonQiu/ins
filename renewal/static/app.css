@@ -58,6 +58,11 @@
   --danger-line: light-dark(#e8cdc7, #5a3a33);
   --warn: #9a6f1c;
   --warn: light-dark(#9a6f1c, #cfa963);
+  /* Search highlights only. Light enough to read black text on, in both
+     themes — a saturated highlight makes the snippet harder to scan, which
+     is the opposite of what a highlight is for. */
+  --warn-wash: #fdf3d8;
+  --warn-wash: light-dark(#fdf3d8, #4a3d1f);
 
   --shadow: 0 1px 2px rgb(36 38 43 / 0.05);
   --shadow: light-dark(
@@ -1062,6 +1067,66 @@ table.diffs td.renewal {
   border: 1px solid var(--rule);
   border-radius: 6px;
   padding: 8px 10px;
+}
+
+
+/* The client overview reuses the calendar's unconfirmed and escalated classes
+   rather than inventing parallel ones, so the two screens cannot drift apart
+   in what they mean. These are the two markers it adds. */
+.flag.mismatch,
+.flag.overdue {
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--danger-line);
+  background: var(--danger-wash);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A row whose admitted status is unknown is set back, not hidden: unknown is
+   an answer, and it needs to look different from a settled one. */
+tr.unconfirmed td {
+  color: var(--ink-2);
+}
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.result .snippet {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  max-height: none;
+}
+
+.result mark {
+  background: var(--warn-wash);
+  color: inherit;
+  padding: 0 2px;
+}
+
+.searchbox .grow {
+  flex: 1 1 22em;
+}
+
+.searchbox .grow input {
+  width: 100%;
 }
 
 @media (max-width: 1059px) {
