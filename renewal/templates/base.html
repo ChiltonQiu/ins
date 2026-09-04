@@ -29,6 +29,7 @@
       <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Runs</a>
       <a href="/runs/new" {% if path == "/runs/new" %}aria-current="page"{% endif %}>New renewal</a>
       <a href="/calendar" {% if path.startswith("/calendar") %}aria-current="page"{% endif %}>Calendar</a>
+      <a href="/search" {% if path == "/search" %}aria-current="page"{% endif %}>Search</a>
       <a href="/unmatched" {% if path == "/unmatched" %}aria-current="page"{% endif %}>Unmatched</a>
       <a href="/settings" {% if path == "/settings" %}aria-current="page"{% endif %}>Settings</a>
     </nav>

@@ -41,7 +41,8 @@ renewal = ["templates/*.html", "static/*"]
 markers = [
   "eval: hits the real model provider API; excluded from the default run",
   "ocr: needs the system tesseract binary",
+  "perf: seeds a large dataset; excluded from the default run",
 ]
-addopts = "-m 'not eval'"
+addopts = "-m 'not eval and not perf'"
 testpaths = ["tests", "evals"]
 pythonpath = ["."]

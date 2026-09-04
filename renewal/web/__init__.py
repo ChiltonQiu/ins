@@ -19,12 +19,16 @@ from renewal.blobstore import BlobStore
 from renewal.config import Settings
 from renewal.models import Client, Policy, RenewalRun
 from renewal.web import (
-    calendar, comparison, review, runs, settings as settings_routes, unmatched,
+    calendar, comparison, review, runs, search as search_routes,
+    settings as settings_routes, unmatched,
 )
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
-ROUTER_MODULES = (runs, review, comparison, unmatched, calendar, settings_routes)
+ROUTER_MODULES = (
+    runs, review, comparison, unmatched, calendar, settings_routes,
+    search_routes,
+)
 
 
 def create_app(*, settings: Settings, store: BlobStore, model_client, session_factory):

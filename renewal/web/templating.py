@@ -20,4 +20,22 @@ def _wbr(path: str) -> Markup:
     return Markup(escape(path).replace(".", Markup(".<wbr>")))
 
 
+def _headline(snippet: str) -> Markup:
+    """Render a ts_headline result.
+
+    The snippet is document text with <mark> tags inserted by Postgres. The
+    text between those tags came off a page someone else wrote, so the whole
+    string is escaped first and only the highlight tags are put back. Marking
+    the snippet safe would hand every document in the archive an HTML
+    injection into this page.
+    """
+    escaped = escape(snippet)
+    return Markup(
+        str(escaped).replace("&lt;mark&gt;", "<mark>").replace(
+            "&lt;/mark&gt;", "</mark>"
+        )
+    )
+
+
 TEMPLATES.env.filters["wbr"] = _wbr
+TEMPLATES.env.filters["headline"] = _headline

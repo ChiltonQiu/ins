@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Search</h1>
+  {% if searched %}
+  <span class="sub">
+    {{ results|length }} match{{ "" if results|length == 1 else "es" }}, newest first
+  </span>
+  {% endif %}
+</div>
+
+{# Filters keep their values so a refinement never costs her the query. #}
+<form class="formrow searchbox" method="get" action="/search">
+  <div class="grow">
+    <label for="q">Find</label>
+    <input id="q" name="q" value="{{ q }}" autofocus
+           placeholder="A word on the page, a client, a policy number">
+  </div>
+  <div>
+    <label for="s-client">Client</label>
+    <select id="s-client" name="client_id">
+      <option value="">All</option>
+      {% for client in clients %}
+      <option value="{{ client.id }}" {{ "selected" if selected_client_id == client.id }}>
+        {{ client.display_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="s-class">Class</label>
+    <input id="s-class" name="doc_class" value="{{ selected_doc_class or '' }}"
+           placeholder="any">
+  </div>
+  <div>
+    <label for="s-start">From</label>
+    <input id="s-start" name="start" type="date" value="{{ start or '' }}">
+  </div>
+  <div>
+    <label for="s-end">To</label>
+    <input id="s-end" name="end" type="date" value="{{ end or '' }}">
+  </div>
+  <button class="btn primary" type="submit">Search</button>
+</form>
+
+{% if searched %}
+  {% if results %}
+  <ul class="results">
+    {% for result in results %}
+    <li class="result">
+      <span class="who">
+        {% if result.client_name %}
+        <a href="/clients/{{ result.client_id }}">{{ result.client_name }}</a>
+        {% else %}<span class="muted">unmatched</span>{% endif %}
+      </span>
+      <span class="flag">{{ result.doc_class or "unclassified" }}</span>
+      <span class="num muted">{{ result.uploaded_at.strftime("%Y-%m-%d") }}</span>
+      <span class="muted">{{ result.carrier_name or "" }}</span>
+      <span class="src"><a href="/documents/{{ result.document_id }}">open</a></span>
+      {% if result.snippet %}
+      {# Escaped, with only the highlight tags allowed back through. The rest
+         is document text, and document text is not ours. #}
+      <p class="snippet">{{ result.snippet|headline }}</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <p>No matches for “{{ q }}”.</p>
+    <p>Search covers the text of every page, client names, policy numbers, and
+       carrier names — whether or not a document was ever classified or filed.</p>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}
