@@ -35,6 +35,115 @@
 </section>
 
 <section class="panel settings">
+  <h2>Carriers</h2>
+  <p>
+    A policy's carrier name is free text, so variants have to be pointed at one
+    carrier by hand. Nothing here is guessed from a document: a fuzzy match that
+    picked the wrong company would be invisible, and admitted status changes how
+    a policy has to be read.
+  </p>
+
+  {% if unresolved %}
+  <h3>Names that match no carrier</h3>
+  <ul class="candidates">
+    {% for name in unresolved %}
+    <li>
+      <span class="path">{{ name }}</span>
+      {% if carriers %}
+      <form method="post" action="/settings/aliases">
+        <input type="hidden" name="alias" value="{{ name }}">
+        <select name="carrier_id" aria-label="Alias {{ name }} to">
+          {% for row in carriers %}
+          <option value="{{ row.carrier.id }}">{{ row.carrier.display_name }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">Alias to this carrier</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/settings/carriers">
+        <input type="hidden" name="display_name" value="{{ name }}">
+        <button class="btn" type="submit">Create as a new carrier</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Every carrier name on a policy resolves.</p>
+  {% endif %}
+
+  <h3>Known carriers</h3>
+  {% if carriers %}
+  <ul class="candidates">
+    {% for row in carriers %}
+    <li class="carrierrow">
+      <strong>{{ row.carrier.display_name }}</strong>
+      {% if row.aliases %}
+      <span class="muted">also: {{ row.aliases|join(", ") }}</span>
+      {% endif %}
+      <span class="muted">
+        {% for state, status in row.states %}{{ state }} {{ status }}{{ ", " if not loop.last }}{% else %}no states set{% endfor %}
+      </span>
+      <form class="formrow" method="post"
+            action="/settings/carriers/{{ row.carrier.id }}/admitted">
+        <input name="state" maxlength="2" size="2" required
+               aria-label="State" placeholder="CA">
+        <select name="status" aria-label="Admitted status">
+          {% for value in admitted_statuses %}
+          <option value="{{ value }}" {{ "selected" if value == "unknown" }}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">Set</button>
+      </form>
+      <form class="formrow" method="post"
+            action="/settings/carriers/{{ row.carrier.id }}/alias">
+        <input name="alias" required aria-label="New alias"
+               placeholder="Another spelling of this carrier">
+        <button class="btn" type="submit">Add alias</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No carriers yet.</p>
+  {% endif %}
+
+  <h3>Add a carrier</h3>
+  <form class="formrow" method="post" action="/settings/carriers">
+    <input name="display_name" required aria-label="Carrier name"
+           placeholder="Carrier name as it should appear">
+    <button class="btn" type="submit">Add</button>
+  </form>
+</section>
+
+<section class="panel settings">
+  <h2>Billing type</h2>
+  <p>
+    Direct bill means the payment dates are not in the documents she receives,
+    so they are not scored against her and not expected on the calendar.
+  </p>
+  {% if policies %}
+  <ul class="candidates">
+    {% for policy_id, carrier_name, policy_number in policies %}
+    <li>
+      <span class="path">{{ carrier_name }} {{ policy_number }}</span>
+      <form class="formrow" method="post"
+            action="/settings/policies/{{ policy_id }}/billing-type">
+        <select name="billing_type" aria-label="Billing type">
+          {% for value in billing_types %}
+          <option value="{{ value }}" {{ "selected" if value == "unknown" }}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">Set</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No policies yet.</p>
+  {% endif %}
+</section>
+
+<section class="panel settings">
   <h2>Intake address</h2>
   {% if agency.intake_address %}
   <p class="path"><code>{{ agency.intake_address }}</code></p>
