@@ -29,6 +29,10 @@ class Settings:
     provider: str = "anthropic"
     llm_base_url: str | None = None
     llm_api_key: str = ""
+    blob_encryption_key: str = ""
+    date_model: str = "claude-sonnet-5"
+    date_pages: int = 3
+    classification_model: str = "claude-haiku-4-5-20251001"
 
 
 def load_settings() -> Settings:
@@ -50,4 +54,10 @@ def load_settings() -> Settings:
         provider=provider,
         llm_base_url=os.environ.get("LLM_BASE_URL") or None,
         llm_api_key=os.environ.get(key_env, "") if key_env else "",
+        blob_encryption_key=os.environ.get("BLOB_ENCRYPTION_KEY", ""),
+        date_model=os.environ.get("DATE_MODEL", "claude-sonnet-5"),
+        date_pages=int(os.environ.get("DATE_PAGES", "3")),
+        classification_model=os.environ.get(
+            "CLASSIFICATION_MODEL", "claude-haiku-4-5-20251001"
+        ),
     )

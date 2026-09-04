@@ -18,11 +18,18 @@ def ingest_pdf(
     data: bytes,
     original_filename: str,
     doc_type: str = "dec_page",
+    source: str = "manual_upload",
+    agency_id: int | None = None,
+    inbound_message_id: int | None = None,
 ) -> Document:
     """Store bytes and record a document row.
 
     Identical bytes deduplicate to one blob; each upload still gets its own
     document row, because the same PDF arriving twice is two events.
+
+    Provenance is passed in rather than set on the returned row, so the values
+    land in the INSERT. Assigning them afterwards would issue an UPDATE, which
+    no application code in this system does.
     """
     digest = store.put(data)
     info = read_pdf(data)
@@ -32,6 +39,9 @@ def ingest_pdf(
         page_count=info.page_count,
         has_text_layer=info.has_text_layer,
         doc_type=doc_type,
+        source=source,
+        agency_id=agency_id,
+        inbound_message_id=inbound_message_id,
     )
     session.add(document)
     session.flush()

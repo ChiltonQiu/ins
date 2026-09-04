@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Calendar</h1>
+  <span class="sub">
+    {{ entries|length }} date{{ "" if entries|length == 1 else "s" }}
+  </span>
+  <span class="actions">
+    <a class="btn {{ 'primary' if view == 'agenda' else '' }}" href="/calendar">Agenda</a>
+    <a class="btn {{ 'primary' if view == 'month' else '' }}" href="/calendar/month">Month</a>
+  </span>
+</div>
+
+{# Adding a date sits at the top rather than behind a link: a date she is
+   holding in her head is the one most likely to be lost. #}
+<form class="formrow addrow" method="post" action="/manual-dates">
+  <div>
+    <label for="md-title">Add a date</label>
+    <input id="md-title" name="title" required placeholder="What is happening">
+  </div>
+  <div>
+    <label for="md-date">On</label>
+    <input id="md-date" name="date_value" type="date" required>
+  </div>
+  <div>
+    <label for="md-type">Type</label>
+    <select id="md-type" name="date_type">
+      <option value="other">other</option>
+      <option value="renewal_due">renewal due</option>
+      <option value="payment_due">payment due</option>
+      <option value="audit_date">audit date</option>
+      <option value="inspection_deadline">inspection deadline</option>
+      <option value="remediation_deadline">remediation deadline</option>
+    </select>
+  </div>
+  <div>
+    <label for="md-client">Client</label>
+    <select id="md-client" name="client_id">
+      <option value="">(none)</option>
+      {% for client in clients %}
+      <option value="{{ client.id }}">{{ client.display_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn primary" type="submit">Add</button>
+</form>
+
+<form class="formrow filters" method="get" action="/calendar{{ '/month' if view == 'month' }}">
+  <div>
+    <label for="f-client">Client</label>
+    <select id="f-client" name="client_id">
+      <option value="">All</option>
+      {% for client in clients %}
+      <option value="{{ client.id }}" {{ "selected" if selected_client_id == client.id }}>
+        {{ client.display_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="f-type">Type</label>
+    <input id="f-type" name="date_type" value="{{ selected_date_type or '' }}"
+           placeholder="any">
+  </div>
+  <div>
+    <label for="f-status">Status</label>
+    <select id="f-status" name="status">
+      <option value="">Not dismissed</option>
+      {% for value in statuses %}
+      <option value="{{ value }}" {{ "selected" if selected_status == value }}>{{ value }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn" type="submit">Filter</button>
+</form>
+
+{% macro entry_row(entry) %}
+{# Status is shown, never inferred from styling alone: an unconfirmed date is
+   labelled in words as well as marked, so it can never read as fact. #}
+<li class="entry {{ 'escalated' if entry.escalated }} {{ entry.status }}"
+    tabindex="0" data-entry
+    data-confirm="{{ '/dates/%d/confirm'|format(entry.source_id) if entry.kind == 'document_date' }}"
+    data-dismiss="{{ '/dates/%d/dismiss'|format(entry.source_id) if entry.kind == 'document_date' else '/manual-dates/%d/dismiss'|format(entry.source_id) }}">
+  <span class="num when">{{ entry.date_value.strftime("%Y-%m-%d") }}</span>
+  <span class="who">
+    {% if entry.client_name %}{{ entry.client_name }}
+    {% else %}<span class="muted">unmatched</span>{% endif %}
+  </span>
+  <span class="what">{{ entry.title }}</span>
+  {% if entry.escalated %}<span class="flag escalated-flag">escalated</span>{% endif %}
+  <span class="flag status-flag">{{ entry.status }}</span>
+  {% if entry.is_derived %}
+  <span class="flag derived">
+    {% if entry.anchor_date %}
+    computed — {{ entry.anchor_date.strftime("%Y-%m-%d") }} + arithmetic
+    {% else %}
+    computed — anchor not verified
+    {% endif %}
+  </span>
+  {% endif %}
+  <span class="src">
+    {% if entry.document_id %}
+    <a href="/documents/{{ entry.document_id }}">source p{{ entry.source_page }}</a>
+    {% else %}<span class="muted">typed in</span>{% endif %}
+  </span>
+  <span class="rowactions">
+    {% if entry.kind == "document_date" and entry.status != "confirmed" %}
+    <form method="post" action="/dates/{{ entry.source_id }}/confirm">
+      <button class="btn" type="submit">Confirm</button>
+    </form>
+    {% endif %}
+    <form method="post"
+          action="{% if entry.kind == 'document_date' %}/dates/{{ entry.source_id }}/dismiss{% else %}/manual-dates/{{ entry.source_id }}/dismiss{% endif %}">
+      <button class="btn" type="submit">Dismiss</button>
+    </form>
+  </span>
+</li>
+{% endmacro %}
+
+<div class="calendar" data-view="{{ view }}">
+{% if view == "month" %}
+  <div class="pagehead">
+    <h2>{{ month_name }} {{ year }}</h2>
+  </div>
+  <table class="monthgrid">
+    <thead>
+      <tr>{% for day in ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] %}
+        <th>{{ day }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for week in weeks %}
+      <tr>
+        {% for day in week %}
+        <td class="{{ 'othermonth' if day.month != month }} {{ 'today' if day == today }}">
+          <span class="num daynum">{{ day.day }}</span>
+          <ul class="daylist">
+            {% for entry in by_day.get(day, []) %}
+            <li class="{{ 'escalated' if entry.escalated }} {{ entry.status }}">
+              {{ entry.client_name or "unmatched" }} — {{ entry.title }}
+            </li>
+            {% endfor %}
+          </ul>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% elif entries %}
+  <p class="muted keyhint">
+    j and k move between dates, c confirms, d dismisses.
+  </p>
+  <ul class="agenda">
+    {% for entry in entries %}{{ entry_row(entry) }}{% endfor %}
+  </ul>
+{% else %}
+  <div class="empty">
+    <p>Nothing on the calendar.</p>
+    <p>Dates appear here as documents come in. Anything else, add it above.</p>
+  </div>
+{% endif %}
+</div>
+{% endblock %}

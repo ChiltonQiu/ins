@@ -1,45 +1,105 @@
 {% extends "base.html" %}
+{% block title %}New renewal{% endblock %}
 {% block content %}
-<h1>New renewal</h1>
-{% if error %}<p class="flag">{{ error }}</p>{% endif %}
-<form method="post" action="/runs" enctype="multipart/form-data">
-  <p>
-    <label>Policy
-      <select name="policy_id" required>
-        {% for client, policy in policies %}
-        <option value="{{ policy.id }}">
-          {{ client.display_name }} — {{ policy.carrier_name }}
-          {{ policy.policy_number }} ({{ policy.line_of_business }})
-        </option>
-        {% endfor %}
-      </select>
+<div class="pagehead">
+  <h1>New renewal</h1>
+  <span class="sub">both PDFs, same policy</span>
+</div>
+
+{% if error %}
+<p class="notice bad">{{ error }}</p>
+{% endif %}
+
+{% if policies %}
+<form method="post" action="/runs" enctype="multipart/form-data" style="max-width: 46rem;">
+  <div class="field">
+    <label for="policy_id">Policy</label>
+    <select id="policy_id" name="policy_id" required style="min-width: 28rem;">
+      {% for client, policy in policies %}
+      <option value="{{ policy.id }}">
+        {{ client.display_name }} · {{ policy.carrier_name }}
+        {{ policy.policy_number }} ({{ policy.line_of_business }})
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="prior">Prior term PDF</label>
+    <input id="prior" type="file" name="prior" accept="application/pdf" required>
+  </div>
+
+  <div class="field">
+    <label for="renewal">Renewal term PDF</label>
+    <input id="renewal" type="file" name="renewal" accept="application/pdf" required>
+    <p class="hint">
+      Scanned pages are fine. Extraction runs on both files as soon as you
+      submit, so this takes a moment.
+    </p>
+  </div>
+
+  <div class="field">
+    <label class="inline">
+      <input type="checkbox" name="confirm_same" value="1">
+      These really are the same document
     </label>
-  </p>
-  <p><label>Prior term PDF <input type="file" name="prior" accept="application/pdf"
-       required></label></p>
-  <p><label>Renewal term PDF <input type="file" name="renewal"
-       accept="application/pdf" required></label></p>
-  <p><label><input type="checkbox" name="confirm_same" value="1">
-     These really are the same document</label></p>
-  <p><button type="submit">Ingest and extract</button></p>
-</form>
+    <p class="hint">
+      Only tick this if the upload is rejected for identical files. It happens
+      when a carrier reissues the prior term unchanged.
+    </p>
+  </div>
 
-<h2>Add a client</h2>
-<form method="post" action="/clients">
-  <input type="text" name="display_name" placeholder="Client name" required>
-  <button type="submit">Add client</button>
+  <p><button class="btn primary" type="submit">Ingest and extract</button></p>
 </form>
+{% else %}
+<div class="empty">
+  <p>No policies on file yet.</p>
+  <p>Add a client, then a policy for that client, before uploading terms.</p>
+</div>
+{% endif %}
 
-<h2>Add a policy</h2>
-<form method="post" action="/policies">
-  <select name="client_id" required>
-    {% for client in clients %}
-    <option value="{{ client.id }}">{{ client.display_name }}</option>
-    {% endfor %}
-  </select>
-  <input type="text" name="carrier_name" placeholder="Carrier" required>
-  <input type="text" name="policy_number" placeholder="Policy number" required>
-  <input type="text" name="line_of_business" value="personal_auto" required>
-  <button type="submit">Add policy</button>
-</form>
+<div class="promote subforms">
+  <section>
+    <h2>Add a client</h2>
+    <form method="post" action="/clients" class="formrow">
+      <div>
+        <label for="display_name">Name</label>
+        <input id="display_name" type="text" name="display_name" required>
+      </div>
+      <button class="btn" type="submit">Add client</button>
+    </form>
+  </section>
+
+  <section style="margin-top: 26px;">
+    <h2>Add a policy</h2>
+    {% if clients %}
+    <form method="post" action="/policies" class="formrow">
+      <div>
+        <label for="client_id">Client</label>
+        <select id="client_id" name="client_id" required>
+          {% for client in clients %}
+          <option value="{{ client.id }}">{{ client.display_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="carrier_name">Carrier</label>
+        <input id="carrier_name" type="text" name="carrier_name" required>
+      </div>
+      <div>
+        <label for="policy_number">Policy number</label>
+        <input id="policy_number" type="text" name="policy_number" required>
+      </div>
+      <div>
+        <label for="line_of_business">Line of business</label>
+        <input id="line_of_business" type="text" name="line_of_business"
+               value="personal_auto" required>
+      </div>
+      <button class="btn" type="submit">Add policy</button>
+    </form>
+    {% else %}
+    <p class="muted">Add a client first.</p>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

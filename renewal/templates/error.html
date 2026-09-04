@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ status }} {{ title }}{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>{{ title }}</h1>
+  <span class="sub">{{ status }}</span>
+</div>
+<div class="empty">
+  <p>{{ detail }}</p>
+  <p><a href="/">Back to the run list</a></p>
+</div>
+{% endblock %}

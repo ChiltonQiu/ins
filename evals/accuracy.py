@@ -7,7 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -17,9 +17,15 @@ class Fixture:
     carrier: str
     pdf_filename: str
     fields: dict[str, str]
+    dates: list[dict] = field(default_factory=list)
+    doc_class: str = "unknown"
+    expected_client: str | None = None
+    billing_type: str = "unknown"
 
 
 def load_fixtures(directory: Path) -> list[Fixture]:
+    """Keys added after the first fixtures were written all default, so an
+    older fixture file stays valid rather than needing a bulk rewrite."""
     fixtures = []
     for path in sorted(Path(directory).glob("*.json")):
         data = json.loads(path.read_text())
@@ -29,6 +35,10 @@ def load_fixtures(directory: Path) -> list[Fixture]:
                 carrier=data["carrier"],
                 pdf_filename=data["pdf_filename"],
                 fields=data["fields"],
+                dates=data.get("dates", []),
+                doc_class=data.get("doc_class", "unknown"),
+                expected_client=data.get("expected_client"),
+                billing_type=data.get("billing_type", "unknown"),
             )
         )
     return fixtures
@@ -97,3 +107,117 @@ def baseline_path(directory: Path, provider: str, model: str, version: str) -> P
     ).hexdigest()[:8]
     slug = re.sub(r"[^A-Za-z0-9._-]", "-", f"{provider}__{model}__{version}")
     return Path(directory) / f"{slug}-{digest}.json"
+
+
+@dataclass(frozen=True)
+class DateScore:
+    tp: int
+    fp: int
+    fn: int
+    precision: float
+    recall: float
+
+
+def _key(entry: dict) -> tuple[str, str]:
+    return (entry["date_value"], entry["date_type"])
+
+
+def score_dates(
+    expected: list[dict], actual: list[dict], *, billing_type: str = "unknown"
+) -> DateScore:
+    """Precision and recall over (date_value, date_type) pairs.
+
+    Both extraction passes store their own row for the same date, so actual is
+    deduplicated before scoring: two rows for one real date is one hit, not a
+    hit plus a false positive.
+
+    payment_due is dropped entirely for a direct-bill policy. Those dates are
+    not knowable from the documents she receives, so scoring them would chase
+    recall on a field that genuinely is not there.
+    """
+    drop_payment_due = billing_type == "direct_bill"
+
+    def keep(entry: dict) -> bool:
+        return not (drop_payment_due and entry["date_type"] == "payment_due")
+
+    want = {_key(e) for e in expected if keep(e)}
+    got = {_key(a) for a in actual if keep(a)}
+    tp = len(want & got)
+    fp = len(got - want)
+    fn = len(want - got)
+    return DateScore(
+        tp=tp,
+        fp=fp,
+        fn=fn,
+        precision=1.0 if not got else tp / len(got),
+        recall=1.0 if not want else tp / len(want),
+    )
+
+
+def score_classification(expected: str, actual: str) -> str:
+    """'declined' is its own outcome. The spec prefers unknown to a confident
+    wrong guess, so folding unknown into 'wrong' would score the harness
+    against the behavior we want."""
+    if actual == expected:
+        return "correct"
+    if actual == "unknown":
+        return "declined"
+    return "wrong"
+
+
+@dataclass(frozen=True)
+class MatchScore:
+    top1: bool
+    in_top_k: bool
+
+
+def score_match(
+    expected_client_id: int | None, ranked: list[int], k: int = 5
+) -> MatchScore:
+    """Top-1 and recall@k, so a wrong auto-link and a bad candidate list are
+    distinguishable failures. expected None means the document should match no
+    existing client, which offering nothing satisfies."""
+    if expected_client_id is None:
+        hit = not ranked
+        return MatchScore(top1=hit, in_top_k=hit)
+    return MatchScore(
+        top1=bool(ranked) and ranked[0] == expected_client_id,
+        in_top_k=expected_client_id in ranked[:k],
+    )
+
+
+def date_report(results_by_fixture: dict[str, dict]) -> str:
+    """Recall first, and per fixture. It is the number that decides whether
+    this feature is safe to rely on."""
+    lines = ["", "date extraction:"]
+    recalls, precisions = [], []
+    for fixture_id, entry in sorted(results_by_fixture.items()):
+        score = entry["score"]
+        recalls.append(score["recall"])
+        precisions.append(score["precision"])
+        lines.append(
+            f"  {fixture_id:<28} recall {100 * score['recall']:5.1f}%  "
+            f"precision {100 * score['precision']:5.1f}%  "
+            f"(tp {score['tp']}, fp {score['fp']}, fn {score['fn']})"
+        )
+        match = entry.get("match")
+        if match is not None:
+            lines.append(
+                f"  {'':<28} match  top-1 {'hit ' if match['top1'] else 'miss'}"
+                f"      recall@5 {'hit ' if match['in_top_k'] else 'miss'}"
+            )
+    if recalls:
+        lines.append("")
+        lines.append(f"  overall recall    {100 * sum(recalls) / len(recalls):5.1f}%")
+        lines.append(
+            f"  overall precision {100 * sum(precisions) / len(precisions):5.1f}%"
+        )
+    matches = [e["match"] for e in results_by_fixture.values() if e.get("match")]
+    if matches:
+        top1 = sum(1 for m in matches if m["top1"])
+        at_k = sum(1 for m in matches if m["in_top_k"])
+        # Reported apart on purpose: a wrong auto-link and a merely bad
+        # candidate list are different failures with different fixes.
+        lines.append(f"  client match top-1    {100 * top1 / len(matches):5.1f}%")
+        lines.append(f"  client match recall@5 {100 * at_k / len(matches):5.1f}%")
+    return "\n".join(lines)

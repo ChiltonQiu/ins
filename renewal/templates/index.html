@@ -1,16 +1,41 @@
 {% extends "base.html" %}
+{% block title %}Renewal runs{% endblock %}
 {% block content %}
-<h1>Renewal runs</h1>
-<p><a href="/runs/new">New renewal</a></p>
-<table>
-  <tr><th>Run</th><th>Client</th><th>Policy</th><th>Uploaded</th></tr>
-  {% for run, client, policy in runs %}
-  <tr>
-    <td><a href="/runs/{{ run.id }}/review">#{{ run.id }}</a></td>
-    <td>{{ client.display_name }}</td>
-    <td>{{ policy.carrier_name }} {{ policy.policy_number }}</td>
-    <td>{{ run.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-  </tr>
-  {% endfor %}
+<div class="pagehead">
+  <h1>Renewal runs</h1>
+  {% if runs %}<span class="sub">{{ runs|length }} total, newest first</span>{% endif %}
+  <span class="actions"><a class="btn primary" href="/runs/new">New renewal</a></span>
+</div>
+
+{% if runs %}
+<table class="list">
+  <thead>
+    <tr>
+      <th>Run</th>
+      <th>Client</th>
+      <th>Policy</th>
+      <th>Uploaded</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run, client, policy in runs %}
+    <tr>
+      <td class="path"><a href="/runs/{{ run.id }}/review">#{{ run.id }}</a></td>
+      <td>{{ client.display_name }}</td>
+      <td class="path">{{ policy.carrier_name }} {{ policy.policy_number }}</td>
+      <td class="path muted">{{ run.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
+{% else %}
+<div class="empty">
+  <p>No runs yet.</p>
+  <p>
+    A run is one prior term PDF and one renewal term PDF for the same policy.
+    Both get extracted, you check the fields, then the comparison is built.
+  </p>
+  <p><a class="btn primary" href="/runs/new">Start the first run</a></p>
+</div>
+{% endif %}
 {% endblock %}

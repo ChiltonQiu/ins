@@ -1,71 +1,140 @@
 {% extends "base.html" %}
+{% block title %}Comparison #{{ comparison.id }}{% endblock %}
+{% block crumb %}
+<span class="crumb">
+  <a href="/runs/{{ comparison.renewal_run_id }}/review">back to run
+    #{{ comparison.renewal_run_id }}</a>
+</span>
+{% endblock %}
 {% block content %}
-<h1>Comparison #{{ comparison.id }}</h1>
-<p>{{ client.display_name }} — {{ policy.carrier_name }} {{ policy.policy_number }}</p>
+<div class="pagehead">
+  <h1>Comparison #{{ comparison.id }}</h1>
+  <span class="sub">{{ client.display_name }} · {{ policy.carrier_name }}
+    {{ policy.policy_number }}</span>
+</div>
 
-<div class="cols">
-  <div>
+<div class="cols draft-and-diff">
+  <section class="panel">
     <h2>Draft</h2>
+    {% if draft %}
     <form method="post" action="/comparisons/{{ comparison.id }}/draft">
-      <textarea name="final_text" rows="14" style="width:100%; font: inherit;">{{
-        (draft.final_text or draft.generated_text) if draft else "" }}</textarea>
-      <p><button type="submit">Save edited draft</button></p>
+      <textarea name="final_text" rows="16"
+                aria-label="Draft text">{{ draft.final_text or draft.generated_text }}</textarea>
+      <p><button class="btn primary" type="submit">Save edited draft</button></p>
     </form>
-    <p class="source">
+    {% else %}
+    <div class="empty">
+      <p>No draft was generated for this comparison.</p>
+      <p>The differences below still stand; write the note yourself.</p>
+    </div>
+    {% endif %}
+    <p class="draft-note">
       Nothing is sent from here. Copy the text into your own email when you are
       happy with it.
     </p>
 
-    <h2>Premium</h2>
+    <h2 style="margin-top: 28px;">Premium</h2>
     {% if breakdown.available %}
     <table>
-      <tr><th>Line</th><th>Amount</th></tr>
-      <tr><td>Total change</td><td>{{ breakdown.total_delta }}</td></tr>
-      {% for line in breakdown.lines %}
-      <tr><td>{{ line.label }}</td><td>{{ line.amount }}</td></tr>
-      {% endfor %}
-      <tr>
-        <td>Change not attributable from these documents</td>
-        <td>{{ breakdown.residual }}</td>
-      </tr>
+      <thead>
+        <tr>
+          <th>Line</th>
+          <th style="text-align: right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="total">
+          <td>Total change</td>
+          <td class="num {% if breakdown.total_delta > 0 %}up{% endif %}">
+            {{ "+" if breakdown.total_delta > 0 }}{{ breakdown.total_delta }}
+          </td>
+        </tr>
+        {% for line in breakdown.lines %}
+        <tr>
+          <td>{{ line.label }}</td>
+          <td class="num {% if line.amount > 0 %}up{% endif %}">
+            {{ "+" if line.amount > 0 }}{{ line.amount }}
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="residual">
+          <td>Change not attributable from these documents</td>
+          <td class="num">
+            {{ "+" if breakdown.residual > 0 }}{{ breakdown.residual }}
+          </td>
+        </tr>
+      </tbody>
     </table>
     {% else %}
-    <p>Premium cannot be broken down: {{ breakdown.reason }}.</p>
+    <p class="notice">Premium cannot be broken down: {{ breakdown.reason }}.</p>
     {% endif %}
-  </div>
+  </section>
 
-  <div>
-    <h2>Differences</h2>
-    <p>
+  <section class="panel">
+    <div class="diff-toolbar">
+      <h2 style="margin: 0;">Differences</h2>
       <a href="?show_noise={{ 0 if show_noise else 1 }}">
         {{ "hide noise" if show_noise else "show noise" }}
       </a>
-    </p>
-    <table>
-      <tr><th>Field</th><th>Prior</th><th>Renewal</th><th>Class</th></tr>
-      {% for difference in differences %}
-      <tr>
-        <td>{{ difference.field_path }}</td>
-        <td>{{ difference.prior_value if difference.prior_value is not none
-                else "—" }}</td>
-        <td>{{ difference.renewal_value if difference.renewal_value is not none
-                else "—" }}</td>
-        <td>
-          {{ difference.materiality }}
-          <span class="source">({{ difference.rule_id }})</span>
-          <form class="inline"
-                action="/differences/{{ difference.id }}/reclassify" method="post">
-            <select name="to_materiality">
-              <option value="material">material</option>
-              <option value="informational">informational</option>
-              <option value="noise">noise</option>
-            </select>
-            <button type="submit">reclassify</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
+    </div>
+
+    {% if differences %}
+    <table class="diffs">
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Prior</th>
+          <th>Renewal</th>
+          <th>Class</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for difference in differences %}
+        <tr {% if difference.materiality == "material" %}class="attn"{% endif %}>
+          <td class="path">{{ difference.field_path | wbr }}</td>
+          <td class="path prior">
+            {% if difference.prior_value is not none %}{{ difference.prior_value }}
+            {% else %}<span class="muted">not present</span>{% endif %}
+          </td>
+          <td class="path renewal">
+            {% if difference.renewal_value is not none %}{{ difference.renewal_value }}
+            {% else %}<span class="muted">not present</span>{% endif %}
+          </td>
+          {% set mine = disagreements.get(difference.id) %}
+          <td>
+            <span class="mat mat-{{ difference.materiality }}">
+              {{ difference.materiality }}</span>
+            <span class="rule-id">{{ difference.rule_id }}</span>
+            {% if mine %}
+            <span class="mine"
+                  title="Kept for tuning the rules. The rule above still decides what this comparison shows.">
+              you said {{ mine.to_materiality }}</span>
+            {% endif %}
+            <form class="inline reclass"
+                  action="/differences/{{ difference.id }}/reclassify" method="post">
+              <select name="to_materiality" aria-label="Your call on {{ difference.field_path }}">
+                {% for option in ["material", "informational", "noise"] %}
+                <option value="{{ option }}"
+                        {% if option == (mine.to_materiality if mine else difference.materiality) %}selected{% endif %}>
+                  {{ option }}</option>
+                {% endfor %}
+              </select>
+              <noscript><button class="btn" type="submit">save</button></noscript>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
-  </div>
+    {% else %}
+    <div class="empty">
+      <p>Nothing differs{{ "" if show_noise else " above noise" }}.</p>
+      {% if not show_noise %}
+      <p>The rules classified every change as noise. <a href="?show_noise=1">Show
+        noise</a> to check that yourself.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

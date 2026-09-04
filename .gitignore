@@ -7,3 +7,10 @@ __pycache__/
 !.env.example
 .venv/
 *.egg-info/
+.claude/
+.playwright/
+.playwright-cli/
+.superpowers/
+import/
+mime/
+*.eml

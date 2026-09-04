@@ -1,0 +1,1120 @@
+/* Renewal comparison. A desk tool: two documents, a few hundred fields, one
+   person checking them. Dense, but it should feel like a well-made office
+   application, not a terminal.
+
+   Type: one humanist sans, everywhere. Numbers and field paths get tabular
+   figures so columns line up - alignment was what the job needed, the
+   typewriter look was not.
+   Radius: 6px on controls, 10px on panels and tables. Nothing else is rounded.
+   Weights: 400 body, 500 labels and controls, 600 headings. No others. */
+
+/* One value per token, both themes inside light-dark(). Which half applies is
+   decided by color-scheme alone, so the header switch only has to set
+   data-theme on <html> - there is no second copy of the palette to keep in
+   step. The plain declaration above each one is the fallback for a browser
+   without light-dark(): it gets the light theme rather than no colour at all. */
+:root {
+  color-scheme: light dark;
+
+  --paper: #f6f4f1;
+  --paper: light-dark(#f6f4f1, #1c1f23);
+  --surface: #ffffff;
+  --surface: light-dark(#ffffff, #23272c);
+  --surface-sunk: #faf8f5;
+  --surface-sunk: light-dark(#faf8f5, #1f2226);
+
+  --ink: #24262b;
+  --ink: light-dark(#24262b, #e9eaec);
+  --ink-2: #565b63;
+  --ink-2: light-dark(#565b63, #b0b6bd);
+  --ink-3: #878d95;
+  --ink-3: light-dark(#878d95, #878e96);
+
+  --rule: #e7e3dd;
+  --rule: light-dark(#e7e3dd, #343a41);
+  --rule-strong: #d5d0c8;
+  --rule-strong: light-dark(#d5d0c8, #474e56);
+
+  /* One accent. It is also the "this worked" colour, so a saved field and a
+     primary button read as the same idea. */
+  --accent: #2c7a5d;
+  --accent: light-dark(#2c7a5d, #63b693);
+  --accent-hover: #24654c;
+  --accent-hover: light-dark(#24654c, #7dc9a8);
+  --accent-wash: #e7f1ec;
+  --accent-wash: light-dark(#e7f1ec, #223129);
+  --accent-line: #a8c9ba;
+  --accent-line: light-dark(#a8c9ba, #3f6b58);
+  --on-accent: #ffffff;
+  --on-accent: light-dark(#ffffff, #10231b);
+
+  --danger: #b4483c;
+  --danger: light-dark(#b4483c, #e59284);
+  --danger-wash: #fbeeeb;
+  --danger-wash: light-dark(#fbeeeb, #33241f);
+  --danger-row: #fdf5f3;
+  --danger-row: light-dark(#fdf5f3, #2a201d);
+  --danger-line: #e8cdc7;
+  --danger-line: light-dark(#e8cdc7, #5a3a33);
+  --warn: #9a6f1c;
+  --warn: light-dark(#9a6f1c, #cfa963);
+
+  --shadow: 0 1px 2px rgb(36 38 43 / 0.05);
+  --shadow: light-dark(
+    0 1px 2px rgb(36 38 43 / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.35)
+  );
+
+  --sans: "Cantarell", -apple-system, "Segoe UI Variable Text", "Segoe UI",
+    "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+
+  --r-control: 6px;
+  --r-panel: 10px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* The switch in the header writes one of these. Absent means follow the
+   operating system, which is the default. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 14.5px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every number here is compared against another number one row up or one
+   column over, so all of them line up. */
+table,
+input,
+textarea,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 2px;
+  transition: color 120ms ease;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentColor;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  padding: 9px 14px;
+  z-index: 30;
+}
+
+.skip:focus {
+  left: 10px;
+  top: 10px;
+}
+
+/* ---- chrome ------------------------------------------------------------ */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  height: 58px;
+  padding: 0 26px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.brand span {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.topbar nav {
+  display: flex;
+  gap: 22px;
+}
+
+.topbar nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 19px 0 18px;
+  border-bottom: 2px solid transparent;
+}
+
+.topbar nav a:hover {
+  color: var(--ink);
+}
+
+.topbar nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.topbar .spacer {
+  flex: 1;
+}
+
+.crumb {
+  color: var(--ink-2);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Three states, not two: most people want to follow the machine, and the ones
+   who override want it to stay overridden. Text labels rather than a sun and a
+   moon - a sun that means "you are in light mode" and a sun that means "click
+   for light mode" look identical. */
+.themepick {
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  flex: none;
+}
+
+.themepick button {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-3);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.themepick button:hover {
+  color: var(--ink);
+}
+
+.themepick button[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 30px 26px 96px;
+}
+
+/* ---- headings ---------------------------------------------------------- */
+
+h1 {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.014em;
+  margin: 0;
+}
+
+h2 {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 11px;
+}
+
+.pagehead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 15px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.pagehead .sub {
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+
+.pagehead .actions {
+  margin-left: auto;
+}
+
+/* ---- panels ------------------------------------------------------------ */
+
+.panel {
+  min-width: 0;
+}
+
+.panel > header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.meta {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.cols {
+  display: grid;
+  gap: 40px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1060px) {
+  .cols {
+    grid-template-columns: 1fr 1fr;
+    gap: 44px;
+  }
+
+  /* The differences table earns more room than the draft box: the draft is a
+     fixed-height textarea, the table is what gets scanned. */
+  .cols.draft-and-diff {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+
+/* ---- tables ------------------------------------------------------------ */
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow);
+  margin: 0 0 18px;
+}
+
+/* Corners are rounded cell by cell. `overflow: hidden` would do it in one line
+   but it turns the table into a scroll container, and then the sticky header
+   sticks to the table instead of the window. */
+thead th:first-child {
+  border-top-left-radius: var(--r-panel);
+}
+
+thead th:last-child {
+  border-top-right-radius: var(--r-panel);
+}
+
+tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--r-panel);
+}
+
+tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--r-panel);
+}
+
+thead th {
+  position: sticky;
+  top: 58px;
+  z-index: 5;
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--rule);
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  text-align: left;
+  padding: 9px 13px;
+  white-space: nowrap;
+}
+
+td {
+  border-bottom: 1px solid var(--rule);
+  padding: 9px 13px;
+  vertical-align: top;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr:hover {
+  background: var(--surface-sunk);
+}
+
+td.path,
+td.num {
+  font-size: 13.5px;
+}
+
+td.path {
+  color: var(--ink-2);
+}
+
+/* A VIN or a form number is one long unbreakable word. On a narrow window it
+   would otherwise push the whole table sideways. */
+td.path,
+td.meta {
+  overflow-wrap: break-word;
+}
+
+td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+td.num.up {
+  color: var(--danger);
+}
+
+tr.total td {
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-sunk);
+}
+
+tr.residual td {
+  color: var(--ink-2);
+}
+
+/* A field the extractor is unsure about gets a soft wash and a bar, not a
+   badge. It marks the row without adding another coloured pill to the scan. */
+tr.attn td:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+tr.attn {
+  background: var(--danger-row);
+}
+
+tr.attn:hover {
+  background: var(--danger-wash);
+}
+
+/* The run list is four short columns. Letting it span a 1440px window puts a
+   hand-width of nothing between the client and the date. */
+table.list {
+  max-width: 68rem;
+}
+
+/* Three columns inside half a window: fix the widths so a long field path or a
+   long quoted span cannot push the source column off the edge. */
+table.fields {
+  table-layout: fixed;
+}
+
+table.fields th:nth-child(1),
+table.fields td:nth-child(1) {
+  width: 29%;
+}
+
+table.fields th:nth-child(2),
+table.fields td:nth-child(2) {
+  width: 39%;
+}
+
+/* Paths wrap at their dots (the template emits <wbr> there), never mid-word:
+   a path broken inside "deductible" costs a beat every time you scan. */
+table.fields td.path {
+  white-space: normal;
+  font-size: 13px;
+}
+
+/* ---- form controls ----------------------------------------------------- */
+
+label {
+  display: block;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-bottom: 5px;
+}
+
+label.inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 400;
+  font-size: 14.5px;
+  color: var(--ink);
+  margin: 0;
+}
+
+input[type="text"],
+input[type="file"],
+select,
+textarea {
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  padding: 7px 10px;
+  max-width: 100%;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+input[type="text"]:hover,
+select:hover {
+  border-color: var(--ink-3);
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+input::placeholder {
+  color: var(--ink-3);
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  font-size: 14.5px;
+  line-height: 1.65;
+  padding: 13px 15px;
+  border-radius: var(--r-panel);
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field .hint {
+  color: var(--ink-3);
+  font-size: 13px;
+  margin: 5px 0 0;
+}
+
+.formrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+
+.formrow label {
+  margin-bottom: 4px;
+}
+
+/* Reference data, not the job. It sits below the upload form and keeps to a
+   narrower measure so it reads as a footnote, not a second page. */
+.subforms {
+  max-width: 62rem;
+}
+
+/* ---- buttons ----------------------------------------------------------- */
+
+.btn {
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out), background-color 120ms ease,
+    border-color 120ms ease, color 120ms ease;
+}
+
+.btn:hover {
+  background: var(--surface-sunk);
+  border-color: var(--ink-3);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.btn.primary {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.btn.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Low-frequency, and it sits next to every single value: it must not compete
+   with the input beside it. */
+.btn.quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  padding: 7px 6px;
+  white-space: nowrap;
+}
+
+.btn.quiet:hover {
+  color: var(--danger);
+  background: var(--danger-wash);
+  border-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .btn:active {
+    transform: none;
+  }
+
+  * {
+    transition-duration: 1ms !important;
+  }
+}
+
+/* ---- status text ------------------------------------------------------- */
+
+.flag {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.ok {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+.notice {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  padding: 12px 15px;
+  margin: 0 0 20px;
+  max-width: 72ch;
+}
+
+.notice.bad {
+  border-left-color: var(--danger);
+  border-color: var(--danger-line);
+  background: var(--danger-wash);
+  color: var(--ink);
+}
+
+.saved {
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 180ms var(--ease-out);
+}
+
+.saved[data-state="saved"],
+.saved[data-state="failed"] {
+  opacity: 1;
+}
+
+.saved[data-state="failed"] {
+  color: var(--danger);
+}
+
+.empty {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  padding: 28px 26px;
+  max-width: 60ch;
+}
+
+.empty p {
+  margin: 0 0 12px;
+  color: var(--ink-2);
+}
+
+.empty p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- review page ------------------------------------------------------- */
+
+.value-cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.value-cell input[type="text"] {
+  flex: 1 1 7rem;
+  min-width: 0;
+}
+
+.rate {
+  font-size: 13px;
+}
+
+.add-missing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.add-missing input {
+  flex: 1 1 9rem;
+}
+
+.promote {
+  border-top: 1px solid var(--rule-strong);
+  margin-top: 36px;
+  padding-top: 22px;
+}
+
+.ack {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 18px;
+  padding: 0;
+  border: 0;
+  max-width: 72ch;
+}
+
+/* ---- comparison page --------------------------------------------------- */
+
+.diff-toolbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+  font-size: 13.5px;
+}
+
+.reclass {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Reclassifying is rare and the control is wide. Keep the space reserved so
+   nothing shifts, but only show it on the row being worked on. Pointer-only:
+   on touch there is no hover to reveal it with. */
+@media (hover: hover) and (pointer: fine) {
+  .reclass {
+    visibility: hidden;
+  }
+
+  tr:hover .reclass,
+  .reclass:focus-within {
+    visibility: visible;
+  }
+}
+
+.reclass select {
+  font-size: 12.5px;
+  padding: 4px 6px;
+}
+
+.reclass .btn {
+  font-size: 12.5px;
+  padding: 6px 9px;
+}
+
+.reclass select {
+  max-width: 100%;
+}
+
+table.diffs th:nth-child(1),
+table.diffs td:nth-child(1) {
+  width: 30%;
+}
+
+table.diffs th:nth-child(2),
+table.diffs td:nth-child(2),
+table.diffs th:nth-child(3),
+table.diffs td:nth-child(3) {
+  width: 19%;
+}
+
+/* Prior recedes, renewal is the state you are being asked to accept. */
+table.diffs td.prior {
+  color: var(--ink-3);
+}
+
+table.diffs td.renewal {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.mat {
+  font-weight: 500;
+}
+
+.mat-material {
+  color: var(--danger);
+}
+
+.mat-informational {
+  color: var(--ink);
+}
+
+.mat-noise {
+  color: var(--ink-3);
+}
+
+.rule-id {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+/* Your disagreement with the rule. It is kept for tuning the rules, so it says
+   so rather than pretending the row changed class. */
+.mine {
+  display: block;
+  margin-top: 2px;
+  color: var(--accent);
+  font-size: 12.5px;
+}
+
+.draft-note {
+  color: var(--ink-2);
+  max-width: 58ch;
+  margin: 12px 0 0;
+}
+
+/* Below the split point the two review panels stack. The promote bar follows
+   the second panel rather than floating, so the reading order stays
+   prior -> renewal -> decision. */
+
+/* The unmatched queue. One card per document: enough of the page to recognise
+   it, then the candidates as buttons, so filing is one click. */
+.unmatched {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.unmatched .pagehead {
+  margin-bottom: 10px;
+}
+
+.snippet {
+  background: var(--surface-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  max-height: 8.5em;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.candidates {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.candidates form {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+/* The score is deliberately visible: the near-miss and the pick sit next to
+   each other, and she should be able to see how close the two were. */
+.candidates .num {
+  color: var(--ink-2);
+}
+
+
+/* The calendar. */
+.addrow,
+.filters {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.filters {
+  background: var(--surface-sunk);
+}
+
+.keyhint {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+}
+
+.agenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.entry:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.entry .when {
+  min-width: 6.5em;
+}
+
+.entry .who {
+  min-width: 12em;
+  font-weight: 600;
+}
+
+.entry .src {
+  margin-left: auto;
+}
+
+.entry .rowactions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Escalation has to read at a glance without relying on colour: a colourblind
+   reader gets the heavier left rule and the bold weight instead. */
+.entry.escalated {
+  border-left-width: 6px;
+  border-left-color: var(--danger);
+  font-weight: 600;
+}
+
+/* An unconfirmed date is not a fact. It is set back from a confirmed one in
+   weight and colour, and it also carries the word, since style alone is not a
+   claim anyone can read. */
+.entry.unconfirmed {
+  border-style: dashed;
+  color: var(--ink-2);
+}
+
+.entry.confirmed {
+  border-left-color: var(--accent);
+}
+
+.entry .status-flag,
+.entry .escalated-flag,
+.entry .derived {
+  font-size: 12px;
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+}
+
+.entry .derived {
+  font-style: italic;
+}
+
+.monthgrid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.monthgrid th,
+.monthgrid td {
+  border: 1px solid var(--rule);
+  vertical-align: top;
+  padding: 4px 6px;
+}
+
+.monthgrid td {
+  height: 6.5em;
+}
+
+.monthgrid td.othermonth {
+  background: var(--surface-sunk);
+  color: var(--ink-2);
+}
+
+.monthgrid td.today {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.daynum {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.daylist {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.daylist li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daylist li.escalated {
+  font-weight: 700;
+  border-left: 3px solid var(--danger);
+  padding-left: 4px;
+}
+
+.daylist li.unconfirmed {
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+
+/* Settings. The feed URL is a credential, so it is shown whole rather than
+   truncated — she has to be able to see what she is about to copy. */
+.settings {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  max-width: 72ch;
+}
+
+.feedurl {
+  overflow-wrap: anywhere;
+  background: var(--surface-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+@media (max-width: 1059px) {
+  thead th {
+    top: 0;
+  }
+
+  main {
+    padding-bottom: 48px;
+  }
+}
+
+/* Phone width. The policy line in the header is the first thing to go: the
+   page heading names the run anyway, and the nav has to stay on one line. */
+@media (max-width: 760px) {
+  .crumb {
+    display: none;
+  }
+
+  /* Brand, nav and switch will not fit on one line at this width, and none of
+     the three is worth cutting. Let the bar take a second row instead. */
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 58px;
+    padding: 0 15px 10px;
+    gap: 16px;
+  }
+
+  .themepick {
+    margin-left: auto;
+  }
+
+  .themepick button {
+    padding: 5px 7px;
+  }
+
+  .topbar {
+    gap: 18px;
+    padding: 0 15px;
+  }
+
+  main {
+    padding: 22px 15px 48px;
+  }
+
+  th,
+  td {
+    padding: 8px 9px;
+  }
+
+  table.fields td.path,
+  .meta {
+    font-size: 12.5px;
+  }
+}
