@@ -23,7 +23,7 @@ def _settings(**kwargs):
         database_url="", blob_root="blobs", anthropic_api_key="",
         extraction_model="m", draft_model="m", confidence_threshold=0.8,
         materiality_config="config/materiality.yaml", date_model="date-model",
-        date_pages=3,
+        date_pages=3, classification_model="classification-model",
     )
     base.update(kwargs)
     return Settings(**base)
