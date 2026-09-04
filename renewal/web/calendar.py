@@ -10,7 +10,9 @@ confirmed one: the system is not allowed to show a guess as a fact.
 from __future__ import annotations
 
 import calendar as stdcalendar
+import re
 from datetime import date
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -27,9 +29,31 @@ AGENCY_ID = 1
 
 def _back_to(request: Request) -> str:
     """Return to the calendar she was looking at, filters and all. A confirm
-    that dropped her filters would cost more than it saved."""
-    referer = request.headers.get("referer", "")
-    return referer if "/calendar" in referer else "/calendar"
+    that dropped her filters would cost more than it saved.
+
+    Only the path and query of the referrer are ever used, and only when the
+    referrer is one of our own calendar URLs. Redirecting to a whole referrer
+    URL would let any page that links here choose where this app sends her
+    next, and honouring a foreign origin's query string would let it choose
+    what she sees when she lands.
+    """
+    parts = urlsplit(request.headers.get("referer", ""))
+    if parts.netloc and parts.netloc != request.url.netloc:
+        return "/calendar"
+    if parts.path == "/calendar" or parts.path.startswith("/calendar/"):
+        return parts.path + (f"?{parts.query}" if parts.query else "")
+    return "/calendar"
+
+
+# A filename reaches us from whoever uploaded the document. A quote would end
+# the quoted string early and a newline would start a header of the attacker's
+# choosing, so the header carries only characters that can mean neither.
+_UNSAFE_IN_FILENAME = re.compile(r'[^A-Za-z0-9 ._-]')
+
+
+def _content_disposition(filename: str) -> str:
+    safe = _UNSAFE_IN_FILENAME.sub("_", filename).strip() or "document.pdf"
+    return f'inline; filename="{safe[:120]}"' 
 
 
 def register(app, deps: Deps) -> None:
@@ -166,7 +190,7 @@ def register(app, deps: Deps) -> None:
         return Response(
             content=store.get(sha),
             media_type="application/pdf",
-            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+            headers={"Content-Disposition": _content_disposition(filename)},
         )
 
     app.include_router(router)

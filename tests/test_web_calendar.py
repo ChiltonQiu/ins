@@ -165,3 +165,45 @@ def test_the_source_document_link_serves_the_pdf(client_app, seeded_date, db):
 def test_a_dismissed_date_leaves_the_agenda(client_app, seeded_date):
     client_app.post(f"/dates/{seeded_date}/dismiss", follow_redirects=False)
     assert "policy expiration" not in client_app.get("/calendar").text
+
+
+def test_a_foreign_referrer_never_becomes_a_redirect_target(client_app, seeded_date):
+    """Anything but the path of a calendar URL is discarded: otherwise any page
+    linking here could choose where this app sends her next."""
+    response = client_app.post(
+        f"/dates/{seeded_date}/confirm",
+        headers={"referer": "https://evil.example/calendar?x=1"},
+        follow_redirects=False,
+    )
+    assert response.headers["location"] == "/calendar"
+
+
+def test_a_local_calendar_referrer_keeps_its_filters(client_app, seeded_date):
+    response = client_app.post(
+        f"/dates/{seeded_date}/confirm",
+        headers={"referer": "http://testserver/calendar/month?date_type=audit_date"},
+        follow_redirects=False,
+    )
+    assert response.headers["location"] == "/calendar/month?date_type=audit_date"
+
+
+def test_a_hostile_filename_cannot_forge_a_header(client_app, db, engine, tmp_path):
+    """The filename comes from whoever uploaded the document."""
+    from renewal.models import Document
+
+    sess = sessionmaker(bind=engine)()
+    document = ingest_document(
+        sess, BlobStore(tmp_path / "blobs"), data=make_text_pdf([["x"]]),
+        original_filename='e"vil\r\nX-Injected: yes.pdf',
+        source="bulk_import", agency_id=1,
+    )
+    sess.commit()
+    document_id = document.id
+    sess.close()
+
+    response = client_app.get(f"/documents/{document_id}")
+    assert response.status_code == 200
+    assert "x-injected" not in {k.lower() for k in response.headers}
+    disposition = response.headers["content-disposition"]
+    assert '"' not in disposition.split("filename=", 1)[1].strip('"')
+    assert "\n" not in disposition and "\r" not in disposition
