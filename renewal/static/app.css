@@ -1044,6 +1044,26 @@ table.diffs td.renewal {
   color: var(--ink-2);
 }
 
+
+/* Settings. The feed URL is a credential, so it is shown whole rather than
+   truncated — she has to be able to see what she is about to copy. */
+.settings {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  max-width: 72ch;
+}
+
+.feedurl {
+  overflow-wrap: anywhere;
+  background: var(--surface-sunk);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
 @media (max-width: 1059px) {
   thead th {
     top: 0;

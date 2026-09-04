@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Settings</h1>
+</div>
+
+<section class="panel settings">
+  <h2>Calendar subscription</h2>
+  <p>
+    Subscribe to this address in Outlook, Apple Calendar, or Google Calendar.
+    It is read-only: nothing this tool does can change or delete anything in
+    the calendar you already keep.
+  </p>
+
+  <p class="feedurl path"><code>{{ feed_url }}</code></p>
+
+  <div class="notice bad">
+    <p>
+      <strong>Treat this address like a password.</strong>
+      Anyone with this link can read every client name and every deadline in
+      the book, without signing in. It will be stored in the calendar settings
+      of every device you subscribe on.
+    </p>
+    <p>
+      If it has been shared, forwarded, or put on a device you no longer
+      control, regenerate it. Every existing subscription stops working
+      immediately and has to be re-added.
+    </p>
+  </div>
+
+  <form method="post" action="/settings/regenerate-ics-token">
+    <button class="btn" type="submit">Regenerate the link</button>
+  </form>
+</section>
+
+<section class="panel settings">
+  <h2>Intake address</h2>
+  {% if agency.intake_address %}
+  <p class="path"><code>{{ agency.intake_address }}</code></p>
+  <p>Mail forwarded here is filed against a client automatically where it can be.</p>
+  {% else %}
+  <p class="muted">No intake address configured yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
