@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import hashlib
 
 import pytest
@@ -112,3 +114,29 @@ def test_a_bad_extension_is_rejected(tmp_path):
     store = BlobStore(tmp_path)
     with pytest.raises(ValueError):
         store.path_for("a" * 64, ext="../../etc/passwd")
+
+
+def test_a_store_built_from_settings_carries_the_key(tmp_path):
+    """Building the store without it silently disables sealing, and that only
+    shows up when a stolen backup turns out to be readable."""
+    from renewal.blobstore import store_from_settings
+    from renewal.crypto import generate_key, is_sealed
+
+    key = generate_key()
+    settings = SimpleNamespace(blob_root=tmp_path / "blobs",
+                               blob_encryption_key=key)
+    store = store_from_settings(settings)
+    digest = store.put(b"%PDF-1.4 secrets")
+    assert is_sealed(store.path_for(digest).read_bytes())
+    assert store.get(digest) == b"%PDF-1.4 secrets"
+
+
+def test_an_unkeyed_store_says_so_out_loud(tmp_path, caplog):
+    from renewal.blobstore import store_from_settings
+
+    settings = SimpleNamespace(blob_root=tmp_path / "blobs",
+                               blob_encryption_key="")
+    with caplog.at_level("WARNING"):
+        store = store_from_settings(settings)
+    assert store.key is None
+    assert "unencrypted" in caplog.text

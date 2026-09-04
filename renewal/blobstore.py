@@ -8,13 +8,17 @@ documents deduplicate for free.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from pathlib import Path
 
-from renewal.crypto import is_sealed, seal, unseal
+from renewal.crypto import is_sealed, load_key, seal, unseal
 
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 _EXT = re.compile(r"[a-z0-9]{1,8}")
+
+
+logger = logging.getLogger(__name__)
 
 
 class BlobNotFound(KeyError):
@@ -58,3 +62,21 @@ class BlobStore:
         if self.key and is_sealed(raw):
             return unseal(raw, self.key)
         return raw
+
+
+def store_from_settings(settings) -> BlobStore:
+    """The one place a running process turns settings into a blob store.
+
+    Building a BlobStore without the key silently disables sealing, which is
+    the kind of mistake that only shows up when a stolen backup turns out to
+    be readable. Going through here means every entry point gets the same
+    answer, and the one case where blobs really are unencrypted says so out
+    loud at startup.
+    """
+    key = load_key(settings.blob_encryption_key)
+    if key is None:
+        logger.warning(
+            "BLOB_ENCRYPTION_KEY is not set: documents are stored unencrypted "
+            "at %s", settings.blob_root,
+        )
+    return BlobStore(settings.blob_root, key=key)

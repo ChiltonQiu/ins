@@ -23,9 +23,8 @@ from typing import Iterator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from renewal.blobstore import BlobStore
+from renewal.blobstore import BlobStore, store_from_settings
 from renewal.config import Settings, load_settings
-from renewal.crypto import load_key
 from renewal.db import session_scope
 from renewal.models import Document
 from renewal.pipeline import ingest_document, run_dates_stage, run_text_stage
@@ -94,7 +93,7 @@ def main() -> None:
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     settings = load_settings()
-    store = BlobStore(settings.blob_root, key=load_key(settings.blob_encryption_key))
+    store = store_from_settings(settings)
     with session_scope() as session:
         stats = import_tree(
             session, store, args.root, agency_id=args.agency_id,

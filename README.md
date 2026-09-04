@@ -27,6 +27,48 @@ cp .env.example .env    # then fill in the values
 .venv/bin/alembic upgrade head
 ```
 
+## Bulk import
+
+Point it at a directory tree and every PDF underneath is stored, text-extracted,
+date-extracted, and matched to a client where that can be done safely:
+
+```bash
+.venv/bin/python -m scripts.bulk_import /path/to/the/archive
+```
+
+Safe to re-run and safe to interrupt. Content addressing makes a second pass
+free: a document already known is skipped rather than duplicated. One
+unreadable file is counted and logged by path, never by contents, and never
+stops the walk.
+
+Import early even if extraction is still weak. Extraction is a pure function of
+(blob, extractor_version) and can be re-run at any time; a document deleted from
+the source tree before it was imported is gone.
+
+## Blob encryption
+
+Documents are stored unencrypted unless `BLOB_ENCRYPTION_KEY` is set. Generate a
+key with:
+
+```bash
+.venv/bin/python -c "from renewal.crypto import generate_key; print(generate_key())"
+```
+
+Put it in `.env`. New documents are sealed with AES-GCM from then on. To seal a
+store that already has documents in it:
+
+```bash
+.venv/bin/python -m scripts.encrypt_blobs
+```
+
+That is idempotent — already-sealed blobs are left alone — and reads keep
+working throughout, so it can run against a live store.
+
+This protects a stolen backup or a copied blob directory. It does not protect a
+compromised host: the key sits in `.env` next to the data. Back the key up
+separately from the blobs, or they travel together and the encryption buys
+nothing. Losing the key means losing every document.
+
 ## Tests
 
 ```bash
