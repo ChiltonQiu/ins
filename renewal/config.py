@@ -33,6 +33,8 @@ class Settings:
     date_model: str = "claude-sonnet-5"
     date_pages: int = 3
     classification_model: str = "claude-haiku-4-5-20251001"
+    inbound_provider: str = "filedrop"
+    inbound_drop_dir: str = "mail"
 
 
 def load_settings() -> Settings:
@@ -60,4 +62,6 @@ def load_settings() -> Settings:
         classification_model=os.environ.get(
             "CLASSIFICATION_MODEL", "claude-haiku-4-5-20251001"
         ),
+        inbound_provider=os.environ.get("INBOUND_PROVIDER", "filedrop"),
+        inbound_drop_dir=os.environ.get("INBOUND_DROP_DIR", "mail"),
     )

@@ -19,8 +19,9 @@ from renewal.blobstore import BlobStore
 from renewal.config import Settings
 from renewal.models import Client, Policy, RenewalRun
 from renewal.web import (
-    calendar, clients as client_routes, comparison, review, runs,
-    search as search_routes, settings as settings_routes, unmatched,
+    calendar, clients as client_routes, comparison, mail as mail_routes,
+    review, runs, search as search_routes, settings as settings_routes,
+    unmatched,
 )
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
@@ -31,7 +32,21 @@ ROUTER_MODULES = (
 )
 
 
-def create_app(*, settings: Settings, store: BlobStore, model_client, session_factory):
+def build_inbound_provider(settings: Settings):
+    """The local file-drop provider verifies nothing, so it is only ever built
+    when it is asked for by name. Anything else is a configuration error rather
+    than a reason to fall back to the one that trusts every caller."""
+    if settings.inbound_provider == "filedrop":
+        from renewal.mail.filedrop import FileDropProvider
+
+        return FileDropProvider(Path(settings.inbound_drop_dir))
+    raise ValueError(f"unknown inbound provider: {settings.inbound_provider!r}")
+
+
+def create_app(
+    *, settings: Settings, store: BlobStore, model_client, session_factory,
+    inbound_provider=None,
+):
     app = FastAPI()
     app.mount(
         "/static",
@@ -77,4 +92,7 @@ def create_app(*, settings: Settings, store: BlobStore, model_client, session_fa
     )
     for module in ROUTER_MODULES:
         module.register(app, deps)
+    mail_routes.register(
+        app, deps, inbound_provider or build_inbound_provider(settings)
+    )
     return app
