@@ -67,17 +67,23 @@ This matches how the rest of the codebase reasons: `build_inbound_provider`
 refuses to guess a provider rather than falling back to the one that trusts
 everybody, and `_one_of` rejects an unexpected value rather than coercing it.
 
-The public allowlist is exactly four entries:
+The public allowlist is exactly five entries:
 
 ```
 /login              GET and POST
+/logout             POST; see below
 /static/*           stylesheet and script
 /calendar/{t}.ics   carries its own token; a calendar client cannot log in
 /inbound/mail       carries the provider's signature; the caller is a machine
 ```
 
-Matching is exact for `/login`, prefix for `/static/`, and pattern-based for
-the two credentialed routes. It is a literal list in one module, not a regex
+`/logout` is public so that clicking it with an already-dead session clears
+the cookie and lands on the login page. Behind the gate it would answer 403 —
+refusing to let someone out of a door they are already outside of. It revokes
+whatever token it is given and is harmless with none.
+
+Matching is exact for `/login` and `/logout`, prefix for `/static/`, and
+pattern-based for the two credentialed routes. It is a literal list in one module, not a regex
 assembled from route metadata, so reading it answers "what is public?"
 completely.
 
@@ -263,7 +269,7 @@ Web, against `TestClient`:
 - A protected GET with no cookie redirects to `/login?next=` with the path.
 - A protected POST with no cookie returns 403 and does not redirect.
 - An expired session is refused.
-- Each of the four public paths is reachable with no cookie.
+- Each of the five public paths is reachable with no cookie.
 - A `next` value pointing off-site is discarded rather than followed.
 - A cross-site `Origin` on a state-changing request is rejected.
 - `POST /inbound/mail` is not rejected for missing `Origin`.
