@@ -28,8 +28,9 @@ dev = ["pytest>=8.0"]
 # them.
 [tool.setuptools]
 packages = [
-  "renewal", "renewal.extract", "renewal.text", "renewal.resolve",
-  "renewal.dates", "renewal.calendarview", "renewal.web",
+  "renewal", "renewal.attention", "renewal.calendarview", "renewal.classify",
+  "renewal.clients", "renewal.dates", "renewal.extract", "renewal.mail",
+  "renewal.resolve", "renewal.search", "renewal.text", "renewal.web",
 ]
 
 [tool.setuptools.package-data]
