@@ -88,8 +88,13 @@
   {% if o.attention %}
   <ul class="candidates">
     {% for item in o.attention %}
-    <li><span class="flag">{{ words(item.reason) }}</span>
-      <a href="/documents/{{ item.document_id }}">open the document</a></li>
+    <li class="{{ 'escalated' if item.reason_code in ('cancellation_notice', 'non_renewal_notice') }}">
+      <span class="flag">{{ item.reason_text }}</span>
+      {% if item.due_date %}
+      <span class="num muted">{{ item.due_date.strftime("%Y-%m-%d") }}</span>
+      {% endif %}
+      <a href="/documents/{{ item.document_id }}">open the document</a>
+    </li>
     {% endfor %}
   </ul>
   {% else %}

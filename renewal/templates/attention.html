@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Attention{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Attention</h1>
+  {% if rows %}
+  <span class="sub">{{ rows|length }} open, most urgent first</span>
+  {% endif %}
+</div>
+
+{% if rows %}
+<p class="muted keyhint">j and k move between items, d dismisses.</p>
+<ul class="agenda">
+  {% for row in rows %}
+  {# A live row has no item id: it is computed from an unconfirmed date, so it
+     is cleared by acting on that date rather than on an item that never
+     existed. #}
+  {% set dismiss_url = "/attention/%d/dismiss"|format(row.item_id)
+                       if row.materialised else "" %}
+  <li class="entry {{ 'escalated' if row.reason_code in escalated }}"
+      tabindex="0" data-entry
+      data-dismiss="{{ dismiss_url }}">
+    <span class="who">
+      {% if row.client_name %}
+      <a href="/clients/{{ row.client_id }}">{{ row.client_name }}</a>
+      {% else %}<span class="muted">unmatched</span>{% endif %}
+    </span>
+    <span class="what">{{ row.reason_text }}</span>
+    {% if row.reason_code in escalated %}
+    <span class="flag escalated-flag">escalated</span>
+    {% endif %}
+    {% if not row.materialised %}
+    <span class="flag">live</span>
+    {% endif %}
+    {% if row.due_date %}
+    <span class="num muted">{{ row.due_date.strftime("%Y-%m-%d") }}</span>
+    {% endif %}
+    <span class="src"><a href="/documents/{{ row.document_id }}">open</a></span>
+    <span class="rowactions">
+      {% if row.materialised %}
+      <form method="post" action="/attention/{{ row.item_id }}/done">
+        <button class="btn" type="submit">Done</button>
+      </form>
+      <form method="post" action="/attention/{{ row.item_id }}/dismiss">
+        <button class="btn" type="submit">Dismiss</button>
+      </form>
+      {% else %}
+      <form method="post" action="/calendar">
+        <a class="btn" href="/calendar">Confirm on the calendar</a>
+      </form>
+      {% endif %}
+    </span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+  <p>Nothing needs attention.</p>
+  <p>
+    Items appear here when a document looks like it needs a response — a
+    notice of cancellation, a document nobody could file, a date coming up
+    that has not been confirmed. Every one is cleared by hand.
+  </p>
+</div>
+{% endif %}
+{% endblock %}

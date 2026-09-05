@@ -166,6 +166,8 @@ if (restored !== null) {
 // paying for itself: the whole design assumes clearing a wrong date is cheaper
 // than missing a right one.
 (function () {
+  // The attention queue reuses .agenda, so one handler serves both screens.
+  // A second handler would drift from this one the first time either changes.
   var rows = Array.prototype.slice.call(
     document.querySelectorAll(".agenda [data-entry]")
   );
@@ -173,6 +175,8 @@ if (restored !== null) {
 
   function post(row, which) {
     var action = row.dataset[which];
+    // A live attention row has no item to act on, so it carries no action and
+    // the keystroke does nothing rather than posting somewhere wrong.
     if (!action) return;
     var form = document.createElement("form");
     form.method = "post";
