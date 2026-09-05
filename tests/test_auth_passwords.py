@@ -63,7 +63,7 @@ def test_a_cheaper_hash_still_verifies():
 @pytest.mark.parametrize(
     "encoded",
     ["", "not-a-hash", "scrypt$x$8$1$aaaa$bbbb", "scrypt$32768$8$1$aaaa",
-     "bcrypt$32768$8$1$aaaa$bbbb"],
+     "bcrypt$32768$8$1$aaaa$bbbb", "scrypt$999999999999999999999999$8$1$aaaa$bbbb"],
 )
 def test_a_malformed_hash_is_false_not_an_exception(encoded):
     """A corrupt row must fail the login, not 500 the login page."""

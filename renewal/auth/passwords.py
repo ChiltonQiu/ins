@@ -75,9 +75,9 @@ def verify_password(password: str, encoded: str) -> bool:
     n, r, p, salt, digest = parsed
     try:
         candidate = _derive(password, salt, n, r, p)
-    except ValueError:
+    except (ValueError, OverflowError):
         # Parameters outside what scrypt accepts, e.g. an n that is not a
-        # power of two. Same answer as a wrong password.
+        # power of two, or an oversized integer. Same answer as a wrong password.
         return False
     return hmac.compare_digest(candidate, digest)
 
