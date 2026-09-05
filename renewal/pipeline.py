@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from sqlalchemy import select
 
+from renewal.attention.rules import evaluate as evaluate_attention
 from renewal.blobstore import BlobStore
 from renewal.classify.runner import (
     FIELD_EXTRACTION_CLASSES, classify, latest_class,
@@ -104,6 +105,15 @@ def should_extract_fields(session: Session, document_id: int) -> bool:
     return latest_class(session, document_id) in FIELD_EXTRACTION_CLASSES
 
 
+def run_attention_stage(
+    session: Session, document: Document, *, settings: Settings
+) -> None:
+    try:
+        evaluate_attention(session, document, settings=settings)
+    except Exception:  # noqa: BLE001 - the document survives a failed stage
+        logger.exception("attention stage failed document_id=%s", document.id)
+
+
 def ingest_document(
     session: Session,
     store: BlobStore,
@@ -140,4 +150,7 @@ def ingest_document(
         run_classify_stage(
             session, document, client=model_client, settings=settings
         )
+    # Last: its rules read the label and the link that the stages above wrote.
+    if settings is not None:
+        run_attention_stage(session, document, settings=settings)
     return document
