@@ -24,7 +24,7 @@ def _user(session, email="anne@agency.com", active=True):
 def test_a_new_session_looks_up_to_its_user(session):
     user = _user(session)
     token = create_session(session, user, ttl_hours=12)
-    assert lookup_session(session, token).id == user.id
+    assert lookup_session(session, token, ttl_hours=12).id == user.id
 
 
 def test_the_raw_token_is_not_stored(session):
@@ -44,7 +44,7 @@ def test_two_sessions_get_different_tokens(session):
 
 
 def test_an_unknown_token_is_none(session):
-    assert lookup_session(session, "nonsense") is None
+    assert lookup_session(session, "nonsense", ttl_hours=12) is None
 
 
 def test_an_expired_session_is_none(session):
@@ -53,7 +53,7 @@ def test_an_expired_session_is_none(session):
     row = session.query(UserSession).one()
     row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     session.flush()
-    assert lookup_session(session, token) is None
+    assert lookup_session(session, token, ttl_hours=12) is None
 
 
 def test_a_session_belonging_to_a_deactivated_user_is_none(session):
@@ -63,7 +63,7 @@ def test_a_session_belonging_to_a_deactivated_user_is_none(session):
     token = create_session(session, user, ttl_hours=12)
     user.is_active = False
     session.flush()
-    assert lookup_session(session, token) is None
+    assert lookup_session(session, token, ttl_hours=12) is None
 
 
 def test_lookup_slides_the_expiry(session):
@@ -75,8 +75,26 @@ def test_lookup_slides_the_expiry(session):
     row.last_seen_at = datetime.now(timezone.utc) - timedelta(hours=1)
     session.flush()
     before = row.expires_at
-    lookup_session(session, token)
+    lookup_session(session, token, ttl_hours=12)
     assert row.expires_at > before
+
+
+def test_repeated_lookups_do_not_grow_the_window(session):
+    """The window is flat: each use grants another full TTL from now. The
+    first version of this compounded — eight hourly hits turned a 12-hour
+    session into a 40-hour one — because it re-derived the span from an
+    expires_at it had already moved."""
+    user = _user(session)
+    token = create_session(session, user, ttl_hours=12)
+    row = session.query(UserSession).one()
+    for hours in range(1, 9):
+        now = datetime.now(timezone.utc) + timedelta(hours=hours)
+        row.expires_at = now + timedelta(hours=12)
+        row.last_seen_at = now
+        session.flush()
+        lookup_session(session, token, ttl_hours=12)
+        window = row.expires_at - datetime.now(timezone.utc)
+        assert window <= timedelta(hours=12, minutes=1)
 
 
 def test_revoking_makes_the_token_dead(session):
@@ -85,7 +103,7 @@ def test_revoking_makes_the_token_dead(session):
     user = _user(session)
     token = create_session(session, user, ttl_hours=12)
     revoke_session(session, token)
-    assert lookup_session(session, token) is None
+    assert lookup_session(session, token, ttl_hours=12) is None
     assert session.query(UserSession).count() == 0
 
 
@@ -102,4 +120,4 @@ def test_the_sweep_removes_only_expired_rows(session):
     row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     session.flush()
     assert sweep_expired(session) == 1
-    assert lookup_session(session, live).id == user.id
+    assert lookup_session(session, live, ttl_hours=12).id == user.id

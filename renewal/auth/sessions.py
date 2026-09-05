@@ -37,9 +37,9 @@ def create_session(session: Session, user: User, *, ttl_hours: int) -> str:
     session.add(UserSession(
         token_sha256=_digest(token),
         user_id=user.id,
-        # Set explicitly rather than left to the server default: lookup slides
-        # the expiry by (expires_at - created_at), and that arithmetic must
-        # not depend on whether the default has been read back yet.
+        # Set explicitly rather than left to the server default, so the row
+        # is fully formed without depending on whether the default has been
+        # read back yet.
         created_at=now,
         expires_at=now + timedelta(hours=ttl_hours),
         last_seen_at=now,
@@ -48,7 +48,7 @@ def create_session(session: Session, user: User, *, ttl_hours: int) -> str:
     return token
 
 
-def lookup_session(session: Session, token: str) -> User | None:
+def lookup_session(session: Session, token: str, *, ttl_hours: int) -> User | None:
     row = session.scalar(
         select(UserSession).where(UserSession.token_sha256 == _digest(token))
     )
@@ -60,10 +60,11 @@ def lookup_session(session: Session, token: str) -> User | None:
     user = session.get(User, row.user_id)
     if user is None or not user.is_active:
         return None
-    # Slide, so a session in use does not expire mid-task. The TTL is read
-    # from the row's own span rather than from settings, so a running session
-    # keeps the length it was issued with.
-    row.expires_at = now + (row.expires_at - row.created_at)
+    # The window is flat: each use grants another full TTL from now. The span
+    # is never re-derived from expires_at, because this function is what
+    # moves expires_at — doing so would compound on every hit and let a live
+    # session's absolute expiry grow without bound.
+    row.expires_at = now + timedelta(hours=ttl_hours)
     row.last_seen_at = now
     session.flush()
     return user
