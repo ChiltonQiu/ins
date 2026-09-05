@@ -35,6 +35,8 @@ class Settings:
     classification_model: str = "claude-haiku-4-5-20251001"
     inbound_provider: str = "filedrop"
     inbound_drop_dir: str = "mail"
+    session_cookie_secure: bool = True
+    session_ttl_hours: int = 12
 
 
 def load_settings() -> Settings:
@@ -64,4 +66,10 @@ def load_settings() -> Settings:
         ),
         inbound_provider=os.environ.get("INBOUND_PROVIDER", "filedrop"),
         inbound_drop_dir=os.environ.get("INBOUND_DROP_DIR", "mail"),
+        # Defaults to true so that forgetting to configure it fails toward
+        # security. Local development over plain HTTP sets it false.
+        session_cookie_secure=os.environ.get(
+            "SESSION_COOKIE_SECURE", "true"
+        ).lower() not in ("0", "false", "no"),
+        session_ttl_hours=int(os.environ.get("SESSION_TTL_HOURS", "12")),
     )

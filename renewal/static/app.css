@@ -1183,3 +1183,17 @@ tr.unconfirmed td {
     font-size: 12.5px;
   }
 }
+
+/* ---- login ------------------------------------------------------------- */
+/* The one page with no navigation: nothing behind it is reachable yet. */
+.loginbox {
+  max-width: 22rem;
+  margin: 12vh auto;
+  padding: 0 1rem;
+}
+.loginbox h1 { margin-bottom: 1.5rem; }
+.loginerror {
+  border-left: 3px solid var(--danger);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
