@@ -182,3 +182,77 @@ def test_a_login_honours_a_safe_next(app_client, account):
         follow_redirects=False,
     )
     assert response.headers["location"] == "/calendar"
+
+
+def _fail_once(client, email="anne@agency.com"):
+    return client.post("/login", data={"email": email, "password": "wrong"})
+
+
+def test_ten_failures_lock_the_account(app_client, account, db):
+    for _ in range(10):
+        _fail_once(app_client)
+    db.expire_all()
+    assert db.query(User).one().locked_until is not None
+
+
+def test_the_correct_password_fails_while_locked(app_client, account, db):
+    for _ in range(10):
+        _fail_once(app_client)
+    response = app_client.post(
+        "/login", data={"email": "anne@agency.com", "password": PASSWORD},
+    )
+    assert WRONG in response.text
+    assert not app_client.cookies.get(COOKIE_NAME)
+
+
+def test_the_lock_says_nothing_different(app_client, account):
+    """A distinct 'account locked' message tells an attacker the address is
+    real and that they are making progress."""
+    for _ in range(10):
+        _fail_once(app_client)
+    locked = app_client.post(
+        "/login", data={"email": "anne@agency.com", "password": "wrong"},
+    )
+    unknown = app_client.post(
+        "/login", data={"email": "nobody@agency.com", "password": "wrong"},
+    )
+    assert WRONG in locked.text
+    assert WRONG in unknown.text
+
+
+def test_nine_failures_do_not_lock(app_client, account):
+    for _ in range(9):
+        _fail_once(app_client)
+    response = app_client.post(
+        "/login", data={"email": "anne@agency.com", "password": PASSWORD},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+
+def test_an_expired_lock_lets_a_correct_password_through(
+    app_client, account, db
+):
+    from datetime import datetime, timedelta, timezone
+
+    for _ in range(10):
+        _fail_once(app_client)
+    db.expire_all()
+    user = db.query(User).one()
+    user.locked_until = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+    response = app_client.post(
+        "/login", data={"email": "anne@agency.com", "password": PASSWORD},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+
+def test_a_successful_login_resets_the_counter(app_client, account, db):
+    for _ in range(3):
+        _fail_once(app_client)
+    app_client.post(
+        "/login", data={"email": "anne@agency.com", "password": PASSWORD},
+    )
+    db.expire_all()
+    assert db.query(User).one().failed_count == 0

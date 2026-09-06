@@ -26,6 +26,12 @@ logger = logging.getLogger(__name__)
 
 WRONG = "Email or password is wrong."
 
+# Ten is far above any plausible typo streak and far below what a password
+# guesser needs. The lock is on the account, not the address: it is checked
+# only after a row is found, so it never confirms that an address exists.
+MAX_FAILURES = 10
+LOCKOUT_MINUTES = 15
+
 
 def safe_next(raw: str | None) -> str:
     """Confine a redirect to this site.
@@ -39,6 +45,14 @@ def safe_next(raw: str | None) -> str:
     if raw.startswith("//") or raw.startswith("/\\"):
         return "/"
     return raw
+
+
+def _record_failure(session, user: User, now: datetime) -> None:
+    user.failed_count += 1
+    if user.failed_count >= MAX_FAILURES:
+        user.locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+        user.failed_count = 0
+        logger.warning("account locked user_id=%s", user.id)
 
 
 def register(app, deps: Deps) -> None:
@@ -74,10 +88,20 @@ def register(app, deps: Deps) -> None:
             )
             # Hash even when there is no account, so an unknown address costs
             # the same time as a wrong password.
+            now = datetime.now(timezone.utc)
+            locked = (
+                user is not None
+                and user.locked_until is not None
+                and user.locked_until > now
+            )
             ok = verify_password(
                 password, user.password_hash if user else DUMMY_HASH
             )
-            if user is None or not user.is_active or not ok:
+            if user is None or not user.is_active or locked or not ok:
+                # A locked account records no further failures: otherwise a
+                # guesser holds the lock open by continuing to guess.
+                if user is not None and not locked:
+                    _record_failure(session, user, now)
                 session.commit()
                 logger.info("login rejected email=%s", email.strip().lower())
                 return _page(request, error=WRONG, status=200)
