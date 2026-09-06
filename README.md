@@ -69,6 +69,37 @@ compromised host: the key sits in `.env` next to the data. Back the key up
 separately from the blobs, or they travel together and the encryption buys
 nothing. Losing the key means losing every document.
 
+## Accounts
+
+Every page requires a login. Accounts are created from the command line:
+
+```bash
+.venv/bin/python -m scripts.add_user anne@agency.com
+```
+
+It prompts for the password twice and never takes it as an argument. Running
+it again for an address that already exists resets that password, clears any
+lockout, and reactivates a deactivated account — that is also how somebody
+locked out gets back in. Ten failed attempts lock an account for fifteen
+minutes.
+
+Sessions live in the database, so signing out revokes the session rather than
+just dropping the cookie. `SESSION_TTL_HOURS` (default 12) sets the length,
+and an active session slides rather than expiring mid-task.
+
+Two routes are outside the login, because neither caller can sign in:
+
+- `/calendar/{token}.ics` — the feed carries its own revocable token. Anyone
+  holding that URL reads every client name and deadline without logging in.
+  Regenerate it from the settings page.
+- `/inbound/mail` — the webhook is verified by the inbound provider's
+  signature. With `INBOUND_PROVIDER=filedrop` nothing is verified at all, so
+  that provider must never be configured on an install reachable from the
+  network.
+
+There are no roles: every account can do everything. Nothing yet records
+*which* account made a correction or confirmed a date.
+
 ## Tests
 
 ```bash

@@ -41,7 +41,7 @@
 
 `tests/test_packaging.py` already derives the on-disk package set by globbing for `__init__.py`, so creating `renewal/auth/` makes it fail until `pyproject.toml` is updated. That is the test doing its job — it is why the pyproject edit belongs in this task rather than a later one.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_auth_passwords.py`:
 
@@ -125,12 +125,12 @@ def test_the_dummy_hash_verifies_against_nothing():
     assert not needs_rehash(DUMMY_HASH)
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_auth_passwords.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.auth'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `renewal/auth/__init__.py` as an empty file.
 
@@ -234,12 +234,12 @@ def needs_rehash(encoded: str) -> bool:
 DUMMY_HASH = hash_password(secrets.token_urlsafe(32))
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_auth_passwords.py -v`
 Expected: PASS, all cases.
 
-- [ ] **Step 5: Confirm the packaging test now fails, then fix it**
+- [x] **Step 5: Confirm the packaging test now fails, then fix it**
 
 Run: `.venv/bin/pytest tests/test_packaging.py -v`
 Expected: FAIL — `not in pyproject packages: ['renewal.auth']`
@@ -255,12 +255,12 @@ packages = [
 ]
 ```
 
-- [ ] **Step 6: Run the packaging test to verify it passes**
+- [x] **Step 6: Run the packaging test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_packaging.py -v`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/auth/__init__.py renewal/auth/passwords.py \
@@ -284,7 +284,7 @@ git commit -m "feat(auth): scrypt password hashing with upgradable parameters"
   - `renewal.models.User` — `id, email, password_hash, display_name, is_active, failed_count, locked_until, created_at`
   - `renewal.models.UserSession` — `id, token_sha256, user_id, created_at, expires_at, last_seen_at`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_models_auth.py`:
 
@@ -365,12 +365,12 @@ def test_deleting_a_user_takes_their_sessions_with_them(session):
     assert session.query(UserSession).count() == 0
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_models_auth.py -v`
 Expected: FAIL — `ImportError: cannot import name 'User' from 'renewal.models'`
 
-- [ ] **Step 3: Add the models**
+- [x] **Step 3: Add the models**
 
 In `renewal/models.py`, extend the module docstring. It currently opens by
 saying every table is insert-only; that must not silently stop being true:
@@ -439,7 +439,7 @@ Index(
 )
 ```
 
-- [ ] **Step 4: Generate and edit the migration**
+- [x] **Step 4: Generate and edit the migration**
 
 Run: `.venv/bin/alembic revision --autogenerate -m "users and sessions"`
 
@@ -455,7 +455,7 @@ and the index. Verify it contains:
 Add any of those it missed by hand — autogenerate does not reliably emit a
 functional index. Confirm `down_revision` points at `2d63899b782b`.
 
-- [ ] **Step 5: Add the new tables to the test truncation list**
+- [x] **Step 5: Add the new tables to the test truncation list**
 
 In `conftest.py`, the `TABLES` string ends with `"inbound_message, attention_item, attention_event"`. Extend it:
 
@@ -473,18 +473,18 @@ TABLES = (
 `user_session` does not need naming separately — `TRUNCATE ... CASCADE` on
 `app_user` reaches it — but naming it is clearer and costs nothing.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_models_auth.py tests/test_models.py -v`
 Expected: PASS. The `engine` fixture drops and recreates the schema from
 `alembic upgrade head`, so the new migration runs as part of the test session.
 
-- [ ] **Step 7: Run the full suite to confirm nothing regressed**
+- [x] **Step 7: Run the full suite to confirm nothing regressed**
 
 Run: `.venv/bin/pytest`
 Expected: PASS — 510 existing tests plus the new ones.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions conftest.py \
@@ -504,12 +504,12 @@ git commit -m "feat(auth): app_user and user_session tables"
 - Consumes: `renewal.models.User`, `renewal.models.UserSession` from Task 2.
 - Produces:
   - `create_session(session, user, *, ttl_hours: int) -> str` — returns the raw cookie value, which is never stored and never recoverable afterwards
-  - `lookup_session(session, token: str) -> User | None` — refuses expired and inactive; slides `last_seen_at` and `expires_at` on success
+  - `lookup_session(session, token: str, *, ttl_hours: int) -> User | None` — refuses expired and inactive; on success slides `last_seen_at` to now and `expires_at` to `now + ttl_hours` (a flat window; deriving the span from the mutated `expires_at` compounds it)
   - `revoke_session(session, token: str) -> None`
   - `sweep_expired(session) -> int`
   - `COOKIE_NAME: str = "renewal_session"`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_auth_sessions.py`:
 
@@ -621,12 +621,12 @@ def test_the_sweep_removes_only_expired_rows(session):
     assert lookup_session(session, live).id == user.id
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_auth_sessions.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.auth.sessions'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `renewal/auth/sessions.py`:
 
@@ -681,7 +681,7 @@ def create_session(session: Session, user: User, *, ttl_hours: int) -> str:
     return token
 
 
-def lookup_session(session: Session, token: str) -> User | None:
+def lookup_session(session: Session, token: str, *, ttl_hours: int) -> User | None:
     row = session.scalar(
         select(UserSession).where(UserSession.token_sha256 == _digest(token))
     )
@@ -693,10 +693,11 @@ def lookup_session(session: Session, token: str) -> User | None:
     user = session.get(User, row.user_id)
     if user is None or not user.is_active:
         return None
-    # Slide, so a session in use does not expire mid-task. The TTL is read
-    # from the row's own span rather than from settings, so a running session
-    # keeps the length it was issued with.
-    row.expires_at = now + (row.expires_at - row.created_at)
+    # Slide, so a session in use does not expire mid-task. The window is
+    # flat: each use grants another full TTL from now. Deriving the span from
+    # the row's own expires_at instead compounds it, because this function has
+    # already moved that value on every prior hit.
+    row.expires_at = now + timedelta(hours=ttl_hours)
     row.last_seen_at = now
     session.flush()
     return user
@@ -719,12 +720,12 @@ def sweep_expired(session: Session) -> int:
     return result.rowcount
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_auth_sessions.py -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/auth/sessions.py tests/test_auth_sessions.py
@@ -752,7 +753,7 @@ git commit -m "feat(auth): db-backed sessions that logout actually revokes"
 
 Nothing is enforced yet. This task adds the door; Task 7 closes the walls.
 
-- [ ] **Step 1: Add the settings**
+- [x] **Step 1: Add the settings**
 
 In `renewal/config.py`, add to the `Settings` dataclass after `inbound_drop_dir`:
 
@@ -789,7 +790,7 @@ SESSION_COOKIE_SECURE=true
 SESSION_TTL_HOURS=12
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `tests/test_web_auth.py`:
 
@@ -980,13 +981,13 @@ def test_a_login_honours_a_safe_next(app_client, account):
     assert response.headers["location"] == "/calendar"
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_web_auth.py -v`
 Expected: FAIL — `404` on `/login`, and `ModuleNotFoundError` on
 `renewal.web.auth`.
 
-- [ ] **Step 4: Write the router**
+- [x] **Step 4: Write the router**
 
 Create `renewal/web/auth.py`:
 
@@ -1112,7 +1113,7 @@ both, as a change that is reviewable on its own rather than dead code arriving
 early. `timedelta` is imported above in anticipation of that task; if a linter
 objects to it being unused, drop it here and add it back in Task 5.
 
-- [ ] **Step 5: Write the template**
+- [x] **Step 5: Write the template**
 
 Create `renewal/templates/login.html`. It does not extend `base.html`: none of
 that navigation is reachable from here.
@@ -1173,7 +1174,7 @@ If `--bad` is not the name of the existing red token, use whichever token the
 comparison screen uses for a materially worse value — check `app.css` rather
 than inventing a colour.
 
-- [ ] **Step 6: Register the router**
+- [x] **Step 6: Register the router**
 
 In `renewal/web/__init__.py`, import the module and add it to the tuple:
 
@@ -1190,17 +1191,17 @@ ROUTER_MODULES = (
 )
 ```
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `.venv/bin/pytest tests/test_web_auth.py -v`
 Expected: PASS for every test in the file.
 
-- [ ] **Step 8: Run the full suite**
+- [x] **Step 8: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: PASS. Nothing is enforced yet, so no existing web test changes.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add renewal/web/auth.py renewal/templates/login.html \
@@ -1221,7 +1222,7 @@ git commit -m "feat(auth): login and logout, with one message for every failure"
 - Consumes: everything from Task 4.
 - Produces: `MAX_FAILURES = 10`, `LOCKOUT_MINUTES = 15` in `renewal/web/auth.py`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_web_auth.py`:
 
@@ -1300,13 +1301,13 @@ def test_a_successful_login_resets_the_counter(app_client, account, db):
     assert db.query(User).one().failed_count == 0
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_web_auth.py -v -k "lock or counter or failures"`
 Expected: FAIL — `locked_until` stays `None`, and a correct password succeeds
 after ten failures.
 
-- [ ] **Step 3: Implement the lockout**
+- [x] **Step 3: Implement the lockout**
 
 In `renewal/web/auth.py`, add below `WRONG`:
 
@@ -1371,13 +1372,13 @@ suppress.
 `failed_count` resets to zero when the lock is set, so the counter starts
 clean when the lock expires rather than locking again on the next single typo.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_auth.py -v`
 Expected: PASS. This file now does around thirty scrypt derivations at ~150 ms
 each, so expect it to take a few seconds.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/web/auth.py tests/test_web_auth.py
@@ -1400,7 +1401,7 @@ The `main()` entry point handles the TTY; `upsert_user` holds the logic and is
 what the tests drive. The password is never accepted as an argument: argv
 lands in shell history and in the process table.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_add_user.py`:
 
@@ -1484,12 +1485,12 @@ def test_a_password_of_only_spaces_is_refused(session):
         upsert_user(session, "anne@agency.com", " " * 20, "Anne")
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_add_user.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'scripts.add_user'`
 
-- [ ] **Step 3: Write the script**
+- [x] **Step 3: Write the script**
 
 Create `scripts/add_user.py`:
 
@@ -1580,12 +1581,12 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_add_user.py -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/add_user.py tests/test_add_user.py
@@ -1611,7 +1612,7 @@ the suite must be green at the commit.
 - Test: `tests/test_web_gate.py`
 
 **Interfaces:**
-- Consumes: `lookup_session`, `COOKIE_NAME` (Task 3); `safe_next` (Task 4).
+- Consumes: `lookup_session(session, token, *, ttl_hours)`, `COOKIE_NAME` (Task 3); `safe_next` (Task 4). NOTE: `lookup_session` takes a required keyword-only `ttl_hours` — the plan's Task 3 text originally omitted it and was corrected during execution.
 - Produces: `renewal.web.security.install(app, deps) -> None`; `is_public(path) -> bool`; the module constants `PUBLIC_EXACT`, `PUBLIC_PREFIXES`, `PUBLIC_PATTERNS`, `ORIGIN_EXEMPT`, `SAFE_METHODS`; and two request attributes set on every authenticated request, `request.state.user_email` and `request.state.user_display_name`. Plain strings, not a `User` — the ORM object belongs to a session that has already closed by the time a template renders.
 
 `tests/test_web_mail.py` is deliberately **not** in the modify list. Its
@@ -1619,7 +1620,7 @@ fixtures must keep working untouched — that is the test that `/inbound/mail`
 stayed public. `tests/test_web_auth.py` is not in it either: those tests sign
 themselves in.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_web_gate.py`:
 
@@ -1822,13 +1823,13 @@ def test_the_topbar_shows_who_is_signed_in(signed_in):
     assert re.search(r'action="/logout"', body)
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_web_gate.py -v`
 Expected: FAIL — protected pages return 200 instead of 303, because nothing
 enforces anything yet.
 
-- [ ] **Step 3: Write the middleware**
+- [x] **Step 3: Write the middleware**
 
 Create `renewal/web/security.py`:
 
@@ -1913,7 +1914,10 @@ def install(app, deps: Deps) -> None:
         identity: tuple[str, str] | None = None
         if token:
             with session_factory() as session:
-                user = lookup_session(session, token)
+                user = lookup_session(
+                    session, token,
+                    ttl_hours=deps.settings.session_ttl_hours,
+                )
                 if user is not None:
                     identity = (user.email, user.display_name)
                 # Committed either way: lookup_session slides the expiry on a
@@ -1938,7 +1942,7 @@ def install(app, deps: Deps) -> None:
 session clears the cookie and lands on the login page, rather than being
 refused by the gate it is trying to leave.
 
-- [ ] **Step 4: Install it and expose the user to templates**
+- [x] **Step 4: Install it and expose the user to templates**
 
 In `renewal/web/__init__.py`, import and call it. It must be installed
 **after** the routers are registered — Starlette applies `@app.middleware`
@@ -1997,7 +2001,7 @@ all of them a 303 where a 200 was expected. `tests/test_web_mail.py` and
 `tests/test_web_auth.py` must **not** be among them. If a mail test fails, the
 allowlist is wrong; fix that before going on.
 
-- [ ] **Step 7: Write the shared test helper**
+- [x] **Step 7: Write the shared test helper**
 
 Create `tests/authhelp.py`:
 
@@ -2035,7 +2039,7 @@ def sign_in(test_client, engine) -> None:
     assert response.status_code in (200, 303), response.status_code
 ```
 
-- [ ] **Step 8: Update the eight app fixtures**
+- [x] **Step 8: Update the eight app fixtures**
 
 Each of these files builds an app and yields a `TestClient`. Two shapes exist.
 
@@ -2086,7 +2090,7 @@ If a settings test fails on the ics feed URL, check that
 `test_web_settings.py` reads the token from the page rather than from a
 hard-coded path; the feed itself is public and unchanged.
 
-- [ ] **Step 10: Sharpen the webhook warning**
+- [x] **Step 10: Sharpen the webhook warning**
 
 Auth does not close the webhook. Make that harder to miss.
 

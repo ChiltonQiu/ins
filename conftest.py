@@ -51,7 +51,7 @@ TABLES = (
     " reclassification, draft, carrier, carrier_alias, carrier_admitted_status,"
     " policy_billing_type, document_text, document_classification,"
     " document_link, document_date, date_event, manual_date, manual_date_event,"
-    " inbound_message, attention_item, attention_event"
+    " inbound_message, attention_item, attention_event, app_user, user_session"
 )
 
 

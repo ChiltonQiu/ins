@@ -2,6 +2,11 @@
 DELETE: corrections, re-extractions, re-promotions, and draft edits all insert
 new rows. Values extracted from documents are stored as text exactly as read;
 typed parsing happens in the diff layer.
+
+The two exceptions are `app_user` and `user_session`, at the bottom. Those
+hold credentials rather than record: a session is deleted at logout, and a
+lockout counter is updated in place. Keeping a history of session rows would
+be a liability, not an audit trail.
 """
 
 from __future__ import annotations
@@ -258,9 +263,9 @@ class Draft(Base):
 
 
 class Agency(Base):
-    """One row. There is no auth and no tenancy; this exists so agency_id has
-    a target and so the ics token and intake address have a home she can
-    rotate from the UI."""
+    """One row. Accounts exist but tenancy does not: every account sees this
+    one agency. It exists so agency_id has a target and so the ics token and
+    intake address have a home she can rotate from the UI."""
 
     __tablename__ = "agency"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -555,3 +560,49 @@ class AttentionEvent(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     actor: Mapped[str] = mapped_column(Text, server_default="human")
     created_at: Mapped[datetime] = _created_at()
+
+
+class User(Base):
+    """A person who can sign in. Every account can do everything; there are no
+    roles. `is_active` turns an account off without deleting the row, so a
+    later change that attributes decisions to a user still has something to
+    point at."""
+
+    __tablename__ = "app_user"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(Text)
+    password_hash: Mapped[str] = mapped_column(Text)
+    display_name: Mapped[str] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    failed_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = _created_at()
+
+
+class UserSession(Base):
+    """Only the SHA-256 of the cookie value is stored, so a stolen database
+    dump yields no usable session. Named UserSession rather than Session: the
+    web modules all import SQLAlchemy's Session."""
+
+    __tablename__ = "user_session"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_sha256: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE")
+    )
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+# Uniqueness on lower(email) rather than on the column, so Anne@ and anne@
+# cannot both exist. A functional index cannot be written inside
+# __table_args__ without naming a column that does not exist until the class
+# body has run, so it is declared here instead.
+Index(
+    "uq_app_user_email_lower",
+    func.lower(User.__table__.c.email),
+    unique=True,
+)

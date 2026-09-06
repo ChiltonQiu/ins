@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — Renewal compare</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="loginpage">
+  <main class="loginbox">
+    <h1>Renewal <span>compare</span></h1>
+    {% if error %}
+    <p class="loginerror" role="alert">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/login?next={{ next|urlencode }}">
+      <div class="formrow">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="username"
+               required autofocus>
+      </div>
+      <div class="formrow">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password"
+               autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="primary">Sign in</button>
+    </form>
+  </main>
+</body>
+</html>

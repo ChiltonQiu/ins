@@ -19,16 +19,17 @@ from renewal.blobstore import BlobStore
 from renewal.config import Settings
 from renewal.models import Client, Policy, RenewalRun
 from renewal.web import (
-    attention as attention_routes, calendar, clients as client_routes,
-    comparison, mail as mail_routes, review, runs, search as search_routes,
-    settings as settings_routes, unmatched,
+    attention as attention_routes, auth as auth_routes, calendar,
+    clients as client_routes, comparison, mail as mail_routes, review, runs,
+    search as search_routes, settings as settings_routes, unmatched,
 )
+from renewal.web import security
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
 ROUTER_MODULES = (
     runs, review, comparison, unmatched, calendar, settings_routes,
-    search_routes, client_routes, attention_routes,
+    search_routes, client_routes, attention_routes, auth_routes,
 )
 
 
@@ -95,4 +96,5 @@ def create_app(
     mail_routes.register(
         app, deps, inbound_provider or build_inbound_provider(settings)
     )
+    security.install(app, deps)
     return app

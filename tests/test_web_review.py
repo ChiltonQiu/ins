@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import json
 
 import pytest
@@ -7,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from renewal.config import Settings
 from renewal.models import Client, Correction, Document, Extraction, Policy, RenewalRun
 from renewal.web import create_app
+from tests.authhelp import sign_in
 from tests.pdfmaker import make_text_pdf
 
 PRIOR = [
@@ -57,6 +59,7 @@ def app(engine, clean_db, tmp_path):
         draft_model="claude-sonnet-5",
         confidence_threshold=0.80,
         materiality_config=tmp_path / "materiality.yaml",
+        session_cookie_secure=False,
     )
     return create_app(
         settings=settings,
@@ -64,6 +67,23 @@ def app(engine, clean_db, tmp_path):
         model_client=FakeClient(_response("1840.00", "Total Policy Premium $1,840.00")),
         session_factory=sessionmaker(bind=engine),
     )
+
+
+@pytest.fixture
+def signed(app, engine):
+    """A signed-in TestClient, as a context manager.
+
+    These tests open a fresh client in several places within one test, and a
+    fresh client carries no cookie, so signing in belongs at each open rather
+    than once per test.
+    """
+    @contextmanager
+    def _open():
+        with TestClient(app) as test_client:
+            sign_in(test_client, engine)
+            yield test_client
+
+    return _open
 
 
 @pytest.fixture
@@ -97,16 +117,16 @@ def _upload(client, policy_id):
     )
 
 
-def test_new_run_form_lists_policies(app, seeded):
-    with TestClient(app) as client:
+def test_new_run_form_lists_policies(signed, seeded):
+    with signed() as client:
         page = client.get("/runs/new")
     assert page.status_code == 200
     assert "Ramirez Landscaping" in page.text
 
 
-def test_upload_ingests_both_documents_and_extracts_each(app, seeded, engine):
+def test_upload_ingests_both_documents_and_extracts_each(signed, seeded, engine):
     _, policy_id = seeded
-    with TestClient(app) as client:
+    with signed() as client:
         response = _upload(client, policy_id)
     assert response.status_code == 303
     assert "/review" in response.headers["location"]
@@ -118,9 +138,9 @@ def test_upload_ingests_both_documents_and_extracts_each(app, seeded, engine):
     sess.close()
 
 
-def test_review_page_shows_value_confidence_and_source(app, seeded):
+def test_review_page_shows_value_confidence_and_source(signed, seeded):
     _, policy_id = seeded
-    with TestClient(app) as client:
+    with signed() as client:
         location = _upload(client, policy_id).headers["location"]
         page = client.get(location)
     assert "policy.total_premium" in page.text
@@ -130,11 +150,10 @@ def test_review_page_shows_value_confidence_and_source(app, seeded):
     assert "needs review" in page.text  # confidence 0.35 < 0.80
 
 
-def test_correcting_a_field_writes_a_correction_and_leaves_the_field(
-    app, seeded, engine
+def test_correcting_a_field_writes_a_correction_and_leaves_the_field(signed, seeded, engine
 ):
     _, policy_id = seeded
-    with TestClient(app) as client:
+    with signed() as client:
         location = _upload(client, policy_id).headers["location"]
         sess = sessionmaker(bind=engine)()
         field_id = sess.query(Extraction).first().fields[0].id
@@ -154,9 +173,9 @@ def test_correcting_a_field_writes_a_correction_and_leaves_the_field(
     sess.close()
 
 
-def test_adding_a_missing_field_records_an_omission(app, seeded, engine):
+def test_adding_a_missing_field_records_an_omission(signed, seeded, engine):
     _, policy_id = seeded
-    with TestClient(app) as client:
+    with signed() as client:
         _upload(client, policy_id)
         sess = sessionmaker(bind=engine)()
         extraction_id = sess.query(Extraction).first().id
@@ -178,9 +197,9 @@ def test_adding_a_missing_field_records_an_omission(app, seeded, engine):
     sess.close()
 
 
-def test_rejecting_a_field_records_a_hallucination(app, seeded, engine):
+def test_rejecting_a_field_records_a_hallucination(signed, seeded, engine):
     _, policy_id = seeded
-    with TestClient(app) as client:
+    with signed() as client:
         _upload(client, policy_id)
         sess = sessionmaker(bind=engine)()
         field_id = sess.query(Extraction).first().fields[0].id
@@ -194,12 +213,11 @@ def test_rejecting_a_field_records_a_hallucination(app, seeded, engine):
     sess.close()
 
 
-def test_identical_documents_in_both_slots_are_refused_without_confirmation(
-    app, seeded
+def test_identical_documents_in_both_slots_are_refused_without_confirmation(signed, seeded
 ):
     _, policy_id = seeded
     same = make_text_pdf([PRIOR])
-    with TestClient(app) as client:
+    with signed() as client:
         response = client.post(
             "/runs",
             data={"policy_id": str(policy_id)},
@@ -213,11 +231,11 @@ def test_identical_documents_in_both_slots_are_refused_without_confirmation(
     assert "same document" in response.text
 
 
-def test_session_is_closed_when_a_handler_raises(app, engine):
+def test_session_is_closed_when_a_handler_raises(signed, engine):
     """A route that 404s mid-request must still return its connection to the
     pool. If a handler leaks its session on the exception path, the
     connection stays checked out after the response comes back."""
-    with TestClient(app) as client:
+    with signed() as client:
         baseline = engine.pool.checkedout()
         response = client.post(
             "/fields/999999/correct", data={"corrected_value": "x"}
@@ -226,12 +244,12 @@ def test_session_is_closed_when_a_handler_raises(app, engine):
         assert engine.pool.checkedout() == baseline
 
 
-def test_review_screen_shows_the_verification_rate(app, seeded):
+def test_review_screen_shows_the_verification_rate(signed, seeded):
     """That file's stub returns the same response for both documents, citing
     the prior page's premium. So the prior side verifies and the renewal side
     cannot: one screen shows both ends of the scale."""
     _, policy_id = seeded
-    with TestClient(app) as client:
+    with signed() as client:
         location = _upload(client, policy_id).headers["location"]
         page = client.get(location)
     assert "100.0% verified" in page.text  # prior: the quote is on the page

@@ -22,7 +22,8 @@ from renewal.models import Client, ManualDate, ManualDateEvent
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
-# There is no auth and no tenancy yet; every screen is this one agency's.
+# There is no tenancy yet; every screen is this one agency's, and every
+# signed-in account sees all of it.
 AGENCY_ID = 1
 
 

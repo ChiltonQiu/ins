@@ -37,6 +37,12 @@
     </nav>
     <span class="spacer"></span>
     {% block crumb %}{% endblock %}
+    {% if request.state.user_email is defined %}
+    <form class="whoami" method="post" action="/logout">
+      <span>{{ request.state.user_email }}</span>
+      <button type="submit">Sign out</button>
+    </form>
+    {% endif %}
     <div class="themepick" role="group" aria-label="Theme">
       <button type="button" data-theme-set="system">System</button>
       <button type="button" data-theme-set="light">Light</button>
