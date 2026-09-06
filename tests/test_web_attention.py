@@ -11,6 +11,7 @@ from renewal.models import (
     DocumentClassification, DocumentDate, DocumentLink,
 )
 from renewal.web import create_app
+from tests.authhelp import sign_in
 
 
 @pytest.fixture
@@ -23,6 +24,7 @@ def client_app(engine, clean_db, tmp_path):
         draft_model="claude-sonnet-5",
         confidence_threshold=0.80,
         materiality_config=tmp_path / "materiality.yaml",
+        session_cookie_secure=False,
     )
     app = create_app(
         settings=settings,
@@ -31,6 +33,7 @@ def client_app(engine, clean_db, tmp_path):
         session_factory=sessionmaker(bind=engine),
     )
     with TestClient(app) as test_client:
+        sign_in(test_client, engine)
         yield test_client
 
 

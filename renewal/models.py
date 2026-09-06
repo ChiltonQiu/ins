@@ -263,9 +263,9 @@ class Draft(Base):
 
 
 class Agency(Base):
-    """One row. There is no auth and no tenancy; this exists so agency_id has
-    a target and so the ics token and intake address have a home she can
-    rotate from the UI."""
+    """One row. Accounts exist but tenancy does not: every account sees this
+    one agency. It exists so agency_id has a target and so the ics token and
+    intake address have a home she can rotate from the UI."""
 
     __tablename__ = "agency"
     id: Mapped[int] = mapped_column(primary_key=True)

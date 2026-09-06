@@ -1197,3 +1197,12 @@ tr.unconfirmed td {
   padding: 0.5rem 0.75rem;
   margin-bottom: 1rem;
 }
+
+/* Who is signed in, and the way out. Quiet: it is not the job. */
+.whoami {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-3);
+}

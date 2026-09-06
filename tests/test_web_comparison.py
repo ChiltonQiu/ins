@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import json
 
 import pytest
@@ -18,6 +19,7 @@ from renewal.models import (
     RenewalRun,
 )
 from renewal.web import create_app
+from tests.authhelp import sign_in
 from tests.pdfmaker import make_text_pdf
 
 PRIOR = ["PROGRESSIVE AUTO", "Total Policy Premium $1,840.00"]
@@ -65,6 +67,7 @@ def app(engine, clean_db, tmp_path):
         draft_model="claude-sonnet-5",
         confidence_threshold=0.80,
         materiality_config="config/materiality.yaml",
+        session_cookie_secure=False,
     )
     return create_app(
         settings=settings,
@@ -72,6 +75,23 @@ def app(engine, clean_db, tmp_path):
         model_client=ScriptedClient(),
         session_factory=sessionmaker(bind=engine),
     )
+
+
+@pytest.fixture
+def signed(app, engine):
+    """A signed-in TestClient, as a context manager.
+
+    These tests open a fresh client in several places within one test, and a
+    fresh client carries no cookie, so signing in belongs at each open rather
+    than once per test.
+    """
+    @contextmanager
+    def _open():
+        with TestClient(app) as test_client:
+            sign_in(test_client, engine)
+            yield test_client
+
+    return _open
 
 
 @pytest.fixture
@@ -103,11 +123,12 @@ def _run(client, policy_id):
         },
         follow_redirects=False,
     )
+    assert response.status_code == 303, (response.status_code, response.text[:200])
     return int(response.headers["location"].split("/")[2])
 
 
-def test_promote_builds_terms_comparison_and_draft(app, policy_id, engine):
-    with TestClient(app) as client:
+def test_promote_builds_terms_comparison_and_draft(signed, policy_id, engine):
+    with signed() as client:
         run_id = _run(client, policy_id)
         response = client.post(
             f"/runs/{run_id}/promote", data={}, follow_redirects=False
@@ -123,8 +144,8 @@ def test_promote_builds_terms_comparison_and_draft(app, policy_id, engine):
     sess.close()
 
 
-def test_comparison_page_shows_draft_beside_the_diff(app, policy_id):
-    with TestClient(app) as client:
+def test_comparison_page_shows_draft_beside_the_diff(signed, policy_id):
+    with signed() as client:
         run_id = _run(client, policy_id)
         location = client.post(
             f"/runs/{run_id}/promote", data={}, follow_redirects=False
@@ -137,8 +158,8 @@ def test_comparison_page_shows_draft_beside_the_diff(app, policy_id):
     assert "not attributable" in page.text
 
 
-def test_editing_the_draft_writes_a_new_row(app, policy_id, engine):
-    with TestClient(app) as client:
+def test_editing_the_draft_writes_a_new_row(signed, policy_id, engine):
+    with signed() as client:
         run_id = _run(client, policy_id)
         location = client.post(
             f"/runs/{run_id}/promote", data={}, follow_redirects=False
@@ -158,8 +179,8 @@ def test_editing_the_draft_writes_a_new_row(app, policy_id, engine):
     sess.close()
 
 
-def test_reclassifying_from_the_ui_is_logged(app, policy_id, engine):
-    with TestClient(app) as client:
+def test_reclassifying_from_the_ui_is_logged(signed, policy_id, engine):
+    with signed() as client:
         run_id = _run(client, policy_id)
         location = client.post(
             f"/runs/{run_id}/promote", data={}, follow_redirects=False
@@ -178,8 +199,8 @@ def test_reclassifying_from_the_ui_is_logged(app, policy_id, engine):
     sess.close()
 
 
-def test_promote_is_refused_while_a_field_needs_review(app, policy_id, engine):
-    with TestClient(app) as client:
+def test_promote_is_refused_while_a_field_needs_review(signed, policy_id, engine):
+    with signed() as client:
         run_id = _run(client, policy_id)
         sess = sessionmaker(bind=engine)()
         for extraction in sess.query(Extraction).all():
@@ -195,8 +216,8 @@ def test_promote_is_refused_while_a_field_needs_review(app, policy_id, engine):
     assert "policy.total_premium" in response.text
 
 
-def test_acknowledging_a_field_allows_promotion(app, policy_id, engine):
-    with TestClient(app) as client:
+def test_acknowledging_a_field_allows_promotion(signed, policy_id, engine):
+    with signed() as client:
         run_id = _run(client, policy_id)
         sess = sessionmaker(bind=engine)()
         for extraction in sess.query(Extraction).all():

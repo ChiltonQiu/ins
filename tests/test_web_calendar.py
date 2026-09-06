@@ -10,6 +10,7 @@ from renewal.dates.service import status_of
 from renewal.models import DocumentDate, ManualDate
 from renewal.pipeline import ingest_document
 from renewal.web import create_app
+from tests.authhelp import sign_in
 from tests.pdfmaker import make_text_pdf
 
 
@@ -23,6 +24,7 @@ def client_app(engine, clean_db, tmp_path):
         draft_model="claude-sonnet-5",
         confidence_threshold=0.80,
         materiality_config=tmp_path / "materiality.yaml",
+        session_cookie_secure=False,
     )
     app = create_app(
         settings=settings,
@@ -31,6 +33,7 @@ def client_app(engine, clean_db, tmp_path):
         session_factory=sessionmaker(bind=engine),
     )
     with TestClient(app) as test_client:
+        sign_in(test_client, engine)
         yield test_client
 
 
@@ -167,15 +170,43 @@ def test_a_dismissed_date_leaves_the_agenda(client_app, seeded_date):
     assert "policy expiration" not in client_app.get("/calendar").text
 
 
-def test_a_foreign_referrer_never_becomes_a_redirect_target(client_app, seeded_date):
-    """Anything but the path of a calendar URL is discarded: otherwise any page
-    linking here could choose where this app sends her next."""
+def test_a_foreign_referrer_is_refused_before_the_route(client_app, seeded_date):
+    """The gate now stops a cross-site post outright, so this never reaches
+    _back_to at all. The route keeps its own discarding anyway — see below —
+    because the gate is one lock, not the only one."""
     response = client_app.post(
         f"/dates/{seeded_date}/confirm",
         headers={"referer": "https://evil.example/calendar?x=1"},
         follow_redirects=False,
     )
-    assert response.headers["location"] == "/calendar"
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "referer,expected",
+    [
+        ("https://evil.example/calendar?x=1", "/calendar"),
+        ("http://testserver/calendar/month?date_type=audit_date",
+         "/calendar/month?date_type=audit_date"),
+        ("http://testserver/settings", "/calendar"),
+        ("", "/calendar"),
+    ],
+)
+def test_only_a_local_calendar_referrer_survives(referer, expected):
+    """Anything but the path of one of our own calendar URLs is discarded:
+    otherwise any page linking here could choose where this app sends her
+    next."""
+    from starlette.requests import Request
+
+    from renewal.web.calendar import _back_to
+
+    scope = {
+        "type": "http", "method": "POST", "path": "/dates/1/confirm",
+        "headers": [(b"host", b"testserver")]
+                   + ([(b"referer", referer.encode())] if referer else []),
+        "query_string": b"", "scheme": "http", "server": ("testserver", 80),
+    }
+    assert _back_to(Request(scope)) == expected
 
 
 def test_a_local_calendar_referrer_keeps_its_filters(client_app, seeded_date):
