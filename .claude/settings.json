@@ -1,13 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "extraKnownMarketplaces": {
-    "caveman": {
-      "source": {
-        "source": "github",
-        "repo": "JuliusBrussee/caveman"
-      }
-    }
-  },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
@@ -24,7 +16,6 @@
     "claude-code-setup@claude-plugins-official": true,
     "stripe@claude-plugins-official": true,
     "ralph-loop@claude-plugins-official": true,
-    "caveman@caveman": true,
     "commit-commands@claude-plugins-official": true,
     "hyperframes@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true
