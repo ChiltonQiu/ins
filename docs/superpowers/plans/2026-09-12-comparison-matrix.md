@@ -550,7 +550,7 @@ git commit -m "feat(comparison): tables for an N-way comparison"
 
 `tests/test_diff.py` is **not** edited. `diff_terms` keeps its signature and its return type, and that file passing unedited is the evidence that the two-term case really is the special case.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_diff_matrix.py`:
 
@@ -643,12 +643,12 @@ def test_no_comparands_is_no_rows():
     assert diff_field_sets(_set(1, **{"policy.total_premium": "1"}), []) == []
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_diff_matrix.py -v`
 Expected: FAIL — `ImportError: cannot import name 'FieldSet' from 'renewal.diff'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `renewal/diff.py`, add after `RawDifference`:
 
@@ -710,12 +710,12 @@ def diff_terms(
     ]
 ```
 
-- [ ] **Step 4: Run both diff test files**
+- [x] **Step 4: Run both diff test files**
 
 Run: `.venv/bin/pytest tests/test_diff_matrix.py tests/test_diff.py -v`
 Expected: PASS. `tests/test_diff.py` passes **unedited** — that is the point of this task.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/diff.py tests/test_diff_matrix.py
