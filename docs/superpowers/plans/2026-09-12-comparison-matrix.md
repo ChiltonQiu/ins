@@ -51,7 +51,7 @@
 
 Three migrations rather than one, one concern each, per the spec. They are in one task because a half-migrated schema is not a state anything can be shown working in.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_models_matrix.py`:
 
@@ -236,12 +236,12 @@ def test_an_extra_carries_no_type(session):
     assert not hasattr(PolicyTermExtra, "value_type")
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_models_matrix.py -v`
 Expected: FAIL — `ImportError: cannot import name 'ComparisonColumn' from 'renewal.models'`
 
-- [ ] **Step 3: Write the models**
+- [x] **Step 3: Write the models**
 
 In `renewal/models.py`, add `kind` to `PolicyTerm` immediately after `policy_id`:
 
@@ -392,7 +392,7 @@ class PolicyTermExtra(Base):
     created_at: Mapped[datetime] = _created_at()
 ```
 
-- [ ] **Step 4: Write the three migrations**
+- [x] **Step 4: Write the three migrations**
 
 Generate each with `alembic revision -m "..."` and fill it in by hand — autogenerate will try to bundle all three and will miss the partial index.
 
@@ -498,7 +498,7 @@ def upgrade() -> None:
 
 Each `downgrade()` drops what its `upgrade()` created, in reverse.
 
-- [ ] **Step 5: Extend the truncate list**
+- [x] **Step 5: Extend the truncate list**
 
 In `conftest.py`, add the three tables to `TABLES`. Order does not matter — `CASCADE` handles the dependencies — but keep them next to the tables they hang off:
 
@@ -514,7 +514,7 @@ TABLES = (
 )
 ```
 
-- [ ] **Step 6: Migrate and run the test**
+- [x] **Step 6: Migrate and run the test**
 
 ```bash
 .venv/bin/alembic upgrade head
@@ -525,7 +525,7 @@ Expected: PASS.
 Then confirm nothing else moved: `.venv/bin/pytest`
 Expected: PASS — the whole suite. This task changes no behaviour.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/ conftest.py \
