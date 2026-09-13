@@ -24,6 +24,8 @@
 - **Attribution reads `kind`, not `policy_id`.** A quote hangs off the incumbent's chain deliberately, so `policy_id` is equal by construction and cannot discriminate (D5).
 - **`MAX_COLUMNS = 5`** — a baseline and four comparands. A module constant in `renewal/comparison.py`, not a setting: it is a property of what fits on screen from 390px up, not of an installation.
 - **Insert-only still holds.** Every new table here is written once at build and never updated. Reclassification keeps logging against `difference`.
+- **Task 3 fixes the signatures of `build_matrix` and `matrix_for` for good.** Both take `settings` from the moment they are written, even though nothing reads it until Task 6 (`extras_config`) and Task 9 (`attention_premium_pct`). This is deliberate: adding a parameter in a later task means re-editing an earlier task's output and every one of its four call sites — `web/review.py`, the two in `web/comparison.py`, and `clients/prep.py`. `settings=None` means neither later behaviour runs, which is what the tests that build a matrix without settings rely on.
+- **`renewal/comparison.py` imports `renewal/attention/rules.py`, never the reverse.** `evaluate_comparison` takes plain values rather than a `Matrix` so that edge stays one-way.
 - **Do not touch** `Correction`, `DateEvent`, `AttentionEvent`, `ManualDateEvent`, or add actor columns anywhere. Attribution of who acted is still deferred.
 
 ---
@@ -926,6 +928,25 @@ def test_attribution_runs_between_two_bound_terms(session):
     assert matrix.columns[1].breakdown_reason is None
 
 
+def test_every_column_carries_its_own_total(session):
+    """The baseline has no delta but does have a total: the premium_change
+    rule needs it as the denominator and the prep sheet prints it as the
+    'was' figure."""
+    policy = _client_policy(session)
+    prior = _term(session, policy, premium="3900.00")
+    renewal = _term(session, policy, premium="4210.00")
+    comparison = build_matrix(
+        session,
+        columns=[ColumnSpec(prior.id, "baseline"),
+                 ColumnSpec(renewal.id, "comparand")],
+        rules=RULES,
+    )
+    matrix = matrix_for(session, comparison)
+    assert matrix.columns[0].total == Decimal("3900.00")
+    assert matrix.columns[0].total_delta is None
+    assert matrix.columns[1].total == Decimal("4210.00")
+
+
 def test_attribution_is_skipped_for_a_quoted_column(session):
     """Different carriers are different coverage-code vocabularies, so almost
     the whole delta would land in the residual and the breakdown would look
@@ -957,20 +978,33 @@ def test_two_bound_terms_of_one_policy_are_draft_eligible(session):
     assert matrix_for(session, comparison).draft_eligible
 
 
-@pytest.mark.parametrize("kinds,count", [(("bound", "quoted"), 2),
-                                         (("bound", "bound"), 3)])
-def test_nothing_else_is_draft_eligible(session, kinds, count):
-    """A quoted column makes any wording a recommendation. Three bound terms
-    have no single 'what changed' to explain."""
+def test_a_quoted_column_is_not_draft_eligible(session):
+    """Any wording that sets carriers side by side is a recommendation."""
     policy = _client_policy(session)
-    specs = [ColumnSpec(_term(session, policy, premium="1").id, "baseline")]
-    for index in range(count - 1):
-        kind = kinds[min(index + 1, len(kinds) - 1)]
-        specs.append(ColumnSpec(
-            _term(session, policy, premium=str(index + 2), kind=kind).id,
-            "comparand",
-        ))
-    comparison = build_matrix(session, columns=specs, rules=RULES)
+    comparison = build_matrix(
+        session,
+        columns=[
+            ColumnSpec(_term(session, policy, premium="1").id, "baseline"),
+            ColumnSpec(_term(session, policy, premium="2", kind="quoted").id,
+                       "comparand"),
+        ],
+        rules=RULES,
+    )
+    assert not matrix_for(session, comparison).draft_eligible
+
+
+def test_three_bound_columns_are_not_draft_eligible(session):
+    """A term history has no single 'what changed' to explain."""
+    policy = _client_policy(session)
+    comparison = build_matrix(
+        session,
+        columns=[
+            ColumnSpec(_term(session, policy, premium="1").id, "baseline"),
+            ColumnSpec(_term(session, policy, premium="2").id, "comparand"),
+            ColumnSpec(_term(session, policy, premium="3").id, "comparand"),
+        ],
+        rules=RULES,
+    )
     assert not matrix_for(session, comparison).draft_eligible
 
 
@@ -1097,12 +1131,12 @@ difference — that log is the evidence for which rules are wrong.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
 
 from renewal.carriers import admitted_status, resolve_carrier
+from renewal.config import Settings
 from renewal.diff import (
     FieldSet, MatrixRow, RawDifference, diff_field_sets, normalize,
     term_field_map,
@@ -1151,7 +1185,8 @@ class Column:
     role: str
     term: PolicyTerm
     admitted: str
-    total_delta: Decimal | None
+    total: Decimal | None          # this column's own total premium
+    total_delta: Decimal | None    # against the baseline; None on the baseline
     breakdown: PremiumBreakdown | None
     breakdown_reason: str | None
 
@@ -1240,8 +1275,16 @@ def build_matrix(
     columns: list[ColumnSpec],
     rules: RuleSet,
     run_id: int | None = None,
+    settings: Settings | None = None,
 ) -> Comparison:
-    """The one way a comparison is written."""
+    """The one way a comparison is written.
+
+    settings is threaded from here rather than added later: Task 6 reads
+    extras_config off it and Task 9 reads attention_premium_pct, and both are
+    then internal changes rather than a signature every caller has to be
+    re-edited for. None means neither of those behaviours runs, which is what
+    the tests that construct a matrix without settings rely on.
+    """
     terms = _terms_for(session, columns)
 
     comparison = Comparison(renewal_run_id=run_id)
@@ -1326,11 +1369,15 @@ def _column(
     admitted = (
         admitted_status(session, carrier.id, policy.state) if carrier else "unknown"
     )
+    total = _total(field_map)
 
     if role == "baseline":
-        return Column(position, role, term, admitted, None, None, None)
+        # Its own total is carried even though it has no delta: the attention
+        # rule needs it as the denominator and the prep sheet prints it as the
+        # "was" figure.
+        return Column(position, role, term, admitted, total, None, None, None)
 
-    baseline_total, total = _total(baseline_map), _total(field_map)
+    baseline_total = _total(baseline_map)
     delta = (
         (total - baseline_total).quantize(Decimal("0.01"))
         if baseline_total is not None and total is not None else None
@@ -1338,15 +1385,18 @@ def _column(
     # kind, not policy_id: a quote hangs off the incumbent's chain on purpose,
     # so policy_id is equal by construction and cannot discriminate one.
     if "quoted" in (term.kind, baseline_term.kind):
-        return Column(position, role, term, admitted, delta, None, _ACROSS_CARRIERS)
+        return Column(
+            position, role, term, admitted, total, delta, None, _ACROSS_CARRIERS
+        )
     return Column(
-        position, role, term, admitted, delta,
+        position, role, term, admitted, total, delta,
         attribute_premium(baseline_map, field_map), None,
     )
 
 
 def matrix_for(
-    session: Session, comparison: Comparison, *, include_noise: bool = True
+    session: Session, comparison: Comparison, *, include_noise: bool = True,
+    settings: Settings | None = None,
 ) -> Matrix:
     """The one shape every consumer reads.
 
@@ -1868,7 +1918,9 @@ corrections, and the same frozen snapshot as a bound term.
 
 - [ ] **Step 5: Add the picker**
 
-In `renewal/web/comparison.py`:
+In `renewal/web/comparison.py`. The module imports `APIRouter, Form,
+HTTPException, Request` today and needs `Query` as well, for the repeated
+`comparand` parameter on the GET:
 
 ```python
     @router.get("/policies/{policy_id}/compare", response_class=HTMLResponse)
@@ -1952,7 +2004,7 @@ git commit -m "feat(comparison): set a renewal against the quotes for the same r
 - Modify: `renewal/fieldpath.py` — `extras.<key>` production
 - Modify: `renewal/diff.py` — `normalize(..., value_type=None)`, `diff_field_sets(..., types=None)`, `term_field_map` reads extras
 - Modify: `renewal/promote.py` — writes `policy_term_extra`
-- Modify: `renewal/comparison.py` — `types` threaded into `build_matrix` and `matrix_for`
+- Modify: `renewal/comparison.py` — loads types from `settings.extras_config`; **no signature change**, because Task 3 already threaded `settings` through
 - Modify: `renewal/config.py`, `.env.example` — `EXTRAS_CONFIG`
 - Test: `tests/test_extras.py`
 
@@ -2102,9 +2154,12 @@ path before comparing. `term_field_map` reads `policy_term_extra` into the flat
 map alongside everything else, so the diff, the rules and the screen need no
 knowledge that a path is an extra.
 
-`build_matrix` and `matrix_for` gain a `types` keyword and thread it through to
-`diff_field_sets`, `_strongest`, and the `differs` computation. Their callers
-load it from `settings.extras_config`.
+`build_matrix` and `matrix_for` load the types themselves from
+`settings.extras_config` and pass them to `diff_field_sets`, `_strongest`, and
+the `differs` computation. **Neither signature changes and no caller is
+touched**: Task 3 threaded `settings` through for exactly this. When `settings`
+is None the types map is empty and every extra compares as text, which is the
+safe direction.
 
 - [ ] **Step 6: Promotion writes them**
 
@@ -2205,7 +2260,9 @@ FIELD_EXTRACTION_CLASSES = ("declarations", "endorsement", "quote")
 - [ ] **Step 4: Wire the stage**
 
 `renewal/pipeline.py`, following the shape of every other stage — best-effort,
-logged, separately re-runnable:
+logged, separately re-runnable. It needs one new import,
+`from renewal.extract.runner import extract`; `should_extract_fields` is
+already defined in the module and finally gets its caller:
 
 ```python
 def run_fields_stage(
@@ -2354,6 +2411,11 @@ Expected: FAIL — `ImportError: cannot import name 'run_promote_stage'`
 
 - [ ] **Step 3: Write the stage**
 
+New imports in `renewal/pipeline.py`: `PromotionBlocked`, `promote` and
+`unresolved_field_paths` from `renewal.promote`, plus `Extraction` and
+`PolicyTerm` on the existing `renewal.models` import. `latest_link` and
+`latest_class` are already imported.
+
 ```python
 def run_promote_stage(
     session: Session, document: Document, *, settings: Settings
@@ -2483,6 +2545,9 @@ The comment at `renewal/attention/rules.py:44-49` becomes accurate:
 # this term a renewal of that one?" is arithmetic over two rows.
 ```
 
+`renewal/attention/rules.py` needs `Decimal` and `PolicyTerm` added to its
+imports; `select` and `Session` are already there.
+
 ```python
 def evaluate_promotion(session: Session, term: PolicyTerm) -> AttentionItem | None:
     """A bound term on a policy that already holds a bound term with an
@@ -2510,25 +2575,25 @@ def evaluate_promotion(session: Session, term: PolicyTerm) -> AttentionItem | No
 
 
 def evaluate_comparison(
-    session: Session, comparison, matrix, *, settings
+    session: Session, *, document_id: int | None, baseline_total: Decimal | None,
+    total_delta: Decimal | None, settings,
 ) -> AttentionItem | None:
     """Renewal comparisons only. Across carriers the delta is two carriers
-    pricing the same risk, not a change to anything."""
-    if not matrix.draft_eligible:
+    pricing the same risk differently, not a change to anything.
+
+    Plain values rather than a Matrix on purpose. This module is imported by
+    renewal/comparison.py, so taking its dataclass — or calling matrix_for to
+    get one — would close an import cycle. The caller already holds every
+    number this needs.
+    """
+    if document_id is None or total_delta is None or not baseline_total:
         return None
-    column = matrix.columns[1]
-    baseline = _total_of(matrix.columns[0])
-    if column.total_delta is None or not baseline:
-        return None
-    pct = abs(column.total_delta / baseline) * 100
+    pct = abs(total_delta / baseline_total) * 100
     if pct < settings.attention_premium_pct:
-        return None
-    document_id = matrix.columns[1].term.source_document_id
-    if document_id is None:
         return None
     return _add(
         session, document_id, "premium_change",
-        f"Premium moved {column.total_delta:+} ({pct:.0f}%) at renewal",
+        f"Premium moved {total_delta:+} ({pct:.0f}%) at renewal",
     )
 ```
 
@@ -2536,10 +2601,27 @@ def evaluate_comparison(
 
 `renewal/pipeline.py` — after `run_promote_stage` returns a term.
 `renewal/web/review.py` — after each `promote()` in the promote loop.
-`renewal/comparison.py` — at the end of `build_matrix`, reading its own
-`matrix_for`. `build_matrix` gains a `settings` keyword for the threshold; when
-it is None the rule is skipped, so the many tests constructing it without
-settings keep working.
+`renewal/comparison.py` — at the end of `build_matrix`, which already holds
+the settings keyword from Task 3. It reads its own `matrix_for` to get the
+numbers and passes **plain values** to `evaluate_comparison`, never the
+`Matrix`: `renewal/comparison.py` imports `renewal/attention/rules.py`, so
+handing the dataclass across would close an import cycle.
+
+```python
+    if settings is not None:
+        matrix = matrix_for(session, comparison, settings=settings)
+        if matrix.draft_eligible:
+            evaluate_comparison(
+                session,
+                document_id=matrix.columns[1].term.source_document_id,
+                baseline_total=matrix.columns[0].total,
+                total_delta=matrix.columns[1].total_delta,
+                settings=settings,
+            )
+```
+
+`settings=None` skips the rule, which is what the tests that build a matrix
+without settings rely on.
 
 - [ ] **Step 5: The link**
 
