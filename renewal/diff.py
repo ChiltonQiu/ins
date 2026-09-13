@@ -37,6 +37,25 @@ class RawDifference:
     renewal_value: str | None
 
 
+@dataclass(frozen=True)
+class FieldSet:
+    """One term, flattened. The engine takes these rather than terms so that
+    it needs no session and the pairwise case is the same call."""
+
+    term_id: int
+    values: dict[str, str | None]
+
+
+@dataclass(frozen=True)
+class MatrixRow:
+    """comparand_values is positional: index i is the i-th comparand, and None
+    means that column does not have the field at all."""
+
+    field_path: str
+    baseline_value: str | None
+    comparand_values: list[str | None]
+
+
 def normalize(field_path: str, value: str | None) -> str | None:
     """Canonicalize type only. Never suppresses a difference."""
     if value is None:
@@ -90,14 +109,35 @@ def term_field_map(session: Session, term: PolicyTerm) -> dict[str, str | None]:
     return {path: value for path, value in field_map.items() if value is not None}
 
 
+def diff_field_sets(
+    baseline: FieldSet, comparands: list[FieldSet]
+) -> list[MatrixRow]:
+    """Every path any column mentions, kept when any comparand disagrees with
+    the baseline. Nothing is suppressed here — classification labels rows
+    later, exactly as in the pairwise case."""
+    paths: set[str] = set(baseline.values)
+    for comparand in comparands:
+        paths |= set(comparand.values)
+
+    rows = []
+    for path in sorted(paths):
+        before = baseline.values.get(path)
+        after = [comparand.values.get(path) for comparand in comparands]
+        canonical = normalize(path, before)
+        if any(normalize(path, value) != canonical for value in after):
+            rows.append(MatrixRow(path, before, after))
+    return rows
+
+
 def diff_terms(
     session: Session, prior: PolicyTerm, renewal: PolicyTerm
 ) -> list[RawDifference]:
-    prior_map = term_field_map(session, prior)
-    renewal_map = term_field_map(session, renewal)
-    differences = []
-    for path in sorted(set(prior_map) | set(renewal_map)):
-        before, after = prior_map.get(path), renewal_map.get(path)
-        if normalize(path, before) != normalize(path, after):
-            differences.append(RawDifference(path, before, after))
-    return differences
+    """The pairwise case, which is one comparand against one baseline."""
+    rows = diff_field_sets(
+        FieldSet(prior.id, term_field_map(session, prior)),
+        [FieldSet(renewal.id, term_field_map(session, renewal))],
+    )
+    return [
+        RawDifference(row.field_path, row.baseline_value, row.comparand_values[0])
+        for row in rows
+    ]
