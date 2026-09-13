@@ -46,8 +46,9 @@ def store(tmp_path):
 
 
 TABLES = (
-    "client, policy, policy_term, coverage, insured_item, document, extraction,"
-    " extracted_field, correction, renewal_run, comparison, difference,"
+    "client, policy, policy_term, policy_term_extra, coverage, insured_item,"
+    " document, extraction, extracted_field, correction, renewal_run,"
+    " comparison, comparison_column, difference, difference_cell,"
     " reclassification, draft, carrier, carrier_alias, carrier_admitted_status,"
     " policy_billing_type, document_text, document_classification,"
     " document_link, document_date, date_event, manual_date, manual_date_event,"

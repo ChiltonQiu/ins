@@ -67,11 +67,22 @@ class Policy(Base):
 class PolicyTerm(Base):
     """A frozen snapshot promoted from one extraction plus the corrections
     standing at that moment. Never updated: a later correction promotes a new
-    row."""
+    row.
+
+    kind='quoted' is a competitor's offer for the same risk, hanging off the
+    incumbent's policy chain so that carrier_name means what it has always
+    meant — what that term's document said. Every query that means "the
+    current term" must filter kind='bound'; there is exactly one such query,
+    _latest_term() in renewal/clients/overview.py.
+    """
 
     __tablename__ = "policy_term"
+    __table_args__ = (
+        CheckConstraint("kind IN ('bound', 'quoted')", name="ck_policy_term_kind"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     policy_id: Mapped[int] = mapped_column(ForeignKey("policy.id"))
+    kind: Mapped[str] = mapped_column(Text, server_default="bound")
     carrier_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     policy_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -209,11 +220,26 @@ class RenewalRun(Base):
 
 
 class Comparison(Base):
+    """One baseline column and up to four comparands, in comparison_column.
+
+    prior_term_id and renewal_term_id are not written any more — the same term
+    ids live on the columns. They stay because for every comparison built
+    before the matrix they are the only record of what was compared, and
+    matrix_for() reads them to render those rows. renewal_run_id is NULL for a
+    comparison assembled from the record rather than from an upload pair.
+    """
+
     __tablename__ = "comparison"
     id: Mapped[int] = mapped_column(primary_key=True)
-    renewal_run_id: Mapped[int] = mapped_column(ForeignKey("renewal_run.id"))
-    prior_term_id: Mapped[int] = mapped_column(ForeignKey("policy_term.id"))
-    renewal_term_id: Mapped[int] = mapped_column(ForeignKey("policy_term.id"))
+    renewal_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("renewal_run.id"), nullable=True
+    )
+    prior_term_id: Mapped[int | None] = mapped_column(
+        ForeignKey("policy_term.id"), nullable=True
+    )
+    renewal_term_id: Mapped[int | None] = mapped_column(
+        ForeignKey("policy_term.id"), nullable=True
+    )
     created_at: Mapped[datetime] = _created_at()
     differences: Mapped[list["Difference"]] = relationship(back_populates="comparison")
 
@@ -225,6 +251,7 @@ class Difference(Base):
             "materiality IN ('material', 'informational', 'noise')",
             name="ck_difference_materiality",
         ),
+        UniqueConstraint("comparison_id", "field_path", name="uq_difference_path"),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     comparison_id: Mapped[int] = mapped_column(ForeignKey("comparison.id"))
@@ -260,6 +287,78 @@ class Draft(Base):
     edited_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class ComparisonColumn(Base):
+    """One column of a comparison. Exactly one row per comparison is the
+    baseline and everything else is measured against it; the partial unique
+    index in the migration is what enforces that, because a CHECK cannot see
+    across rows.
+
+    A comparison with no rows here was built before the matrix and is read
+    through Comparison.prior_term_id and renewal_term_id instead. Absence is
+    the marker: no status column, and nothing backfilled.
+    """
+
+    __tablename__ = "comparison_column"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('baseline', 'comparand')", name="ck_comparison_column_role"
+        ),
+        UniqueConstraint(
+            "comparison_id", "position", name="uq_comparison_column_position"
+        ),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    comparison_id: Mapped[int] = mapped_column(ForeignKey("comparison.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    policy_term_id: Mapped[int] = mapped_column(ForeignKey("policy_term.id"))
+    role: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class DifferenceCell(Base):
+    """One column's value for one difference row.
+
+    value NULL means the field is absent from that column — not on that
+    document at all. That is a different thing from an empty string and it is
+    usually why a cheaper quote is cheaper, so it renders as words rather than
+    as a blank cell.
+    """
+
+    __tablename__ = "difference_cell"
+    __table_args__ = (
+        UniqueConstraint(
+            "difference_id", "comparison_column_id", name="uq_difference_cell"
+        ),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    difference_id: Mapped[int] = mapped_column(ForeignKey("difference.id"), index=True)
+    comparison_column_id: Mapped[int] = mapped_column(
+        ForeignKey("comparison_column.id")
+    )
+    value: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PolicyTermExtra(Base):
+    """A carrier-specific field, kept out of the promoted columns.
+
+    No value_type column: the type belongs to the key rather than to the term
+    and lives in config/extras.yaml, so there is one copy of it instead of one
+    per row.
+    """
+
+    __tablename__ = "policy_term_extra"
+    __table_args__ = (
+        UniqueConstraint("policy_term_id", "field_path", name="uq_policy_term_extra"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    policy_term_id: Mapped[int] = mapped_column(
+        ForeignKey("policy_term.id"), index=True
+    )
+    field_path: Mapped[str] = mapped_column(Text)
+    value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = _created_at()
 
 
 class Agency(Base):
