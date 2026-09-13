@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 
+from renewal.comparison import Cell, Column, Matrix, Row
 from renewal.config import Settings
 from renewal.draft import build_prompt, generate_draft, latest_draft, save_edit
 from renewal.models import (
@@ -121,14 +122,51 @@ def _breakdown(residual="222.00"):
     )
 
 
+def _matrix(breakdown=None, comparison=None):
+    """The two-column shape build_prompt is only ever called with.
+
+    Built by hand rather than through build_matrix: these are tests of the
+    prompt, and the prompt only reads cells and the comparand's breakdown.
+    """
+    rows = [
+        Row(
+            difference=difference,
+            baseline=Cell(difference.prior_value, False),
+            comparands=[Cell(difference.renewal_value, True)],
+        )
+        for difference in _differences()
+    ]
+    return Matrix(
+        comparison=comparison,
+        policy=None,
+        client=None,
+        columns=[
+            Column(0, "baseline", None, "unknown", None, None, None, None),
+            Column(
+                1,
+                "comparand",
+                None,
+                "unknown",
+                None,
+                Decimal("340.00"),
+                _breakdown() if breakdown is None else breakdown,
+                None,
+            ),
+        ],
+        rows=rows,
+        legacy=False,
+        draft_eligible=True,
+    )
+
+
 def test_prompt_excludes_noise():
-    prompt = build_prompt(_differences(), _breakdown())
+    prompt = build_prompt(_matrix())
     assert "policy.total_premium" in prompt
     assert "forms.A085" not in prompt
 
 
 def test_prompt_states_the_residual_as_unexplained():
-    prompt = build_prompt(_differences(), _breakdown())
+    prompt = build_prompt(_matrix())
     assert "222.00" in prompt
     assert "not attributable" in prompt
 
@@ -141,11 +179,11 @@ def test_prompt_says_so_when_attribution_is_unavailable():
         residual=None,
         reason="total premium is not present on both documents",
     )
-    assert "not present on both documents" in build_prompt(_differences(), unavailable)
+    assert "not present on both documents" in build_prompt(_matrix(breakdown=unavailable))
 
 
 def test_prompt_forbids_advice():
-    prompt = build_prompt(_differences(), _breakdown())
+    prompt = build_prompt(_matrix())
     assert "Do not recommend" in prompt
     assert "200 words" in prompt
 
@@ -154,12 +192,7 @@ def test_generate_draft_persists_generated_text(session, settings, comparison):
     client = FakeClient()
 
     draft = generate_draft(
-        session,
-        comparison,
-        _differences(),
-        _breakdown(),
-        client=client,
-        settings=settings,
+        session, _matrix(comparison=comparison), client=client, settings=settings
     )
     assert draft.generated_text == "Your premium went up by $340."
     assert draft.final_text is None
@@ -168,12 +201,7 @@ def test_generate_draft_persists_generated_text(session, settings, comparison):
 
 def test_editing_a_draft_inserts_a_new_row(session, settings, comparison):
     original = generate_draft(
-        session,
-        comparison,
-        _differences(),
-        _breakdown(),
-        client=FakeClient(),
-        settings=settings,
+        session, _matrix(comparison=comparison), client=FakeClient(), settings=settings
     )
     edited = save_edit(session, original, "Here is what changed on your policy.")
 

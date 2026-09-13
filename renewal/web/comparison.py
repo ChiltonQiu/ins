@@ -6,28 +6,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from sqlalchemy import case
 
-from renewal.comparison import breakdown_for, reclassify
+from renewal.comparison import matrix_for, reclassify
 from renewal.draft import latest_draft, save_edit
 from renewal.models import (
-    Client,
     Comparison,
     Difference,
-    Policy,
-    PolicyTerm,
     Reclassification,
 )
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
-
-# Material differences are the conversation with the client; noise is only
-# there to be audited.
-_MATERIALITY_ORDER = case(
-    (Difference.materiality == "material", 0),
-    (Difference.materiality == "informational", 1),
-    else_=2,
-)
 
 
 def register(app, deps: Deps) -> None:
@@ -43,14 +31,19 @@ def register(app, deps: Deps) -> None:
             comparison = session.get(Comparison, comparison_id)
             if comparison is None:
                 raise HTTPException(status_code=404, detail="no such comparison")
-            term = session.get(PolicyTerm, comparison.prior_term_id)
-            policy = session.get(Policy, term.policy_id)
-            client = session.get(Client, policy.client_id)
-
-            query = session.query(Difference).filter_by(comparison_id=comparison_id)
-            if not show_noise:
-                query = query.filter(Difference.materiality != "noise")
-            differences = query.order_by(_MATERIALITY_ORDER, Difference.field_path).all()
+            # Transitional: the screen is still two fixed columns and the
+            # template still says Prior and Renewal. What moved is where the
+            # values come from — difference.prior_value and renewal_value are
+            # not written any more, so the cells are read off the matrix and
+            # handed over beside the rows. The next task takes the template to
+            # N columns and this mapping goes with it.
+            matrix = matrix_for(session, comparison, include_noise=bool(show_noise))
+            policy, client = matrix.policy, matrix.client
+            differences = [row.difference for row in matrix.rows]
+            cells = {
+                row.difference.id: (row.baseline.value, row.comparands[0].value)
+                for row in matrix.rows
+            }
 
             # A reclassification is recorded, not applied: the rule still says
             # what the row is. The screen shows both so the disagreement is
@@ -74,8 +67,9 @@ def register(app, deps: Deps) -> None:
                     "policy": policy,
                     "client": client,
                     "differences": differences,
+                    "cells": cells,
                     "disagreements": disagreements,
-                    "breakdown": breakdown_for(session, comparison),
+                    "breakdown": matrix.columns[1].breakdown,
                     "draft": latest_draft(session, comparison_id),
                     "show_noise": bool(show_noise),
                 },

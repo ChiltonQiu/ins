@@ -2,10 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from renewal.comparison import breakdown_for, build_comparison, reclassify
+from renewal.comparison import build_comparison, matrix_for, reclassify
 from renewal.materiality import load_rules
 from renewal.models import (
     Client,
+    ComparisonColumn,
     Coverage,
     Difference,
     InsuredItem,
@@ -111,8 +112,18 @@ def test_comparison_is_frozen_to_the_terms_it_was_built_from(
     comparison = build_comparison(
         session, run_id=run.id, prior_term=prior, renewal_term=renewal, rules=rules
     )
-    assert comparison.prior_term_id == prior.id
-    assert comparison.renewal_term_id == renewal.id
+    # The term ids live on the columns now. A second copy on the comparison
+    # could disagree with them, so it is not written.
+    columns = (
+        session.query(ComparisonColumn)
+        .filter_by(comparison_id=comparison.id)
+        .order_by(ComparisonColumn.position)
+        .all()
+    )
+    assert [c.policy_term_id for c in columns] == [prior.id, renewal.id]
+    assert [c.role for c in columns] == ["baseline", "comparand"]
+    assert comparison.prior_term_id is None
+    assert comparison.renewal_term_id is None
     assert comparison.renewal_run_id == run.id
 
 
@@ -130,12 +141,15 @@ def test_second_comparison_under_the_same_run_keeps_the_first(
     assert session.query(Difference).filter_by(comparison_id=first.id).count() > 0
 
 
-def test_breakdown_for_reads_the_frozen_terms(session, run_and_terms, rules):
+def test_the_comparand_column_reads_the_frozen_terms(session, run_and_terms, rules):
+    """Attribution moved onto the column that it attributes: the breakdown is
+    baseline-to-this-comparand, so with N of them there is one per column
+    rather than one per comparison."""
     run, prior, renewal = run_and_terms
     comparison = build_comparison(
         session, run_id=run.id, prior_term=prior, renewal_term=renewal, rules=rules
     )
-    breakdown = breakdown_for(session, comparison)
+    breakdown = matrix_for(session, comparison).columns[1].breakdown
     assert breakdown.available is True
     assert str(breakdown.total_delta) == "340.00"
     assert str(breakdown.residual) == "222.00"

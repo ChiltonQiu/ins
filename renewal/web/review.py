@@ -9,14 +9,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import case
 from sqlalchemy.orm import Session
 
-from renewal.comparison import breakdown_for, build_comparison
+from renewal.comparison import build_comparison, matrix_for
 from renewal.corrections import effective_values, record_correction
 from renewal.draft import generate_draft
 from renewal.extract.validate import verification_rate
 from renewal.materiality import load_rules
 from renewal.models import (
     Client,
-    Difference,
     ExtractedField,
     Extraction,
     Policy,
@@ -185,18 +184,11 @@ def register(app, deps: Deps) -> None:
                 prior_term=terms[0],
                 renewal_term=terms[1],
                 rules=load_rules(settings.materiality_config),
-            )
-            differences = (
-                session.query(Difference).filter_by(comparison_id=comparison.id).all()
-            )
-            generate_draft(
-                session,
-                comparison,
-                differences,
-                breakdown_for(session, comparison),
-                client=model_client,
                 settings=settings,
             )
+            matrix = matrix_for(session, comparison, settings=settings)
+            if matrix.draft_eligible:
+                generate_draft(session, matrix, client=model_client, settings=settings)
             session.commit()
             comparison_id = comparison.id
         return RedirectResponse(f"/comparisons/{comparison_id}", status_code=303)

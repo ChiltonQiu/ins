@@ -12,8 +12,7 @@ import datetime as dt
 from sqlalchemy.orm import Session
 
 from renewal.config import Settings
-from renewal.models import Comparison, Difference, Draft
-from renewal.premium import PremiumBreakdown
+from renewal.models import Draft
 from renewal.providers import text_block
 
 SYSTEM = """You write short, plain-English notes that an insurance agent sends
@@ -39,24 +38,34 @@ INSTRUCTIONS = (
 )
 
 
-def build_prompt(differences: list[Difference], breakdown: PremiumBreakdown) -> str:
-    """Material and informational differences only. Noise never reaches the model."""
+def build_prompt(matrix) -> str:
+    """Material and informational differences only. Noise never reaches the
+    model.
+
+    Two columns by construction: generate_draft is only called for a
+    draft-eligible matrix, which is two bound terms of one policy.
+    """
     lines = ["Changes at renewal:"]
-    for difference in differences:
-        if difference.materiality == "noise":
+    for row in matrix.rows:
+        if row.difference.materiality == "noise":
             continue
-        before = difference.prior_value if difference.prior_value is not None else "(absent)"
+        before = row.baseline.value if row.baseline.value is not None else "(absent)"
         after = (
-            difference.renewal_value if difference.renewal_value is not None else "(absent)"
+            row.comparands[0].value
+            if row.comparands[0].value is not None
+            else "(absent)"
         )
         lines.append(
-            f"- [{difference.materiality}] {difference.field_path}: {before} -> {after}"
+            f"- [{row.difference.materiality}] {row.difference.field_path}: "
+            f"{before} -> {after}"
         )
 
+    breakdown = matrix.columns[1].breakdown
     lines.append("")
-    if not breakdown.available:
+    if breakdown is None or not breakdown.available:
+        reason = breakdown.reason if breakdown else matrix.columns[1].breakdown_reason
         lines.append(
-            f"Premium change cannot be broken down: {breakdown.reason}. Say this "
+            f"Premium change cannot be broken down: {reason}. Say this "
             "plainly rather than speculating."
         )
         lines.append("")
@@ -77,9 +86,7 @@ def build_prompt(differences: list[Difference], breakdown: PremiumBreakdown) -> 
 
 def generate_draft(
     session: Session,
-    comparison: Comparison,
-    differences: list[Difference],
-    breakdown: PremiumBreakdown,
+    matrix,
     *,
     client,
     settings: Settings,
@@ -87,9 +94,9 @@ def generate_draft(
     text = client.complete(
         model=settings.draft_model,
         system=SYSTEM,
-        content=[text_block(build_prompt(differences, breakdown))],
+        content=[text_block(build_prompt(matrix))],
     )
-    draft = Draft(comparison_id=comparison.id, generated_text=text)
+    draft = Draft(comparison_id=matrix.comparison.id, generated_text=text)
     session.add(draft)
     session.flush()
     return draft

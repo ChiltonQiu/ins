@@ -92,12 +92,13 @@
         {% for difference in differences %}
         <tr {% if difference.materiality == "material" %}class="attn"{% endif %}>
           <td class="path">{{ difference.field_path | wbr }}</td>
+          {% set pair = cells[difference.id] %}
           <td class="path prior">
-            {% if difference.prior_value is not none %}{{ difference.prior_value }}
+            {% if pair[0] is not none %}{{ pair[0] }}
             {% else %}<span class="muted">not present</span>{% endif %}
           </td>
           <td class="path renewal">
-            {% if difference.renewal_value is not none %}{{ difference.renewal_value }}
+            {% if pair[1] is not none %}{{ pair[1] }}
             {% else %}<span class="muted">not present</span>{% endif %}
           </td>
           {% set mine = disagreements.get(difference.id) %}
