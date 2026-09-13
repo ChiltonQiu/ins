@@ -744,7 +744,7 @@ git commit -m "feat(diff): compare N field sets against one baseline"
 
 This is the seam task. After it there is exactly one way a comparison is written and one shape it is read in, and the pairwise rows already in the database arrive through that shape looking like everything else.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_matrix.py`:
 
@@ -1109,12 +1109,12 @@ def test_columns_from_two_policies_are_refused(session):
         )
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_matrix.py -v`
 Expected: FAIL — `ImportError: cannot import name 'MAX_COLUMNS' from 'renewal.comparison'`
 
-- [ ] **Step 3: Rewrite `renewal/comparison.py`**
+- [x] **Step 3: Rewrite `renewal/comparison.py`**
 
 ```python
 """Assembling a comparison from N frozen terms.
@@ -1517,9 +1517,17 @@ def reclassify(
 
 `breakdown_for` is deleted. Its two callers read `matrix.columns[1].breakdown` instead.
 
+**Correction found while executing.** As first written, this task and Task 4 did not separate at this seam: Task 3 deletes `breakdown_for` and stops writing `difference.prior_value`/`renewal_value`, but the comparison route imports the first and the template reads the second — so the suite could not be green at the end of Task 3 as the task promised. The minimum needed to keep it green moved here, and it is genuinely minimal, because the screen is still two fixed columns headed Prior and Renewal:
+
+- `renewal/web/comparison.py` reads `matrix_for` for the policy, the client and the breakdown, and hands the template a `cells` mapping of `difference_id -> (baseline_value, comparand_value)`.
+- `comparison.html` reads that mapping instead of the two columns. Nothing else in it changes.
+- `_MATERIALITY_ORDER` and the `Difference` query are deleted: `matrix_for` orders and filters, so `include_noise=bool(show_noise)` replaces them.
+
+Task 4 still does the real work — N columns in the header, N value cells, per-comparand premium panels, the run crumb, the draft empty state and the CSS — and deletes the `cells` mapping when the template goes N-column.
+
 `_strongest` hands `classify` a `RawDifference` — the diff's own dataclass, imported from `renewal.diff`, exactly the type it has always taken. `classify` learns nothing about matrices and `renewal/materiality.py` is not edited.
 
-- [ ] **Step 4: Move the draft onto cells**
+- [x] **Step 4: Move the draft onto cells**
 
 In `renewal/draft.py`, `build_prompt` and `generate_draft` take the matrix. The system prompt, the instructions, and the 200-word rule do **not** change — only where the two values come from.
 
@@ -1581,7 +1589,7 @@ def generate_draft(session, matrix, *, client, settings) -> Draft:
     return draft
 ```
 
-- [ ] **Step 5: Rewire the promote path**
+- [x] **Step 5: Rewire the promote path**
 
 In `renewal/web/review.py`, replace the `breakdown_for` import with `matrix_for`, and the tail of `promote_run`:
 
@@ -1604,7 +1612,7 @@ In `renewal/web/review.py`, replace the `breakdown_for` import with `matrix_for`
 
 The `Difference` import and the `session.query(Difference)` that fed the old call both go: the matrix carries the rows.
 
-- [ ] **Step 6: Rewrite the two tests that assert the old guarantees**
+- [x] **Step 6: Rewrite the two tests that assert the old guarantees**
 
 These are deliberate. A changed test is a changed guarantee, so each is rewritten rather than adjusted until it passes.
 
@@ -1630,7 +1638,7 @@ hand-constructing a `Comparison` and two `Difference` rows. The assertions
 about the prompt text itself do not change, because the prompt does not
 change.
 
-- [ ] **Step 7: Run everything**
+- [x] **Step 7: Run everything**
 
 ```bash
 .venv/bin/pytest tests/test_matrix.py tests/test_comparison.py \
@@ -1639,7 +1647,7 @@ change.
 ```
 Expected: PASS throughout. `tests/test_diff.py` is still unedited.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/comparison.py renewal/draft.py renewal/web/review.py \
