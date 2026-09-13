@@ -183,12 +183,16 @@ would need its own identity row.
 `renewal/premium.py` is not edited. It still takes two field maps and returns
 one breakdown; the matrix calls it once per comparand.
 
-It is only called when the comparand is a term of the same policy chain as the
-baseline. Across carriers the coverage codes are different vocabularies, so
-almost nothing matches, almost every line falls into the residual, and a
-breakdown that is 95% residual is worse than no breakdown — it looks like an
-analysis. The total premium delta is still shown for every column, because
-subtracting two printed totals is arithmetic and needs no shared vocabulary.
+It is only called when the baseline and the comparand are **both `bound`**.
+Across carriers the coverage codes are different vocabularies, so almost
+nothing matches, almost every line falls into the residual, and a breakdown
+that is 95% residual is worse than no breakdown — it looks like an analysis.
+The total premium delta is still shown for every column, because subtracting
+two printed totals is arithmetic and needs no shared vocabulary.
+
+The check reads `kind`, not `policy_id`. "Same policy chain" would not
+discriminate: D4 hangs a quote off the incumbent's chain deliberately, so a
+quoted column and its baseline share a `policy_id` by construction.
 
 Where the line table is absent, the reason is printed in its place. This is the
 same handling as a missing total premium in v0: skip it and say why, rather
@@ -788,8 +792,8 @@ Coverage that matters:
   with a NULL cell, and the template renders words rather than blank (D6).
 - A quoted term never appears as a policy's current term on the client overview
   or the prep sheet (D4). This is the test that guards the one dangerous query.
-- Attribution runs for a same-policy comparand and is skipped with a reason for
-  a cross-carrier one (D5).
+- Attribution runs when baseline and comparand are both bound, and is skipped
+  with a reason when either is quoted (D5).
 - A matrix containing any quoted column is not draft-eligible, and no draft
   row is written for it (D8).
 - A three-column all-bound matrix is not draft-eligible either.
