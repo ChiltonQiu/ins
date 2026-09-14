@@ -1,12 +1,15 @@
 from contextlib import contextmanager
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from renewal.blobstore import BlobStore
+from renewal.comparison import ColumnSpec, build_matrix
 from renewal.config import Settings
+from renewal.materiality import load_rules
 from renewal.models import (
     Client,
     Comparison,
@@ -232,3 +235,183 @@ def test_acknowledging_a_field_allows_promotion(signed, policy_id, engine):
             follow_redirects=False,
         )
     assert response.status_code == 303
+
+
+def _diff_head(page):
+    """The diff table's header row.
+
+    Anchored on table.diffs: the premium breakdown table has a <thead> too and
+    it comes first in the document.
+    """
+    return re.search(
+        r'<table class="diffs">.*?<thead>(.*?)</thead>', page, re.S
+    ).group(1)
+
+
+def _two_terms(engine, policy_id, *, prior="3900.00", renewal="4210.00"):
+    """Two bound terms on one policy, written straight to the record.
+
+    The run-and-promote path above is the other way in; these tests want a
+    comparison whose run id they choose, including no run at all.
+    """
+    sess = sessionmaker(bind=engine)()
+    terms = [
+        PolicyTerm(
+            policy_id=policy_id,
+            kind="bound",
+            carrier_name="Progressive",
+            policy_number="AU-4471",
+            total_premium=premium,
+        )
+        for premium in (prior, renewal)
+    ]
+    sess.add_all(terms)
+    sess.commit()
+    out = [term.id for term in terms]
+    sess.close()
+    return out
+
+
+def test_a_two_column_comparison_still_renders_prior_and_renewal(
+    signed, policy_id, engine
+):
+    """The checkpoint. Nothing a reader sees may move in this task."""
+    prior_id, renewal_id = _two_terms(engine, policy_id)
+    sess = sessionmaker(bind=engine)()
+    comparison = build_matrix(
+        sess,
+        columns=[
+            ColumnSpec(prior_id, "baseline"),
+            ColumnSpec(renewal_id, "comparand"),
+        ],
+        rules=load_rules("config/materiality.yaml"),
+    )
+    sess.commit()
+    comparison_id = comparison.id
+    sess.close()
+
+    with signed() as client:
+        page = client.get(f"/comparisons/{comparison_id}").text
+    assert "3900.00" in page and "4210.00" in page
+    assert "premium_total_change" in page
+    assert "not attributable" in page
+    # A renewal's two columns are the same carrier, so they are still named
+    # by term rather than by carrier.
+    head = _diff_head(page)
+    assert "Prior" in head and "Renewal" in head
+
+
+def test_a_legacy_comparison_renders_and_links_back_to_its_run(
+    signed, policy_id, engine
+):
+    """A comparison written before the matrix has a run; the crumb points at
+    it. One written from the record does not, and must not render a link to
+    run #None."""
+    with signed() as client:
+        run_id = _run(client, policy_id)
+
+    prior_id, renewal_id = _two_terms(engine, policy_id)
+    sess = sessionmaker(bind=engine)()
+    comparison = Comparison(
+        renewal_run_id=run_id, prior_term_id=prior_id, renewal_term_id=renewal_id
+    )
+    sess.add(comparison)
+    sess.flush()
+    sess.add(
+        Difference(
+            comparison_id=comparison.id,
+            field_path="policy.total_premium",
+            prior_value="3900.00",
+            renewal_value="4210.00",
+            materiality="material",
+            rule_id="premium_total_change",
+        )
+    )
+    sess.commit()
+    comparison_id = comparison.id
+    sess.close()
+
+    with signed() as client:
+        page = client.get(f"/comparisons/{comparison_id}").text
+    assert "3900.00" in page and "4210.00" in page
+    assert f"/runs/{run_id}/review" in page
+
+
+def test_a_comparison_with_no_run_does_not_render_a_run_crumb(
+    signed, policy_id, engine
+):
+    prior_id, renewal_id = _two_terms(engine, policy_id)
+    sess = sessionmaker(bind=engine)()
+    comparison = build_matrix(
+        sess,
+        columns=[
+            ColumnSpec(prior_id, "baseline"),
+            ColumnSpec(renewal_id, "comparand"),
+        ],
+        rules=load_rules("config/materiality.yaml"),
+    )
+    sess.commit()
+    comparison_id = comparison.id
+    sess.close()
+
+    with signed() as client:
+        page = client.get(f"/comparisons/{comparison_id}").text
+    assert "/runs/None/review" not in page
+    assert "back to Ramirez Landscaping" in page
+
+
+def test_three_columns_render_as_three_carriers(signed, policy_id, engine):
+    """Task 4's actual new capability: the screen is N columns, not two.
+
+    Nothing here is ranked — the two quotes are rendered in the order they
+    were added, and neither is marked.
+    """
+    sess = sessionmaker(bind=engine)()
+    incumbent = PolicyTerm(
+        policy_id=policy_id,
+        kind="bound",
+        carrier_name="Progressive",
+        policy_number="AU-4471",
+        total_premium="3900.00",
+    )
+    quotes = [
+        PolicyTerm(
+            policy_id=policy_id,
+            kind="quoted",
+            carrier_name=carrier,
+            policy_number="AU-4471",
+            total_premium=premium,
+        )
+        for carrier, premium in (("Sentry", "4210.00"), ("Cincinnati", "3610.00"))
+    ]
+    sess.add_all([incumbent, *quotes])
+    sess.flush()
+    comparison = build_matrix(
+        sess,
+        columns=[
+            ColumnSpec(incumbent.id, "baseline"),
+            *[ColumnSpec(quote.id, "comparand") for quote in quotes],
+        ],
+        rules=load_rules("config/materiality.yaml"),
+    )
+    sess.commit()
+    comparison_id = comparison.id
+    sess.close()
+
+    with signed() as client:
+        page = client.get(f"/comparisons/{comparison_id}").text
+
+    # Three value headers, by carrier, the incumbent's marked as the baseline.
+    # Scoped to the diff table: "Renewal" is in the site brand on every page.
+    head = _diff_head(page)
+    assert "Progressive" in head and "Sentry" in head and "Cincinnati" in head
+    assert head.count("<th") == 5  # Field, three carriers, Class
+    assert "baseline" in head
+    assert "Prior" not in head and "Renewal" not in head
+
+    # Both deltas are shown; neither quote is attributed line by line.
+    assert "+310.00" in page and "-290.00" in page
+    assert "line-item attribution is not offered against a quote" in page
+
+    # And no draft is offered, because setting carriers side by side is advice.
+    assert "the call is yours" in page

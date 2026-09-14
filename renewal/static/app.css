@@ -416,12 +416,6 @@ td.num.up {
   color: var(--danger);
 }
 
-tr.total td {
-  font-weight: 600;
-  color: var(--ink);
-  background: var(--surface-sunk);
-}
-
 tr.residual td {
   color: var(--ink-2);
 }
@@ -793,21 +787,39 @@ table.diffs td:nth-child(1) {
   width: 30%;
 }
 
-table.diffs th:nth-child(2),
-table.diffs td:nth-child(2),
-table.diffs th:nth-child(3),
-table.diffs td:nth-child(3) {
-  width: 19%;
-}
+/* The value columns share a fixed slice of the width, divided in the
+   template, so a third carrier narrows them instead of squeezing Field. */
 
-/* Prior recedes, renewal is the state you are being asked to accept. */
-table.diffs td.prior {
+/* A cell that matches the baseline recedes; a cell that diverges is the thing
+   being asked about. On a two-column renewal that is the prior column and the
+   renewal column, which is how this read before there were N of them. */
+table.diffs td.same {
   color: var(--ink-3);
 }
 
-table.diffs td.renewal {
+table.diffs td.differs {
   color: var(--ink);
   font-weight: 500;
+}
+
+/* The baseline column says what it is once, in the header, so every cell
+   under it does not have to. */
+.baseline {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+p.total-delta {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+p.total-delta.up {
+  color: var(--danger);
 }
 
 .mat {

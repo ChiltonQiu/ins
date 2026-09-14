@@ -31,19 +31,7 @@ def register(app, deps: Deps) -> None:
             comparison = session.get(Comparison, comparison_id)
             if comparison is None:
                 raise HTTPException(status_code=404, detail="no such comparison")
-            # Transitional: the screen is still two fixed columns and the
-            # template still says Prior and Renewal. What moved is where the
-            # values come from — difference.prior_value and renewal_value are
-            # not written any more, so the cells are read off the matrix and
-            # handed over beside the rows. The next task takes the template to
-            # N columns and this mapping goes with it.
             matrix = matrix_for(session, comparison, include_noise=bool(show_noise))
-            policy, client = matrix.policy, matrix.client
-            differences = [row.difference for row in matrix.rows]
-            cells = {
-                row.difference.id: (row.baseline.value, row.comparands[0].value)
-                for row in matrix.rows
-            }
 
             # A reclassification is recorded, not applied: the rule still says
             # what the row is. The screen shows both so the disagreement is
@@ -53,7 +41,7 @@ def register(app, deps: Deps) -> None:
                 for row in session.query(Reclassification)
                 .filter(
                     Reclassification.difference_id.in_(
-                        [difference.id for difference in differences]
+                        [row.difference.id for row in matrix.rows]
                     )
                 )
                 .order_by(Reclassification.id)
@@ -63,13 +51,11 @@ def register(app, deps: Deps) -> None:
                 request,
                 "comparison.html",
                 {
+                    "matrix": matrix,
                     "comparison": comparison,
-                    "policy": policy,
-                    "client": client,
-                    "differences": differences,
-                    "cells": cells,
+                    "policy": matrix.policy,
+                    "client": matrix.client,
                     "disagreements": disagreements,
-                    "breakdown": matrix.columns[1].breakdown,
                     "draft": latest_draft(session, comparison_id),
                     "show_noise": bool(show_noise),
                 },
