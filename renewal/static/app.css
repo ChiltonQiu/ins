@@ -788,9 +788,11 @@ table.diffs td:nth-child(1) {
 }
 
 /* Five columns at 390px leaves a header about as wide as one word, and
-   "Scottsdale Insurance Company" is three long ones. Break them rather than
-   push the table wider than the screen. */
+   "Scottsdale Insurance Company" is three long ones. thead th is nowrap
+   everywhere else — right for one-word headers, wrong for a carrier name —
+   so these wrap and break rather than push the table past the screen. */
 table.diffs th.cell {
+  white-space: normal;
   overflow-wrap: break-word;
 }
 

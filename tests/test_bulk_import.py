@@ -50,3 +50,63 @@ def test_an_unreadable_pdf_is_counted_and_does_not_stop_the_walk(
     stats = import_tree(session, store, root, agency_id=1)
     assert stats.failed == 1
     assert stats.imported == 2
+
+
+# What the import costs. An archive is thousands of documents and reading the
+# coverage grid out of one is a model call, so the default matters in money.
+
+
+class _Counting:
+    """Records which stage asked, by the model each one names."""
+
+    def __init__(self):
+        self.calls = []
+
+    def complete(self, *, model, system, content):
+        import json
+
+        from tests.test_pipeline import _stage_of
+
+        stage = _stage_of(model)
+        self.calls.append(stage)
+        if stage == "classify":
+            return json.dumps({"doc_class": "declarations", "confidence": 0.9})
+        if stage == "dates":
+            return json.dumps({"dates": []})
+        return json.dumps({"fields": []})
+
+
+def _dec_tree(tmp_path, name):
+    root = tmp_path / name
+    root.mkdir()
+    for n in range(3):
+        (root / f"d{n}.pdf").write_bytes(
+            make_text_pdf([["PROGRESSIVE AUTO", "Policy Number: AU-1",
+                            "Total Policy Premium $1,840.00", f"{name} {n}"]])
+        )
+    return root
+
+
+def test_import_spends_no_extraction_calls_by_default(session, store, tmp_path):
+    """Import is for getting documents in. Everything it does run is local or
+    cheap; extraction is a pure function of (blob, extractor_version) and can
+    be re-run later against whatever subset is worth it."""
+    from tests.test_dates_llm import _settings
+
+    client = _Counting()
+    import_tree(session, store, _dec_tree(tmp_path, "plain"), agency_id=1,
+                client=client, settings=_settings())
+
+    assert client.calls.count("extract") == 0
+    # The cheap stages still ran on every document.
+    assert client.calls.count("classify") == 3
+
+
+def test_extract_fields_spends_one_call_per_routed_document(session, store, tmp_path):
+    from tests.test_dates_llm import _settings
+
+    client = _Counting()
+    import_tree(session, store, _dec_tree(tmp_path, "opted"), agency_id=1,
+                client=client, settings=_settings(), extract_fields=True)
+
+    assert client.calls.count("extract") == 3
