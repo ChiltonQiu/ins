@@ -20,6 +20,10 @@ _PATTERNS = [
     re.compile(rf"^item\.{_SEG}\.attributes\.{_SEG}$"),
     re.compile(rf"^item\.{_SEG}\.coverage\.{_SEG}\.{_COVERAGE_LEAF}$"),
     re.compile(rf"^forms\.{_SEG}\.edition_date$"),
+    # Carrier-specific, one segment. The type is not in the path: it lives in
+    # config/extras.yaml, because it belongs to the key rather than to any one
+    # term. Never a promoted column on policy_term.
+    re.compile(rf"^extras\.{_SEG}$"),
 ]
 
 

@@ -15,7 +15,8 @@ from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
 
-from renewal.models import Coverage, InsuredItem, PolicyTerm
+from renewal.extras import DEFAULT_TYPE
+from renewal.models import Coverage, InsuredItem, PolicyTerm, PolicyTermExtra
 
 MONEY_LEAVES = ("total_premium", "premium", "deductible_value")
 
@@ -56,17 +57,42 @@ class MatrixRow:
     comparand_values: list[str | None]
 
 
-def normalize(field_path: str, value: str | None) -> str | None:
-    """Canonicalize type only. Never suppresses a difference."""
+def normalize(
+    field_path: str, value: str | None, value_type: str | None = None
+) -> str | None:
+    """Canonicalize type only. Never suppresses a difference.
+
+    value_type is passed for extras, whose vocabulary is open. Core paths
+    leave it None and keep guessing from the leaf name, which is correct for a
+    closed vocabulary and wrong for an open one — extras.premium would
+    otherwise read a policy number as a quantity.
+    """
     if value is None:
         return None
     text = " ".join(value.split())
-    if field_path.split(".")[-1] in MONEY_LEAVES:
+    money = (
+        value_type == "money"
+        if value_type is not None
+        else field_path.split(".")[-1] in MONEY_LEAVES
+    )
+    if money:
         try:
             return str(Decimal(re.sub(r"[$,\s]", "", text)).normalize())
         except InvalidOperation:
             return text
     return text
+
+
+def value_type_of(field_path: str, types: dict[str, str] | None) -> str | None:
+    """The type to compare a path under, or None to guess from the leaf.
+
+    Only extras carry a type: everything else is a closed vocabulary whose
+    leaves are known. An extra with no entry is text, which is why an
+    unconfigured installation shows a difference rather than hiding one.
+    """
+    if not field_path.startswith("extras."):
+        return None
+    return (types or {}).get(field_path, DEFAULT_TYPE)
 
 
 def term_field_map(session: Session, term: PolicyTerm) -> dict[str, str | None]:
@@ -106,11 +132,18 @@ def term_field_map(session: Session, term: PolicyTerm) -> dict[str, str | None]:
             if value is not None:
                 field_map[f"{prefix}.{leaf}"] = value
 
+    # Extras arrive flat and unmarked: the diff, the rules and the screen
+    # never learn that a path is carrier-specific.
+    for extra in session.query(PolicyTermExtra).filter_by(policy_term_id=term.id):
+        field_map[extra.field_path] = extra.value
+
     return {path: value for path, value in field_map.items() if value is not None}
 
 
 def diff_field_sets(
-    baseline: FieldSet, comparands: list[FieldSet]
+    baseline: FieldSet,
+    comparands: list[FieldSet],
+    types: dict[str, str] | None = None,
 ) -> list[MatrixRow]:
     """Every path any column mentions, kept when any comparand disagrees with
     the baseline. Nothing is suppressed here — classification labels rows
@@ -123,8 +156,9 @@ def diff_field_sets(
     for path in sorted(paths):
         before = baseline.values.get(path)
         after = [comparand.values.get(path) for comparand in comparands]
-        canonical = normalize(path, before)
-        if any(normalize(path, value) != canonical for value in after):
+        value_type = value_type_of(path, types)
+        canonical = normalize(path, before, value_type)
+        if any(normalize(path, value, value_type) != canonical for value in after):
             rows.append(MatrixRow(path, before, after))
     return rows
 

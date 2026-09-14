@@ -1,0 +1,10 @@
+# Types for carrier-specific fields, human-set. A key that is not listed is
+# text, which compares by exact string — the answer that cannot be wrong in an
+# interesting way.
+#
+# Nothing infers a type from a value. "1,200" is a premium on one form and part
+# of a policy number on another, and guessing would make abs_delta_gte fire on
+# a string that is not a quantity.
+version: 1
+default: text
+types: {}

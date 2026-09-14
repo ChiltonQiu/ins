@@ -26,6 +26,7 @@ class Settings:
     draft_model: str
     confidence_threshold: float
     materiality_config: Path
+    extras_config: Path = Path("config/extras.yaml")
     provider: str = "anthropic"
     llm_base_url: str | None = None
     llm_api_key: str = ""
@@ -55,6 +56,7 @@ def load_settings() -> Settings:
         materiality_config=Path(
             os.environ.get("MATERIALITY_CONFIG", "config/materiality.yaml")
         ),
+        extras_config=Path(os.environ.get("EXTRAS_CONFIG", "config/extras.yaml")),
         provider=provider,
         llm_base_url=os.environ.get("LLM_BASE_URL") or None,
         llm_api_key=os.environ.get(key_env, "") if key_env else "",

@@ -19,6 +19,7 @@ from renewal.models import (
     Extraction,
     InsuredItem,
     PolicyTerm,
+    PolicyTermExtra,
 )
 
 _DATE_PATHS = ("policy.effective_date", "policy.expiration_date")
@@ -191,6 +192,18 @@ def promote(
                 attributes=attributes,
             )
         )
+
+    # Carrier-specific fields, kept out of the promoted columns. They arrive
+    # as omission corrections from the review screen, so effective_values has
+    # already folded them in and nothing here has to know where they came
+    # from.
+    for path, value in sorted(values.items()):
+        if path.startswith("extras."):
+            session.add(
+                PolicyTermExtra(
+                    policy_term_id=term.id, field_path=path, value=value
+                )
+            )
 
     session.flush()
     session.refresh(term)

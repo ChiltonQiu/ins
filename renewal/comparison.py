@@ -25,7 +25,9 @@ from renewal.diff import (
     diff_field_sets,
     normalize,
     term_field_map,
+    value_type_of,
 )
+from renewal.extras import load_types
 from renewal.materiality import RuleSet, classify
 from renewal.models import (
     Client,
@@ -132,7 +134,16 @@ def _terms_for(session: Session, columns: list[ColumnSpec]) -> list[PolicyTerm]:
     return terms
 
 
-def _strongest(row: MatrixRow, rules: RuleSet) -> tuple[str, str]:
+def _types(settings: Settings | None) -> dict[str, str]:
+    """No settings means every extra compares as text, which is the safe
+    direction: an unconfigured installation shows a difference rather than
+    hiding one."""
+    return load_types(settings.extras_config) if settings else {}
+
+
+def _strongest(
+    row: MatrixRow, rules: RuleSet, types: dict[str, str] | None = None
+) -> tuple[str, str]:
     """Each comparand that actually differs is classified against the
     baseline, and the strongest answer wins.
 
@@ -145,10 +156,11 @@ def _strongest(row: MatrixRow, rules: RuleSet) -> tuple[str, str]:
     where one quote halves the liability limit is material even when every
     other column matches.
     """
-    canonical = normalize(row.field_path, row.baseline_value)
+    value_type = value_type_of(row.field_path, types)
+    canonical = normalize(row.field_path, row.baseline_value, value_type)
     best: tuple[str, str] | None = None
     for value in row.comparand_values:
-        if normalize(row.field_path, value) == canonical:
+        if normalize(row.field_path, value, value_type) == canonical:
             continue
         result = classify(
             RawDifference(row.field_path, row.baseline_value, value), rules
@@ -196,9 +208,10 @@ def build_matrix(
     field_sets = [FieldSet(term.id, term_field_map(session, term)) for term in terms]
     baseline_column, *comparand_columns = column_rows
     baseline_set, *comparand_sets = field_sets
+    types = _types(settings)
 
-    for row in diff_field_sets(baseline_set, comparand_sets):
-        materiality, rule_id = _strongest(row, rules)
+    for row in diff_field_sets(baseline_set, comparand_sets, types):
+        materiality, rule_id = _strongest(row, rules, types)
         difference = Difference(
             comparison_id=comparison.id,
             field_path=row.field_path,
@@ -383,16 +396,22 @@ def matrix_for(
             difference_id: (row[0], row[1:]) for difference_id, row in collected.items()
         }
 
+    types = _types(settings)
     rows = []
     for difference in differences:
         baseline_value, comparand_values = values[difference.id]
-        canonical = normalize(difference.field_path, baseline_value)
+        value_type = value_type_of(difference.field_path, types)
+        canonical = normalize(difference.field_path, baseline_value, value_type)
         rows.append(
             Row(
                 difference=difference,
                 baseline=Cell(baseline_value, False),
                 comparands=[
-                    Cell(value, normalize(difference.field_path, value) != canonical)
+                    Cell(
+                        value,
+                        normalize(difference.field_path, value, value_type)
+                        != canonical,
+                    )
                     for value in comparand_values
                 ],
             )
