@@ -26,6 +26,7 @@ from renewal.classify.runner import (
     FIELD_EXTRACTION_CLASSES, classify, latest_class,
 )
 from renewal.config import Settings
+from renewal.corrections import effective_values
 from renewal.dates.service import extract_dates
 from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
@@ -153,6 +154,22 @@ def run_promote_stage(
         .first()
     )
     if extraction is None:
+        return None
+
+    # An extraction that produced nothing is not a clean extraction. A failed
+    # provider call and an unparseable response both record the attempt with
+    # no fields at all, so there is nothing flagged and the needs_review check
+    # below sees a clean run — and promoting writes a term whose every value
+    # is NULL. _latest_term takes the newest bound term, so that empty term
+    # becomes what the client page and the prep sheet show for a policy that
+    # has a perfectly good prior one, and evaluate_promotion stays quiet
+    # because it has no effective date to compare. Silent, and wrong.
+    #
+    # effective_values rather than the status, because the question is what
+    # the extraction is worth and not how it was produced: a human who
+    # supplied the fields by hand against a failed extraction has made it
+    # promotable, which is how a stuck document gets unstuck.
+    if not effective_values(session, extraction.id):
         return None
     if unresolved_field_paths(session, extraction.id):
         return None

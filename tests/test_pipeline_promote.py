@@ -227,3 +227,91 @@ def test_the_same_bytes_on_the_same_policy_promote_once(session, settings):
     _extraction(session, two)
     assert run_promote_stage(session, two, settings=settings) is None
     assert session.query(PolicyTerm).count() == 1
+
+
+def test_a_failed_extraction_does_not_promote_an_empty_term(session, settings):
+    """A provider outage records the extraction with no fields at all, so
+    there is nothing flagged and the needs_review gate sees a clean run.
+
+    Promoting it writes a term whose every value is NULL onto the policy
+    chain, and _latest_term takes the newest bound term — so the client page
+    and the prep sheet would show unknown for a policy that has a perfectly
+    good prior term. Nothing raises an item either, because evaluate_promotion
+    needs an effective date. Silent, and wrong.
+    """
+    from renewal.models import Extraction
+
+    policy = _policy(session)
+    document = _document(session)
+    _link(session, document, client_id=policy.client_id, policy_id=policy.id)
+    session.add(
+        Extraction(
+            document_id=document.id,
+            extractor_version="v1",
+            model_id="claude-opus-5",
+            status="failed",
+            raw_response={"error": "provider down"},
+        )
+    )
+    session.flush()
+
+    assert run_promote_stage(session, document, settings=settings) is None
+    assert session.query(PolicyTerm).count() == 0
+
+
+def test_an_extraction_that_found_nothing_does_not_promote(session, settings):
+    """Status ok and an empty field list is the same empty term by another
+    route: the model read the page and returned nothing."""
+    from renewal.models import Extraction
+
+    policy = _policy(session)
+    document = _document(session)
+    _link(session, document, client_id=policy.client_id, policy_id=policy.id)
+    session.add(
+        Extraction(
+            document_id=document.id,
+            extractor_version="v1",
+            model_id="claude-opus-5",
+            status="ok",
+        )
+    )
+    session.flush()
+
+    assert run_promote_stage(session, document, settings=settings) is None
+    assert session.query(PolicyTerm).count() == 0
+
+
+def test_a_failed_extraction_filled_in_by_hand_does_promote(session, settings):
+    """The gate is what the extraction is worth, not how it was produced.
+
+    effective_values folds corrections in, so a human who supplied the fields
+    against a failed extraction has made it promotable — which is what lets a
+    stuck document be unstuck rather than re-extracted.
+    """
+    from renewal.corrections import record_correction
+    from renewal.models import Extraction
+
+    policy = _policy(session)
+    document = _document(session)
+    _link(session, document, client_id=policy.client_id, policy_id=policy.id)
+    extraction = Extraction(
+        document_id=document.id,
+        extractor_version="v1",
+        model_id="claude-opus-5",
+        status="failed",
+        raw_response={"error": "provider down"},
+    )
+    session.add(extraction)
+    session.flush()
+    record_correction(
+        session,
+        extraction_id=extraction.id,
+        field_path="policy.total_premium",
+        kind="omission",
+        corrected_value="3900.00",
+    )
+    session.flush()
+
+    term = run_promote_stage(session, document, settings=settings)
+    assert term is not None
+    assert term.total_premium == "3900.00"
