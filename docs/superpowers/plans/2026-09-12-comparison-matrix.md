@@ -2685,7 +2685,7 @@ git commit -m "feat(attention): flag a renewal that arrived and a premium that m
 
 **It computes nothing and calls no model.** Every number on it already exists in a row that something else wrote. A generated paragraph she reads to a client over the phone is the one place in this system where a hallucination reaches a client with no document, no draft and no second look in between.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/test_prep.py`:
 
@@ -2727,12 +2727,12 @@ def test_the_residual_is_stated_as_unattributable(session):
     """Never as a cause. A dec page shows the what, not the why."""
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_prep.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.clients.prep'`
 
-- [ ] **Step 3: The assembler**
+- [x] **Step 3: The assembler**
 
 `renewal/clients/prep.py` — a second view over `overview()`, not a second
 assembly. `CallPrep` carries the client, the renewals inside
@@ -2747,7 +2747,7 @@ so everywhere; a derived date shows its arithmetic and is marked computed;
 `unknown` is printed as the word; the residual is stated as unattributable and
 never as a cause; nothing on the sheet is a recommendation.
 
-- [ ] **Step 4: The template and the print stylesheet**
+- [x] **Step 4: The template and the print stylesheet**
 
 `renewal/templates/prep.html`, dense, in the existing style, matching the
 layout in the spec. Then the first `@media print` block in `app.css`:
@@ -2763,7 +2763,7 @@ layout in the spec. Then the first `@media print` block in `app.css`:
 }
 ```
 
-- [ ] **Step 5: Run and commit**
+- [x] **Step 5: Run and commit**
 
 ```bash
 .venv/bin/pytest
