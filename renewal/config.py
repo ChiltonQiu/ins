@@ -38,6 +38,7 @@ class Settings:
     inbound_drop_dir: str = "mail"
     session_cookie_secure: bool = True
     session_ttl_hours: int = 12
+    attention_premium_pct: float = 10.0
 
 
 def load_settings() -> Settings:
@@ -57,6 +58,9 @@ def load_settings() -> Settings:
             os.environ.get("MATERIALITY_CONFIG", "config/materiality.yaml")
         ),
         extras_config=Path(os.environ.get("EXTRAS_CONFIG", "config/extras.yaml")),
+        attention_premium_pct=float(
+            os.environ.get("ATTENTION_PREMIUM_PCT", "10")
+        ),
         provider=provider,
         llm_base_url=os.environ.get("LLM_BASE_URL") or None,
         llm_api_key=os.environ.get(key_env, "") if key_env else "",

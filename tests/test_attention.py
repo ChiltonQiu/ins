@@ -177,3 +177,260 @@ def test_a_resolved_item_is_never_revived_by_re_evaluation(session, store):
     resolve(session, item.id, action="dismissed")
     evaluate(session, document, settings=_settings())
     assert item.id not in {r.item_id for r in open_items(session, today=TODAY)}
+
+
+# renewal_received and premium_change. Both were declared in Phase 2 so the
+# reason vocabulary would be stable across exactly this change.
+
+
+def _policy_and_document(session, sha="f"):
+    from renewal.models import Policy
+
+    client = Client(display_name="Ramirez Landscaping")
+    session.add(client)
+    session.flush()
+    policy = Policy(client_id=client.id, carrier_name="Progressive",
+                    policy_number="PA-1", line_of_business="commercial_auto",
+                    state="OR")
+    session.add(policy)
+    document = Document(blob_sha256=sha * 64, original_filename="d.pdf",
+                        page_count=1, has_text_layer=True, doc_type="dec_page",
+                        source="bulk_import", agency_id=1)
+    session.add(document)
+    session.flush()
+    return policy, document
+
+
+def _bound(session, policy, *, effective, premium="3900.00", kind="bound",
+           document=None):
+    from renewal.models import PolicyTerm
+
+    term = PolicyTerm(policy_id=policy.id, kind=kind, carrier_name="Progressive",
+                      effective_date=effective, total_premium=premium,
+                      source_document_id=document.id if document else None)
+    session.add(term)
+    session.flush()
+    return term
+
+
+def test_a_renewal_term_on_an_existing_policy_is_flagged(session):
+    """A fact about two rows, not a judgment about a PDF: a bound term on a
+    policy that already holds a bound term with an earlier effective date."""
+    from renewal.attention.rules import evaluate_promotion
+
+    policy, document = _policy_and_document(session)
+    _bound(session, policy, effective=date(2025, 7, 1))
+    renewal = _bound(session, policy, effective=date(2026, 7, 1),
+                     document=document)
+
+    assert evaluate_promotion(session, renewal) is not None
+    assert "renewal_received" in _reasons(session, document.id)
+
+
+def test_the_first_term_on_a_policy_is_not_a_renewal(session):
+    from renewal.attention.rules import evaluate_promotion
+
+    policy, document = _policy_and_document(session)
+    first = _bound(session, policy, effective=date(2025, 7, 1), document=document)
+    assert evaluate_promotion(session, first) is None
+
+
+def test_a_quoted_term_is_not_a_renewal(session):
+    from renewal.attention.rules import evaluate_promotion
+
+    policy, document = _policy_and_document(session)
+    _bound(session, policy, effective=date(2025, 7, 1))
+    quote = _bound(session, policy, effective=date(2026, 7, 1), kind="quoted",
+                   document=document)
+    assert evaluate_promotion(session, quote) is None
+
+
+def test_a_backdated_term_is_not_a_renewal(session):
+    """A term whose effective date precedes the existing one is a correction
+    to history, not a renewal."""
+    from renewal.attention.rules import evaluate_promotion
+
+    policy, document = _policy_and_document(session)
+    _bound(session, policy, effective=date(2026, 7, 1))
+    backdated = _bound(session, policy, effective=date(2025, 7, 1),
+                       document=document)
+    assert evaluate_promotion(session, backdated) is None
+
+
+def test_a_term_with_no_source_document_cannot_be_flagged(session):
+    """Every attention item is a document plus a reason. A term promoted from
+    a record import has no document to hang one on."""
+    from renewal.attention.rules import evaluate_promotion
+
+    policy, _ = _policy_and_document(session)
+    _bound(session, policy, effective=date(2025, 7, 1))
+    renewal = _bound(session, policy, effective=date(2026, 7, 1))
+    assert evaluate_promotion(session, renewal) is None
+
+
+def test_renewal_received_does_not_duplicate_on_a_second_run(session):
+    from renewal.attention.rules import evaluate_promotion
+
+    policy, document = _policy_and_document(session)
+    _bound(session, policy, effective=date(2025, 7, 1))
+    renewal = _bound(session, policy, effective=date(2026, 7, 1),
+                     document=document)
+
+    assert evaluate_promotion(session, renewal) is not None
+    assert evaluate_promotion(session, renewal) is None
+    assert session.query(AttentionItem).filter_by(
+        document_id=document.id, reason_code="renewal_received").count() == 1
+
+
+def test_premium_change_fires_above_the_threshold(session):
+    from decimal import Decimal
+
+    from renewal.attention.rules import evaluate_comparison
+
+    _, document = _policy_and_document(session)
+    item = evaluate_comparison(
+        session, document_id=document.id, baseline_total=Decimal("3900.00"),
+        total_delta=Decimal("500.00"), settings=_settings(),
+    )
+    assert item is not None
+    assert "premium_change" in _reasons(session, document.id)
+    assert "+500.00" in item.reason_text
+
+
+def test_premium_change_is_quiet_below_the_threshold(session):
+    from decimal import Decimal
+
+    from renewal.attention.rules import evaluate_comparison
+
+    _, document = _policy_and_document(session)
+    assert evaluate_comparison(
+        session, document_id=document.id, baseline_total=Decimal("3900.00"),
+        total_delta=Decimal("39.00"), settings=_settings(),
+    ) is None
+
+
+def test_premium_change_reads_a_drop_as_well_as_a_rise(session):
+    from decimal import Decimal
+
+    from renewal.attention.rules import evaluate_comparison
+
+    _, document = _policy_and_document(session)
+    item = evaluate_comparison(
+        session, document_id=document.id, baseline_total=Decimal("3900.00"),
+        total_delta=Decimal("-500.00"), settings=_settings(),
+    )
+    assert item is not None
+    assert "-500.00" in item.reason_text
+
+
+def test_premium_change_needs_a_baseline_to_be_a_percentage_of(session):
+    from decimal import Decimal
+
+    from renewal.attention.rules import evaluate_comparison
+
+    _, document = _policy_and_document(session)
+    assert evaluate_comparison(
+        session, document_id=document.id, baseline_total=None,
+        total_delta=Decimal("500.00"), settings=_settings(),
+    ) is None
+    assert evaluate_comparison(
+        session, document_id=document.id, baseline_total=Decimal("0.00"),
+        total_delta=Decimal("500.00"), settings=_settings(),
+    ) is None
+
+
+def test_premium_change_does_not_duplicate_on_a_second_run(session):
+    from decimal import Decimal
+
+    from renewal.attention.rules import evaluate_comparison
+
+    _, document = _policy_and_document(session)
+    for _ in range(2):
+        evaluate_comparison(
+            session, document_id=document.id, baseline_total=Decimal("3900.00"),
+            total_delta=Decimal("500.00"), settings=_settings(),
+        )
+    assert session.query(AttentionItem).filter_by(
+        document_id=document.id, reason_code="premium_change").count() == 1
+
+
+def test_premium_change_never_fires_on_a_quoted_column(session):
+    """Cross-carrier, the delta is real but it is not a change to anything —
+    it is two carriers pricing the same risk differently."""
+    from renewal.comparison import ColumnSpec, build_matrix
+    from renewal.materiality import load_rules
+
+    policy, document = _policy_and_document(session)
+    incumbent = _bound(session, policy, effective=date(2025, 7, 1),
+                       premium="3900.00", document=document)
+    quote = _bound(session, policy, effective=date(2026, 7, 1),
+                   premium="4900.00", kind="quoted", document=document)
+    build_matrix(
+        session,
+        columns=[ColumnSpec(incumbent.id, "baseline"),
+                 ColumnSpec(quote.id, "comparand")],
+        rules=load_rules("config/materiality.yaml"),
+        settings=_settings(),
+    )
+    assert "premium_change" not in _reasons(session, document.id)
+
+
+def test_building_a_renewal_comparison_flags_the_premium_move(session):
+    from renewal.comparison import ColumnSpec, build_matrix
+    from renewal.materiality import load_rules
+
+    policy, document = _policy_and_document(session)
+    prior = _bound(session, policy, effective=date(2025, 7, 1), premium="3900.00")
+    renewal = _bound(session, policy, effective=date(2026, 7, 1),
+                     premium="4400.00", document=document)
+    build_matrix(
+        session,
+        columns=[ColumnSpec(prior.id, "baseline"),
+                 ColumnSpec(renewal.id, "comparand")],
+        rules=load_rules("config/materiality.yaml"),
+        settings=_settings(),
+    )
+    assert "premium_change" in _reasons(session, document.id)
+
+
+def test_a_matrix_built_without_settings_flags_nothing(session):
+    from renewal.comparison import ColumnSpec, build_matrix
+    from renewal.materiality import load_rules
+
+    policy, document = _policy_and_document(session)
+    prior = _bound(session, policy, effective=date(2025, 7, 1), premium="3900.00")
+    renewal = _bound(session, policy, effective=date(2026, 7, 1),
+                     premium="4400.00", document=document)
+    build_matrix(
+        session,
+        columns=[ColumnSpec(prior.id, "baseline"),
+                 ColumnSpec(renewal.id, "comparand")],
+        rules=load_rules("config/materiality.yaml"),
+    )
+    assert "premium_change" not in _reasons(session, document.id)
+
+
+def test_the_renewal_item_carries_a_link_to_the_picker(session):
+    """The one click D10 describes: both terms preselected, nothing built
+    until she takes it."""
+    from renewal.attention.rules import evaluate_promotion
+
+    policy, document = _policy_and_document(session)
+    prior = _bound(session, policy, effective=date(2025, 7, 1))
+    renewal = _bound(session, policy, effective=date(2026, 7, 1),
+                     document=document)
+    evaluate_promotion(session, renewal)
+
+    row = next(r for r in open_items(session, today=TODAY)
+               if r.reason_code == "renewal_received")
+    assert row.compare_url == (
+        f"/policies/{policy.id}/compare?baseline={prior.id}&comparand={renewal.id}"
+    )
+
+
+def test_other_items_carry_no_compare_link(session, store):
+    document = _document(session, store, _lines("NOTICE OF CANCELLATION"),
+                         doc_class="cancellation_notice")
+    row = next(r for r in open_items(session, today=TODAY)
+               if r.document_id == document.id)
+    assert row.compare_url is None

@@ -16,6 +16,7 @@ from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
 
+from renewal.attention.rules import evaluate_comparison
 from renewal.carriers import admitted_status, resolve_carrier
 from renewal.config import Settings
 from renewal.diff import (
@@ -238,6 +239,21 @@ def build_matrix(
 
     session.flush()
     session.refresh(comparison)
+
+    # Plain values, never the Matrix: this module imports attention/rules.py,
+    # so handing its dataclass across would close an import cycle. Renewals
+    # only — across carriers the delta is two carriers pricing the same risk
+    # differently, not a change to anything.
+    if settings is not None:
+        matrix = matrix_for(session, comparison, settings=settings)
+        if matrix.draft_eligible:
+            evaluate_comparison(
+                session,
+                document_id=matrix.columns[1].term.source_document_id,
+                baseline_total=matrix.columns[0].total,
+                total_delta=matrix.columns[1].total_delta,
+                settings=settings,
+            )
     return comparison
 
 

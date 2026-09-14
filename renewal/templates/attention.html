@@ -37,6 +37,10 @@
     {% endif %}
     <span class="src"><a href="/documents/{{ row.document_id }}">open</a></span>
     <span class="rowactions">
+      {% if row.compare_url %}
+      {# The one click. Nothing is built until she takes it. #}
+      <a class="btn primary" href="{{ row.compare_url }}">Compare</a>
+      {% endif %}
       {% if row.materialised %}
       <form method="post" action="/attention/{{ row.item_id }}/done">
         <button class="btn" type="submit">Done</button>

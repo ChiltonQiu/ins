@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from renewal.attention.rules import evaluate as evaluate_attention
+from renewal.attention.rules import evaluate_promotion
 from renewal.blobstore import BlobStore
 from renewal.classify.runner import (
     FIELD_EXTRACTION_CLASSES, classify, latest_class,
@@ -227,7 +228,9 @@ def ingest_document(
     # After the fields stage, because it promotes what that stage extracted,
     # and before attention, because Task 9's rules read the term it writes.
     if settings is not None:
-        run_promote_stage(session, document, settings=settings)
+        term = run_promote_stage(session, document, settings=settings)
+        if term is not None:
+            evaluate_promotion(session, term)
     # Last: its rules read the label and the link that the stages above wrote.
     if settings is not None:
         run_attention_stage(session, document, settings=settings)

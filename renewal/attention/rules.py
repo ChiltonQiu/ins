@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -25,18 +26,17 @@ from sqlalchemy.orm import Session
 from renewal.classify.runner import latest_class
 from renewal.models import (
     AttentionEvent, AttentionItem, Client, DateEvent, Document, DocumentDate,
-    DocumentLink,
+    DocumentLink, PolicyTerm,
 )
 from renewal.resolve.service import latest_link
 
 UNCONFIRMED_DATE_WINDOW_DAYS = 14
 
-# renewal_received and premium_change are named but not implemented.
-# renewal_received needs a definition of what separates a renewal dec page from
-# a new-business bind, which is domain knowledge nobody has supplied — a guess
-# would be a rule that is confidently wrong. premium_change fires when a
-# comparison is built, which belongs to its own plan. Both are declared now so
-# the reason vocabulary is stable.
+# renewal_received and premium_change are written by evaluate_promotion and
+# evaluate_comparison rather than by evaluate(), because neither is a fact
+# about a document at ingest. The question "is this dec page a renewal or a
+# new-business bind?" needed domain knowledge nobody had; the question "is
+# this term a renewal of that one?" is arithmetic over two rows.
 REASONS = (
     "cancellation_notice",
     "non_renewal_notice",
@@ -62,6 +62,41 @@ class QueueRow:
     reason_text: str
     due_date: date | None
     materialised: bool
+    # Set only on renewal_received: the one click D10 describes. Nothing
+    # builds until she takes it.
+    compare_url: str | None = None
+
+
+def _compare_url(session: Session, document_id: int) -> str | None:
+    """The picker, with the renewal and the term before it already ticked.
+
+    Built from the two rows the rule itself matched on, so the link cannot
+    point at a pair that would not have raised the item.
+    """
+    term = session.scalar(
+        select(PolicyTerm)
+        .where(PolicyTerm.source_document_id == document_id)
+        .where(PolicyTerm.kind == "bound")
+        .order_by(PolicyTerm.id.desc())
+        .limit(1)
+    )
+    if term is None or term.effective_date is None:
+        return None
+    prior = session.scalar(
+        select(PolicyTerm)
+        .where(PolicyTerm.policy_id == term.policy_id)
+        .where(PolicyTerm.kind == "bound")
+        .where(PolicyTerm.id != term.id)
+        .where(PolicyTerm.effective_date < term.effective_date)
+        .order_by(PolicyTerm.effective_date.desc())
+        .limit(1)
+    )
+    if prior is None:
+        return None
+    return (
+        f"/policies/{term.policy_id}/compare"
+        f"?baseline={prior.id}&comparand={term.id}"
+    )
 
 
 def _has_item(session: Session, document_id: int, reason_code: str) -> bool:
@@ -131,6 +166,10 @@ def open_items(session: Session, *, today: date | None = None) -> list[QueueRow]
             client_name=client_name, reason_code=item.reason_code,
             reason_text=item.reason_text, due_date=item.due_date,
             materialised=True,
+            compare_url=(
+                _compare_url(session, item.document_id)
+                if item.reason_code == "renewal_received" else None
+            ),
         ))
 
     judged = select(DateEvent.document_date_id).distinct()
@@ -163,3 +202,51 @@ def resolve(
     session.add(event)
     session.flush()
     return event
+
+
+def evaluate_promotion(session: Session, term: PolicyTerm) -> AttentionItem | None:
+    """A bound term on a policy that already holds a bound term with an
+    earlier effective date.
+
+    Nothing auto-builds the comparison. The item carries a link to the picker
+    with both terms preselected and she clicks it.
+    """
+    if term.kind != "bound" or term.effective_date is None:
+        return None
+    earlier = session.scalar(
+        select(PolicyTerm.id)
+        .where(PolicyTerm.policy_id == term.policy_id)
+        .where(PolicyTerm.kind == "bound")
+        .where(PolicyTerm.id != term.id)
+        .where(PolicyTerm.effective_date < term.effective_date)
+        .limit(1)
+    )
+    if earlier is None or term.source_document_id is None:
+        return None
+    return _add(
+        session, term.source_document_id, "renewal_received",
+        "Renewal received. Compare it with the prior term?",
+    )
+
+
+def evaluate_comparison(
+    session: Session, *, document_id: int | None, baseline_total: Decimal | None,
+    total_delta: Decimal | None, settings,
+) -> AttentionItem | None:
+    """Renewal comparisons only. Across carriers the delta is two carriers
+    pricing the same risk differently, not a change to anything.
+
+    Plain values rather than a Matrix on purpose. This module is imported by
+    renewal/comparison.py, so taking its dataclass — or calling matrix_for to
+    get one — would close an import cycle. The caller already holds every
+    number this needs.
+    """
+    if document_id is None or total_delta is None or not baseline_total:
+        return None
+    pct = abs(total_delta / baseline_total) * 100
+    if pct < settings.attention_premium_pct:
+        return None
+    return _add(
+        session, document_id, "premium_change",
+        f"Premium moved {total_delta:+} ({pct:.0f}%) at renewal",
+    )

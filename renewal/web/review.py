@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import case
 from sqlalchemy.orm import Session
 
+from renewal.attention.rules import evaluate_promotion
 from renewal.comparison import build_comparison, matrix_for
 from renewal.corrections import effective_values, record_correction
 from renewal.draft import generate_draft
@@ -177,6 +178,12 @@ def register(app, deps: Deps) -> None:
                     status_code=400,
                     detail=f"still needs review: {', '.join(blocked.paths)}",
                 )
+
+            # The same rule the pipeline runs on a promotion. It is idempotent,
+            # so a renewal that arrived by email and was then walked through
+            # this screen raises one item, not two.
+            for term in terms:
+                evaluate_promotion(session, term)
 
             comparison = build_comparison(
                 session,
