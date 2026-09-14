@@ -93,7 +93,11 @@ def promote(
     policy_id: int,
     *,
     acknowledged: frozenset[str] = frozenset(),
+    kind: str = "bound",
 ) -> PolicyTerm:
+    """kind='quoted' promotes a competitor's offer onto the incumbent's chain.
+    It goes through the same gate, the same corrections and the same frozen
+    snapshot as a bound term: a quote is evidence like any other document."""
     values = effective_values(session, extraction.id)
     blocked = list(unresolved_field_paths(session, extraction.id, acknowledged))
     for path in _malformed_date_paths(values):
@@ -104,6 +108,7 @@ def promote(
 
     term = PolicyTerm(
         policy_id=policy_id,
+        kind=kind,
         carrier_name=values.get("policy.carrier_name"),
         policy_number=values.get("policy.policy_number"),
         effective_date=_parse_date(values.get("policy.effective_date")),

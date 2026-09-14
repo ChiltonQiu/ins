@@ -7,10 +7,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from renewal.blobstore import BlobStore
+from renewal.carriers import set_admitted
 from renewal.comparison import ColumnSpec, build_matrix
 from renewal.config import Settings
 from renewal.materiality import load_rules
 from renewal.models import (
+    Carrier,
     Client,
     Comparison,
     Difference,
@@ -108,6 +110,7 @@ def policy_id(engine):
         carrier_name="Progressive",
         policy_number="AU-4471",
         line_of_business="personal_auto",
+        state="OR",
     )
     sess.add(policy)
     sess.commit()
@@ -415,3 +418,48 @@ def test_three_columns_render_as_three_carriers(signed, policy_id, engine):
 
     # And no draft is offered, because setting carriers side by side is advice.
     assert "the call is yours" in page
+
+    # Admitted status rides in every header, with no toggle. These carriers
+    # are unresolved, so it says so in words rather than going blank.
+    assert head.count("admitted-unknown") == 3
+    assert head.count(">quote<") == 2
+
+
+def test_a_non_admitted_carrier_says_so_in_the_header(signed, policy_id, engine):
+    """Surplus lines is a fact about the paper she is holding, not a detail to
+    go looking for."""
+    sess = sessionmaker(bind=engine)()
+    incumbent = PolicyTerm(
+        policy_id=policy_id,
+        kind="bound",
+        carrier_name="Progressive",
+        policy_number="AU-4471",
+        total_premium="3900.00",
+    )
+    quote = PolicyTerm(
+        policy_id=policy_id,
+        kind="quoted",
+        carrier_name="Scottsdale Insurance Company",
+        policy_number="AU-4471",
+        total_premium="3610.00",
+    )
+    sess.add_all([incumbent, quote])
+    carrier = Carrier(display_name="Scottsdale Insurance Company")
+    sess.add(carrier)
+    sess.flush()
+    set_admitted(sess, carrier.id, "OR", "non_admitted")
+    comparison = build_matrix(
+        sess,
+        columns=[
+            ColumnSpec(incumbent.id, "baseline"),
+            ColumnSpec(quote.id, "comparand"),
+        ],
+        rules=load_rules("config/materiality.yaml"),
+    )
+    sess.commit()
+    comparison_id = comparison.id
+    sess.close()
+
+    with signed() as client:
+        page = client.get(f"/comparisons/{comparison_id}").text
+    assert "non-admitted" in _diff_head(page)

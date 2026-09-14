@@ -115,6 +115,12 @@
             {{ column.term.carrier_name or "unknown carrier" }}
             {% if column.role == "baseline" %}<span class="baseline">baseline</span>{% endif %}
             {%- endif %}
+            {# Always, with no toggle. An unresolved carrier or a policy with
+               no state reads "unknown" in words: blank reads as "nothing to
+               worry about", and unknown is not that. #}
+            <span class="admitted admitted-{{ column.admitted }}">
+              {{ column.admitted | replace("_", "-") }}</span>
+            {% if column.term.kind == "quoted" %}<span class="quoted">quote</span>{% endif %}
           </th>
           {% endfor %}
           <th>Class</th>

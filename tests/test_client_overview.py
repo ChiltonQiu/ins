@@ -177,3 +177,21 @@ def test_another_clients_documents_are_not_listed(session):
                              method="auto", confidence=1.0, candidates=[]))
     session.flush()
     assert overview(session, mine.id, agency_id=1, today=TODAY).documents == []
+
+
+def test_a_quote_is_never_the_current_term(session):
+    """_latest_term is the only query in the tree that means "the current
+    term". A quote read as current would print a competitor's premium on the
+    client page as what the client is paying."""
+    client = _client(session)
+    policy = _policy(session, client)
+    # A later id than the bound term, so it wins without the filter.
+    session.add(PolicyTerm(policy_id=policy.id, kind="quoted",
+                           carrier_name="Carrier B",
+                           effective_date=date(2026, 7, 1),
+                           expiration_date=date(2027, 7, 1),
+                           total_premium="3880.00"))
+    session.flush()
+    row = overview(session, client.id, agency_id=1, today=TODAY).policies[0]
+    assert row.total_premium == "4820.00"
+    assert row.carrier_name == "Travelers"

@@ -62,9 +62,13 @@ class ClientOverview:
 
 
 def _latest_term(session: Session, policy_id: int) -> PolicyTerm | None:
+    """kind='bound' is not optional. A quoted term hangs off the incumbent's
+    chain, so without the filter a competitor's offer would render as what the
+    client is currently paying."""
     return session.scalar(
         select(PolicyTerm)
         .where(PolicyTerm.policy_id == policy_id)
+        .where(PolicyTerm.kind == "bound")
         .order_by(PolicyTerm.id.desc())
         .limit(1)
     )
