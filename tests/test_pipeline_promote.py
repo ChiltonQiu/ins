@@ -190,3 +190,40 @@ def test_promoting_twice_writes_one_term(session, settings):
     assert run_promote_stage(session, document, settings=settings) is not None
     assert run_promote_stage(session, document, settings=settings) is None
     assert session.query(PolicyTerm).count() == 1
+
+
+def test_the_same_document_on_a_different_policy_still_promotes(session, settings):
+    """The guard against a re-delivery is same bytes and same policy. Two
+    clients can hold the same form; that is not a duplicate."""
+    first = _policy(session, "Acme Landscaping")
+    second = _policy(session, "Borden Freight")
+
+    one = _document(session, sha="a")
+    _link(session, one, client_id=first.client_id, policy_id=first.id)
+    _extraction(session, one)
+    assert run_promote_stage(session, one, settings=settings) is not None
+
+    # Same bytes, different policy.
+    two = _document(session, sha="a")
+    _link(session, two, client_id=second.client_id, policy_id=second.id)
+    _extraction(session, two)
+    term = run_promote_stage(session, two, settings=settings)
+    assert term is not None
+    assert term.policy_id == second.id
+
+
+def test_the_same_bytes_on_the_same_policy_promote_once(session, settings):
+    """Content addressing deduplicates the blob but not the document, so a
+    resent dec page arrives as a second document with its own extraction."""
+    policy = _policy(session)
+
+    one = _document(session, sha="b")
+    _link(session, one, client_id=policy.client_id, policy_id=policy.id)
+    _extraction(session, one)
+    assert run_promote_stage(session, one, settings=settings) is not None
+
+    two = _document(session, sha="b")
+    _link(session, two, client_id=policy.client_id, policy_id=policy.id)
+    _extraction(session, two)
+    assert run_promote_stage(session, two, settings=settings) is None
+    assert session.query(PolicyTerm).count() == 1

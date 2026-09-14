@@ -787,6 +787,13 @@ table.diffs td:nth-child(1) {
   width: 30%;
 }
 
+/* Five columns at 390px leaves a header about as wide as one word, and
+   "Scottsdale Insurance Company" is three long ones. Break them rather than
+   push the table wider than the screen. */
+table.diffs th.cell {
+  overflow-wrap: break-word;
+}
+
 /* The value columns share a fixed slice of the width, divided in the
    template, so a third carrier narrows them instead of squeezing Field. */
 

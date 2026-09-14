@@ -163,6 +163,22 @@ def run_promote_stage(
     ):
         return None  # idempotent, like every other stage
 
+    # Content addressing deduplicates the blob but not the document, so the
+    # same dec page delivered twice — email and portal, or a resend — arrives
+    # as two documents with two extractions. Promoting both would put two
+    # identical terms on the chain and raise the renewal twice. Same bytes,
+    # same policy, already promoted: an exact-identity check, no judgment.
+    twin = session.scalar(
+        select(PolicyTerm.id)
+        .join(Document, Document.id == PolicyTerm.source_document_id)
+        .where(PolicyTerm.policy_id == link.policy_id)
+        .where(Document.blob_sha256 == document.blob_sha256)
+        .where(PolicyTerm.source_document_id != document.id)
+        .limit(1)
+    )
+    if twin is not None:
+        return None
+
     kind = "quoted" if latest_class(session, document.id) == "quote" else "bound"
     try:
         return promote(session, extraction, link.policy_id, kind=kind)

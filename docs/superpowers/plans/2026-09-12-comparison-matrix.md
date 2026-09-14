@@ -2819,6 +2819,13 @@ Recorded so a reviewer does not read these as omissions:
   anywhere.
 - **No attribution.** Nothing records who built a comparison, reclassified a
   row, or printed a sheet.
+- **A resent dec page is caught by its bytes, not by its content.** Promotion
+  skips a second document whose blob already produced a term on that policy,
+  which covers the ordinary resend — the same file by email and again through
+  the portal. A carrier that regenerates the PDF sends different bytes, and
+  that arrives as a second term with the same premium and the same effective
+  date. Catching it would mean deciding two documents describe the same term,
+  which is judgment, and the picker shows both so the choice stays hers.
 - **The index page still lists runs.** It has been the wrong front door since
   the record layer shipped, and a comparison built from the record does not
   appear on it at all.

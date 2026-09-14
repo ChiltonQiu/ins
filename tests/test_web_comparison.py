@@ -463,3 +463,49 @@ def test_a_non_admitted_carrier_says_so_in_the_header(signed, policy_id, engine)
     with signed() as client:
         page = client.get(f"/comparisons/{comparison_id}").text
     assert "non-admitted" in _diff_head(page)
+
+
+def test_a_legacy_comparison_still_shows_its_draft_and_its_breakdown(
+    signed, policy_id, engine
+):
+    """The whole of what a pre-matrix comparison had, not just its rows. This
+    is the guarantee the checkpoint in Task 4 was placed to protect."""
+    from renewal.models import Draft
+
+    with signed() as client:
+        run_id = _run(client, policy_id)
+
+    prior_id, renewal_id = _two_terms(engine, policy_id)
+    sess = sessionmaker(bind=engine)()
+    comparison = Comparison(
+        renewal_run_id=run_id, prior_term_id=prior_id, renewal_term_id=renewal_id
+    )
+    sess.add(comparison)
+    sess.flush()
+    sess.add(
+        Difference(
+            comparison_id=comparison.id,
+            field_path="policy.total_premium",
+            prior_value="3900.00",
+            renewal_value="4210.00",
+            materiality="material",
+            rule_id="premium_total_change",
+        )
+    )
+    sess.add(
+        Draft(
+            comparison_id=comparison.id,
+            generated_text="Your renewal premium is $310 higher than last term.",
+        )
+    )
+    sess.commit()
+    comparison_id = comparison.id
+    sess.close()
+
+    with signed() as client:
+        page = client.get(f"/comparisons/{comparison_id}").text
+
+    assert f"/runs/{run_id}/review" in page          # its run crumb
+    assert "$310 higher" in page                      # its draft
+    assert "not attributable" in page                 # its premium breakdown
+    assert "Prior" in _diff_head(page)                # its two named columns
