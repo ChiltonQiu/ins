@@ -100,13 +100,18 @@ def test_ingest_classifies_the_document(session, store):
     assert latest_class(session, document.id) == "declarations"
 
 
-def test_only_declarations_and_endorsements_route_to_field_extraction(session, store):
+def test_only_extractable_classes_route_to_field_extraction(session, store):
+    """quote joined the routed classes when the comparison engine learned to
+    set a quote beside a renewal. Before that it was classified and stored and
+    nothing consumed it — and a quote that is never extracted cannot become a
+    comparison column."""
     import json
 
     from renewal.pipeline import should_extract_fields
     from tests.test_dates_llm import StubClient, _settings
 
     for label, expected in (("declarations", True), ("endorsement", True),
+                            ("quote", True),
                             ("invoice", False), ("unknown", False)):
         stub = StubClient(json.dumps({"doc_class": label, "confidence": 0.9}))
         document = ingest_document(
@@ -134,3 +139,120 @@ def test_a_failed_classification_does_not_stop_text_or_dates(session, store):
     )
     assert session.query(DocumentText).filter_by(document_id=document.id).count() == 1
     assert session.query(DocumentDate).filter_by(document_id=document.id).count() > 0
+
+
+def _stage_of(model):
+    """Which stage is asking. The model name is the one unambiguous marker:
+    the extraction prompt talks about effective_date and expiration_date, so
+    sniffing the system text puts it in the dates bucket."""
+    from tests.test_dates_llm import _settings
+
+    settings = _settings()
+    if model == settings.date_model:
+        return "dates"
+    if model == settings.classification_model:
+        return "classify"
+    return "extract"
+
+
+_EXTRACTION = {
+    "fields": [
+        {
+            "field_path": "policy.total_premium",
+            "value": "1840.00",
+            "confidence": 0.95,
+            "source_page": 1,
+            "source_text": "Total Policy Premium $1,840.00",
+        }
+    ]
+}
+
+
+class Recording:
+    """A client that records which stage asked it."""
+
+    def __init__(self, calls, doc_class="declarations"):
+        self.calls = calls
+        self.doc_class = doc_class
+
+    def complete(self, *, model, system, content):
+        import json
+
+        stage = _stage_of(model)
+        self.calls.append(stage)
+        if stage == "classify":
+            return json.dumps({"doc_class": self.doc_class, "confidence": 0.9})
+        if stage == "dates":
+            return json.dumps({"dates": []})
+        return json.dumps(_EXTRACTION)
+
+
+def test_ingest_runs_the_field_stage_for_a_declarations_document(session, store):
+    from renewal.models import Extraction
+    from tests.test_dates_llm import _settings
+
+    calls = []
+    document = ingest_document(
+        session, store, data=make_text_pdf([CLASSIFIABLE]),
+        original_filename="d.pdf", source="manual_upload", agency_id=1,
+        model_client=Recording(calls), settings=_settings(),
+    )
+    assert "extract" in calls
+    assert session.query(Extraction).filter_by(document_id=document.id).count() == 1
+
+
+def test_ingest_skips_the_field_stage_when_it_is_switched_off(session, store):
+    """Import is for getting documents in. Extraction is a pure function of
+    (blob, extractor_version) and can be re-run at any time."""
+    from renewal.models import Extraction
+    from tests.test_dates_llm import _settings
+
+    calls = []
+    document = ingest_document(
+        session, store, data=make_text_pdf([CLASSIFIABLE]),
+        original_filename="d.pdf", source="bulk_import", agency_id=1,
+        extract_fields=False,
+        model_client=Recording(calls), settings=_settings(),
+    )
+    assert "extract" not in calls
+    assert session.query(Extraction).filter_by(document_id=document.id).count() == 0
+
+
+def test_an_unrouted_class_costs_no_extraction_call(session, store):
+    from tests.test_dates_llm import _settings
+
+    calls = []
+    ingest_document(
+        session, store, data=make_text_pdf([CLASSIFIABLE]),
+        original_filename="d.pdf", source="manual_upload", agency_id=1,
+        model_client=Recording(calls, doc_class="invoice"), settings=_settings(),
+    )
+    assert "extract" not in calls
+
+
+def test_a_failed_field_stage_does_not_lose_the_document(session, store):
+    """Every stage after storage is best-effort. A provider outage must not
+    cost the import."""
+    import json
+
+    from renewal.models import DocumentText
+
+    from tests.test_dates_llm import _settings
+
+    class HalfDown:
+        """Only the extraction model is down."""
+
+        def complete(self, *, model, system, content):
+            stage = _stage_of(model)
+            if stage == "classify":
+                return json.dumps({"doc_class": "declarations", "confidence": 0.9})
+            if stage == "dates":
+                return json.dumps({"dates": []})
+            raise RuntimeError("provider down")
+
+    document = ingest_document(
+        session, store, data=make_text_pdf([CLASSIFIABLE]),
+        original_filename="d.pdf", source="manual_upload", agency_id=1,
+        model_client=HalfDown(), settings=_settings(),
+    )
+    assert session.query(DocumentText).filter_by(document_id=document.id).count() == 1

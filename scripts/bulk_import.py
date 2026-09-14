@@ -55,6 +55,7 @@ def import_tree(
     agency_id: int,
     client: ModelClient | None = None,
     settings: Settings | None = None,
+    extract_fields: bool = False,
 ) -> ImportStats:
     seen = imported = skipped = failed = 0
     for path in walk_pdfs(root):
@@ -76,6 +77,7 @@ def import_tree(
             ingest_document(
                 session, store, data=data, original_filename=path.name,
                 source="bulk_import", agency_id=agency_id,
+                extract_fields=extract_fields,
                 model_client=client, settings=settings,
             )
             imported += 1
@@ -90,6 +92,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
     parser.add_argument("--agency-id", type=int, default=1)
+    parser.add_argument(
+        "--skip-fields", action="store_true", default=True,
+        help="do not run structured field extraction (default). Import is for "
+             "getting documents in; extraction is a pure function of the blob "
+             "and can be re-run at any time.",
+    )
+    parser.add_argument(
+        "--extract-fields", dest="skip_fields", action="store_false",
+        help="run structured field extraction during the import. Costs one "
+             "model call per declarations, endorsement or quote document.",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     settings = load_settings()
@@ -98,6 +111,7 @@ def main() -> None:
         stats = import_tree(
             session, store, args.root, agency_id=args.agency_id,
             client=build_client(settings), settings=settings,
+            extract_fields=not args.skip_fields,
         )
     print(f"seen {stats.seen}, imported {stats.imported}, "
           f"skipped {stats.skipped}, failed {stats.failed}")

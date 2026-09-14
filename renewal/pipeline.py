@@ -26,6 +26,7 @@ from renewal.classify.runner import (
 )
 from renewal.config import Settings
 from renewal.dates.service import extract_dates
+from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
 from renewal.models import Document, DocumentText
 from renewal.pdftext import PageText
@@ -105,6 +106,22 @@ def should_extract_fields(session: Session, document_id: int) -> bool:
     return latest_class(session, document_id) in FIELD_EXTRACTION_CLASSES
 
 
+def run_fields_stage(
+    session: Session,
+    store: BlobStore,
+    document: Document,
+    *,
+    client: ModelClient,
+    settings: Settings,
+) -> None:
+    if not should_extract_fields(session, document.id):
+        return
+    try:
+        extract(session, store, document, "v1", client=client, settings=settings)
+    except Exception:  # noqa: BLE001 - the document survives a failed stage
+        logger.exception("fields stage failed document_id=%s", document.id)
+
+
 def run_attention_stage(
     session: Session, document: Document, *, settings: Settings
 ) -> None:
@@ -123,6 +140,7 @@ def ingest_document(
     source: str,
     agency_id: int,
     inbound_message_id: int | None = None,
+    extract_fields: bool = True,
     model_client: ModelClient | None = None,
     settings: Settings | None = None,
 ) -> Document:
@@ -149,6 +167,12 @@ def ingest_document(
     if model_client is not None and settings is not None:
         run_classify_stage(
             session, document, client=model_client, settings=settings
+        )
+    # Costs a model call per routed document, which is why the caller can turn
+    # it off. Bulk import does; manual upload and email intake do not.
+    if extract_fields and model_client is not None and settings is not None:
+        run_fields_stage(
+            session, store, document, client=model_client, settings=settings
         )
     # Last: its rules read the label and the link that the stages above wrote.
     if settings is not None:

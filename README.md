@@ -45,6 +45,16 @@ Import early even if extraction is still weak. Extraction is a pure function of
 (blob, extractor_version) and can be re-run at any time; a document deleted from
 the source tree before it was imported is gone.
 
+Bulk import does not run structured field extraction. Declarations,
+endorsements and quotes are stored, text-extracted, dated, classified and
+matched — all of which is local or cheap — but reading the coverage grid out of
+them is a model call each, and an archive is thousands of documents. Pass
+`--extract-fields` to do it during the import, or leave it and re-run
+extraction later against whatever subset is worth it.
+
+Manual upload and email intake do extract, because they are one document at a
+time and the result is wanted immediately.
+
 ## Blob encryption
 
 Documents are stored unencrypted unless `BLOB_ENCRYPTION_KEY` is set. Generate a

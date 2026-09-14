@@ -27,7 +27,10 @@ DOC_CLASSES = (
 
 # Only these route on to structured field extraction. quote is classified and
 # stored; nothing consumes it in this phase.
-FIELD_EXTRACTION_CLASSES = ("declarations", "endorsement")
+# Only these route on to structured field extraction. quote joined them when
+# the comparison engine learned to set a quote beside a renewal; before that it
+# was classified and stored and nothing consumed it.
+FIELD_EXTRACTION_CLASSES = ("declarations", "endorsement", "quote")
 
 
 def parse_classification(raw: str) -> tuple[str, float]:
