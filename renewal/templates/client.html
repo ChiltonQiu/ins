@@ -8,6 +8,9 @@
 {% block content %}
 <div class="pagehead">
   <h1>{{ o.client.display_name }}</h1>
+  <span class="sub">
+    <a class="btn" href="/clients/{{ o.client.id }}/prep">Call prep sheet</a>
+  </span>
 </div>
 
 <section class="panel settings">

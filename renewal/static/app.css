@@ -1258,3 +1258,33 @@ tr.unconfirmed td {
   font-size: 0.85rem;
   color: var(--ink-3);
 }
+
+/* The prep sheet is read on paper as often as on screen. Nothing that cannot
+   be clicked on paper is printed. */
+@media print {
+  .topbar, .crumb, .diff-toolbar a, form, .btn { display: none !important; }
+  body { background: #fff; color: #000; }
+  .panel { border: none; box-shadow: none; break-inside: avoid; }
+  a[href]::after { content: ""; }
+}
+
+/* The prep sheet itself: dense, and every row says what it is. */
+.prep-renewal + .prep-renewal {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--rule);
+}
+
+ul.prep-changes {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+ul.prep-changes li {
+  margin-bottom: 4px;
+}
+
+.residual-note,
+p.prep-line {
+  margin: 6px 0 0;
+}

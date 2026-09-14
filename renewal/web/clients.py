@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from renewal.blobstore import BlobNotFound
 from renewal.calendarview.agenda import agenda
 from renewal.clients.overview import overview
+from renewal.clients.prep import RESIDUAL_LABEL, prep
 from renewal.models import Client, Document, DocumentLink, Policy
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
@@ -35,6 +36,7 @@ def content_disposition(filename: str) -> str:
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
+    settings = deps.settings
     store = deps.store
     router = APIRouter()
 
@@ -73,6 +75,24 @@ def register(app, deps: Deps) -> None:
                 raise HTTPException(status_code=404, detail="no such client")
             return TEMPLATES.TemplateResponse(
                 request, "client.html", {"o": got}
+            )
+
+    @router.get("/clients/{client_id}/prep", response_class=HTMLResponse)
+    def show_prep(request: Request, client_id: int):
+        """Read while the phone is ringing, and printed as often as read.
+
+        No model client is passed because none is used: every number on the
+        sheet already exists in a row something else wrote.
+        """
+        with session_factory() as session:
+            try:
+                got = prep(
+                    session, client_id, agency_id=AGENCY_ID, settings=settings
+                )
+            except LookupError:
+                raise HTTPException(status_code=404, detail="no such client")
+            return TEMPLATES.TemplateResponse(
+                request, "prep.html", {"p": got, "residual_label": RESIDUAL_LABEL}
             )
 
     @router.get("/documents/{document_id}")

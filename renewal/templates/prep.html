@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Call prep · {{ p.client.display_name }}{% endblock %}
+{% block crumb %}
+<span class="crumb">
+  <a href="/clients/{{ p.client.id }}">back to {{ p.client.display_name }}</a>
+</span>
+{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>{{ p.client.display_name }}</h1>
+  <span class="sub">call prep · nothing here is a recommendation</span>
+</div>
+
+<section class="panel">
+  <h2>Renewing</h2>
+  {% if p.renewals %}
+  {% for row in p.renewals %}
+  <div class="prep-renewal">
+    <h3>
+      {{ row.policy.carrier_name }} {{ row.policy.policy_number }}
+      <span class="muted">{{ row.policy.line_of_business }}</span>
+    </h3>
+    <p class="prep-line">
+      {% if row.days_to_renewal is not none %}
+      Renews in {{ row.days_to_renewal }} day{{ "" if row.days_to_renewal == 1 else "s" }}
+      {% if row.policy.expiration_date %}
+      · {{ row.policy.expiration_date }}
+      {% endif %}
+      {% else %}
+      <span class="muted">renewal date unknown</span>
+      {% endif %}
+      · {{ row.policy.admitted | replace("_", "-") }}
+      {% if row.policy.state %}<span class="muted">({{ row.policy.state }})</span>{% endif %}
+    </p>
+
+    {% if row.comparison_id %}
+    {% if row.total_delta is not none %}
+    <p class="total-delta {% if row.total_delta > 0 %}up{% endif %}">
+      Total change {{ "+" if row.total_delta > 0 }}{{ row.total_delta }}
+    </p>
+    {% endif %}
+
+    {% if row.material_changes %}
+    <ul class="prep-changes">
+      {% for change in row.material_changes %}
+      <li>{{ change }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Nothing classified material.</p>
+    {% endif %}
+
+    {% if row.residual is not none %}
+    <p class="muted residual-note">
+      {{ "+" if row.residual > 0 }}{{ row.residual }} {{ residual_label }}.
+    </p>
+    {% endif %}
+
+    <p class="src">
+      <a href="/comparisons/{{ row.comparison_id }}">open the comparison</a>
+    </p>
+    {% else %}
+    <div class="empty">
+      <p>No comparison has been built for this policy.</p>
+      <p>Nothing is compared automatically. <a href="{{ row.compare_url }}">Pick
+        the terms</a> when you want one.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty">
+    <p>Nothing renewing in the next {{ 60 }} days.</p>
+  </div>
+  {% endif %}
+</section>
+
+<div class="cols">
+  <section class="panel">
+    <h2>Dates coming up</h2>
+    {% if p.upcoming_dates %}
+    <table>
+      <thead>
+        <tr><th>Date</th><th>What</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for entry in p.upcoming_dates %}
+        <tr>
+          <td>{{ entry.date_value }}</td>
+          <td>
+            {{ entry.title }}
+            {% if entry.is_derived %}
+            {# The arithmetic, not just the answer: a derived date is only as
+               good as the date it was derived from. #}
+            <span class="muted">computed from {{ entry.anchor_date or "unknown" }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="mat">{{ entry.status }}</span>
+            {% if entry.status == "unconfirmed" %}
+            <span class="muted">not confirmed by anyone</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Nothing on the calendar in the window.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Needs attention</h2>
+    {% if p.attention %}
+    <ul class="agenda">
+      {% for item in p.attention %}
+      <li class="entry">
+        <span class="what">{{ item.reason_text }}</span>
+        <span class="src"><a href="/documents/{{ item.document_id }}">open</a></span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Nothing open.</p>
+    {% endif %}
+
+    <h2 style="margin-top: 28px;">Recent messages</h2>
+    {% if p.messages %}
+    <ul class="agenda">
+      {% for message in p.messages %}
+      <li class="entry">
+        <span class="what">{{ message.subject or "(no subject)" }}</span>
+        <span class="num muted">{{ message.received_at.strftime("%Y-%m-%d") }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Nothing recent.</p>
+    {% endif %}
+  </section>
+</div>
+
+{% if p.other_policies %}
+<section class="panel">
+  <h2>Other policies</h2>
+  <table>
+    <thead>
+      <tr><th>Carrier</th><th>Policy</th><th>Line</th><th>Expires</th><th>Premium</th></tr>
+    </thead>
+    <tbody>
+      {% for policy in p.other_policies %}
+      <tr>
+        <td>{{ policy.carrier_name }}</td>
+        <td>{{ policy.policy_number }}</td>
+        <td>{{ policy.line_of_business }}</td>
+        <td>{{ policy.expiration_date or "unknown" }}</td>
+        <td>{{ policy.total_premium or "unknown" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}
