@@ -1669,7 +1669,7 @@ git commit -m "feat(comparison): one write path and one read path for N columns"
 
 Everything before this task is a refactor. Everything after it is new behaviour. Splitting here means a regression is attributable to one side or the other.
 
-- [ ] **Step 1: Extend the web test**
+- [x] **Step 1: Extend the web test**
 
 Add to `tests/test_web_comparison.py`, keeping every existing test:
 
@@ -1693,12 +1693,12 @@ def test_a_comparison_with_no_run_does_not_render_a_run_crumb(client_app):
     assert "/runs/None/review" not in page
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_web_comparison.py -v`
 Expected: FAIL on the run-crumb test — the template renders `/runs/None/review`.
 
-- [ ] **Step 3: Rewrite the show route**
+- [x] **Step 3: Rewrite the show route**
 
 In `renewal/web/comparison.py`, delete `_MATERIALITY_ORDER` and the `Difference`
 query — `matrix_for` orders and filters. Delete the `breakdown_for` import.
@@ -1741,7 +1741,7 @@ query — `matrix_for` orders and filters. Delete the `breakdown_for` import.
             )
 ```
 
-- [ ] **Step 4: Rewrite the template**
+- [x] **Step 4: Rewrite the template**
 
 `renewal/templates/comparison.html`. The crumb becomes conditional:
 
@@ -1832,7 +1832,7 @@ The draft panel's empty state distinguishes the two reasons there is no draft:
 CSS for `.differs`, `.same`, and `.baseline` goes in `app.css`. A cell equal to
 the baseline is de-emphasized so the eye lands on divergence.
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 ```bash
 .venv/bin/pytest tests/test_web_comparison.py -v
@@ -1840,19 +1840,37 @@ the baseline is de-emphasized so the eye lands on divergence.
 ```
 Expected: PASS.
 
-- [ ] **Step 6: Look at it**
+- [x] **Step 6: Look at it**
 
 Start the app, open a real two-column comparison, and confirm against a
 screenshot or memory of the previous version that nothing moved. This is the
 checkpoint; do not continue if anything reads differently.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/web/comparison.py renewal/templates/comparison.html \
         renewal/static/app.css tests/test_web_comparison.py
 git commit -m "feat(web): render a comparison as a matrix of one or more columns"
 ```
+
+**What the checkpoint found.** The rendered text of a promoted comparison was
+diffed against the same page before the task. Two lines moved, both on
+purpose:
+
+- Total change left the breakdown table for a paragraph above it. Task 5's
+  quoted columns have a delta and no attribution table to put it in.
+- Column headers became the carrier name — which on a renewal is the same
+  carrier in both columns, and was literally "unknown" twice for terms
+  promoted from documents that carry no carrier name. Headers are now the
+  carrier only where the carriers differ; a renewal still reads Prior and
+  Renewal. `td.prior`/`td.renewal` became `td.same`/`td.differs`, which lands
+  on the same two colours for a two-column renewal and means something for a
+  third column.
+
+`table.diffs` no longer sizes its value columns by `nth-child`. The template
+divides a fixed 38% between them, so two columns still get the 19% each they
+had.
 
 ---
 
