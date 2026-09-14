@@ -2232,7 +2232,7 @@ git commit -m "feat(diff): compare carrier-specific fields without promoting a c
 
 **This is the first change that spends extraction-model calls during bulk import.** An archive of ten thousand mostly-declarations PDFs will now cost real money against a hosted provider. That is why the flag exists and why it defaults the way it does.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Extend `tests/test_pipeline.py`:
 
@@ -2267,12 +2267,12 @@ def test_a_failed_field_stage_does_not_lose_the_document(session):
     cost the import."""
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_pipeline.py -v`
 Expected: FAIL — `quote` is not in `FIELD_EXTRACTION_CLASSES`, and no extraction is attempted.
 
-- [ ] **Step 3: Route quotes**
+- [x] **Step 3: Route quotes**
 
 `renewal/classify/runner.py`:
 
@@ -2283,7 +2283,7 @@ Expected: FAIL — `quote` is not in `FIELD_EXTRACTION_CLASSES`, and no extracti
 FIELD_EXTRACTION_CLASSES = ("declarations", "endorsement", "quote")
 ```
 
-- [ ] **Step 4: Wire the stage**
+- [x] **Step 4: Wire the stage**
 
 `renewal/pipeline.py`, following the shape of every other stage — best-effort,
 logged, separately re-runnable. It needs one new import,
@@ -2318,7 +2318,7 @@ attention rules read what the stages above wrote:
 `ingest_document` gains `extract_fields: bool = True`. Defaulting to true keeps
 the interactive paths whole; the one caller that turns it off says so.
 
-- [ ] **Step 5: The flag**
+- [x] **Step 5: The flag**
 
 `scripts/bulk_import.py`:
 
@@ -2338,7 +2338,7 @@ the interactive paths whole; the one caller that turns it off says so.
 
 and pass `extract_fields=not args.skip_fields` to `ingest_document`.
 
-- [ ] **Step 6: Say what it costs**
+- [x] **Step 6: Say what it costs**
 
 In `README.md`, under the bulk-import section, next to where it already says
 extraction is re-runnable:
@@ -2356,7 +2356,7 @@ Manual upload and email intake do extract, because they are one document at a
 time and the result is wanted immediately.
 ```
 
-- [ ] **Step 7: Run and commit**
+- [x] **Step 7: Run and commit**
 
 ```bash
 .venv/bin/pytest
