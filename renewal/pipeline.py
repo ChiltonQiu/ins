@@ -28,10 +28,11 @@ from renewal.config import Settings
 from renewal.dates.service import extract_dates
 from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
-from renewal.models import Document, DocumentText
+from renewal.models import Document, DocumentText, Extraction, PolicyTerm
 from renewal.pdftext import PageText
+from renewal.promote import PromotionBlocked, promote, unresolved_field_paths
 from renewal.providers import ModelClient
-from renewal.resolve.service import resolve_document
+from renewal.resolve.service import latest_link, resolve_document
 from renewal.text.store import TEXT_VERSION, extract_text, has_text
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,55 @@ def run_fields_stage(
         logger.exception("fields stage failed document_id=%s", document.id)
 
 
+def run_promote_stage(
+    session: Session, document: Document, *, settings: Settings
+) -> PolicyTerm | None:
+    """Promote what needs no human, and leave everything else alone.
+
+    Phase 2's pipeline diagram specified this stage — "promotion to PolicyTerm,
+    only above confidence threshold" — and it was never built, so nothing that
+    arrived through the pipe ever became a term.
+
+    Two conditions, both already-recorded facts:
+
+      - the latest document_link carries a policy_id, which under D8 means an
+        exact policy-number match, the only auto-link this system performs; and
+      - the extraction has no needs_review fields, so promote() would not raise.
+
+    Nothing new is inferred and no threshold is softened. An extraction failing
+    either condition waits for a human exactly as it does today.
+    """
+    link = latest_link(session, document.id)
+    if link is None or link.policy_id is None:
+        return None
+
+    extraction = (
+        session.query(Extraction)
+        .filter_by(document_id=document.id)
+        .order_by(Extraction.id.desc())
+        .first()
+    )
+    if extraction is None:
+        return None
+    if unresolved_field_paths(session, extraction.id):
+        return None
+    if (
+        session.query(PolicyTerm)
+        .filter_by(promoted_from_extraction_id=extraction.id)
+        .first()
+    ):
+        return None  # idempotent, like every other stage
+
+    kind = "quoted" if latest_class(session, document.id) == "quote" else "bound"
+    try:
+        return promote(session, extraction, link.policy_id, kind=kind)
+    except PromotionBlocked:
+        # Unreachable given the check above, and caught anyway: a malformed
+        # date is blocked by promote() for a reason the stage cannot see.
+        logger.info("promotion blocked document_id=%s", document.id)
+        return None
+
+
 def run_attention_stage(
     session: Session, document: Document, *, settings: Settings
 ) -> None:
@@ -174,6 +224,10 @@ def ingest_document(
         run_fields_stage(
             session, store, document, client=model_client, settings=settings
         )
+    # After the fields stage, because it promotes what that stage extracted,
+    # and before attention, because Task 9's rules read the term it writes.
+    if settings is not None:
+        run_promote_stage(session, document, settings=settings)
     # Last: its rules read the label and the link that the stages above wrote.
     if settings is not None:
         run_attention_stage(session, document, settings=settings)
