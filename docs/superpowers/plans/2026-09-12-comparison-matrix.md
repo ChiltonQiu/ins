@@ -2381,7 +2381,7 @@ Without this, D10 delivers nothing: `renewal_received` is defined at promotion, 
 
 The gate reads two already-recorded facts and adds no new judgment.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/test_pipeline_promote.py`:
 
@@ -2430,12 +2430,12 @@ def test_promoting_twice_writes_one_term(session):
     assert run_promote_stage(session, document, settings=settings) is None
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_pipeline_promote.py -v`
 Expected: FAIL — `ImportError: cannot import name 'run_promote_stage'`
 
-- [ ] **Step 3: Write the stage**
+- [x] **Step 3: Write the stage**
 
 New imports in `renewal/pipeline.py`: `PromotionBlocked`, `promote` and
 `unresolved_field_paths` from `renewal.promote`, plus `Extraction` and
@@ -2493,7 +2493,7 @@ def run_promote_stage(
 Called from `ingest_document` after the fields stage and before attention, so
 the attention rules in Task 9 can read the term it wrote.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
 ```bash
 .venv/bin/pytest
