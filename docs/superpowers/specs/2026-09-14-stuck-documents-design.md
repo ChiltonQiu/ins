@@ -1,7 +1,14 @@
 # Phase 3, step 11: The Stuck Documents Queue and Single-Document Review — Design
 
 Date: 2026-09-14
-Status: approved for planning
+Status: superseded by `2026-09-14-automatic-intake-design.md`
+
+> Superseded before implementation. The analysis below stands and is the
+> basis for three of the four `needs you` reasons in the successor spec —
+> including the argument for computing state at read time, and the trap that
+> a document routed but never extracted is not stuck but not-yet-processed.
+> What changed is the packaging: the `/stuck` queue became a filter of the
+> inbox and the single-document screen became the inbox detail view.
 Scope: give a document that arrived through the pipe and cannot become a term
 somewhere to be seen and somewhere to be fixed.
 
