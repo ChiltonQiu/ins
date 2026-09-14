@@ -1890,7 +1890,7 @@ had.
   - `GET /policies/{policy_id}/compare` — the picker, accepting `?baseline=&comparand=&comparand=`
   - `POST /comparisons` — form fields `policy_id`, `baseline`, `comparand` (repeated)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 The one that matters most, in `tests/test_client_overview.py`:
 
@@ -1912,12 +1912,12 @@ terms separately; a POST with a baseline and two comparands redirects to the
 new comparison; each refusal from `ColumnsRejected` comes back as a 400 with
 its reason on the page rather than a traceback.
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_client_overview.py tests/test_web_compare_picker.py -v`
 Expected: FAIL — the quote wins `_latest_term`, and `/policies/1/compare` is 404.
 
-- [ ] **Step 3: Filter the one dangerous query**
+- [x] **Step 3: Filter the one dangerous query**
 
 `renewal/clients/overview.py`:
 
@@ -1935,14 +1935,14 @@ def _latest_term(session: Session, policy_id: int) -> PolicyTerm | None:
     )
 ```
 
-- [ ] **Step 4: Let promotion write a quoted term**
+- [x] **Step 4: Let promotion write a quoted term**
 
 `renewal/promote.py`: add `kind: str = "bound"` to `promote`'s keyword-only
 arguments and pass it to the `PolicyTerm(...)` constructor. Nothing else in
 the function changes — a quote is promoted through the same gate, the same
 corrections, and the same frozen snapshot as a bound term.
 
-- [ ] **Step 5: Add the picker**
+- [x] **Step 5: Add the picker**
 
 In `renewal/web/comparison.py`. The module imports `APIRouter, Form,
 HTTPException, Request` today and needs `Query` as well, for the repeated
@@ -1986,7 +1986,7 @@ No draft is generated here. `POST /comparisons` can produce a matrix with a
 quoted column, and that is not draft-eligible; the renewal path in
 `review.py` is the one that drafts.
 
-- [ ] **Step 6: The picker template**
+- [x] **Step 6: The picker template**
 
 `renewal/templates/compare_new.html`, in the existing style. One radio group
 for the baseline over bound terms only, one checkbox group for comparands over
@@ -1994,7 +1994,7 @@ every term, quoted ones grouped under their carrier and visually distinct.
 State the cap in words next to the checkboxes: *"a baseline and up to four
 others"*. No sort by premium anywhere on the page.
 
-- [ ] **Step 7: Admitted status in the column headers**
+- [x] **Step 7: Admitted status in the column headers**
 
 `matrix_for` already resolves it. Put it in `comparison.html`'s header cell,
 always, with no toggle, rendered as the word:
@@ -2011,7 +2011,7 @@ An unresolved carrier or a policy with no state reads `unknown` in words, never
 blank — the rule `client.html` already states: *blank reads as "nothing to
 worry about", and unknown is not that.*
 
-- [ ] **Step 8: Run and commit**
+- [x] **Step 8: Run and commit**
 
 ```bash
 .venv/bin/pytest
