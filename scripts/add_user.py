@@ -70,13 +70,18 @@ def main(argv: list[str] | None = None) -> int:
             session, args.email, password, args.name or args.email.strip()
         )
         session.commit()
+        # Read the address out before the session closes. Reading it after
+        # would raise DetachedInstanceError on an account that was created
+        # correctly, so the one tool that provisions accounts would report
+        # failure on success.
+        address = user.email
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
     finally:
         session.close()
 
-    print(f"{'Created' if created else 'Password reset for'} {user.email}")
+    print(f"{'Created' if created else 'Password reset for'} {address}")
     return 0
 
 
