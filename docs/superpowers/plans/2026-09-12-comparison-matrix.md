@@ -2043,7 +2043,7 @@ git commit -m "feat(comparison): set a renewal against the quotes for the same r
 
 The extractor is not touched. Extras arrive through the add-missing-field control on the review screen, which already writes an `omission` correction against any field path, and `effective_values` already folds corrections into what promotion reads.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/test_extras.py`, covering: the grammar accepts `extras.surcharge_total`
 and rejects `extras.a.b`; an unlisted key is `text`; a money extra makes
@@ -2076,12 +2076,12 @@ def test_a_core_path_still_guesses_from_its_leaf():
            normalize("coverage.COMP.premium", "1200")
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_extras.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.extras'`
 
-- [ ] **Step 3: The grammar**
+- [x] **Step 3: The grammar**
 
 `renewal/fieldpath.py`, one production added to `_PATTERNS`:
 
@@ -2096,7 +2096,7 @@ Nothing else in that module changes, and `renewal/extract/validate.py` is not
 edited: adding a production lets a path past `_check`'s first line, and the
 source-text gate below it is untouched.
 
-- [ ] **Step 4: The loader and the config**
+- [x] **Step 4: The loader and the config**
 
 `renewal/extras.py`:
 
@@ -2146,7 +2146,7 @@ default: text
 types: {}
 ```
 
-- [ ] **Step 5: Typed normalization**
+- [x] **Step 5: Typed normalization**
 
 `renewal/diff.py`:
 
@@ -2187,7 +2187,7 @@ touched**: Task 3 threaded `settings` through for exactly this. When `settings`
 is None the types map is empty and every extra compares as text, which is the
 safe direction.
 
-- [ ] **Step 6: Promotion writes them**
+- [x] **Step 6: Promotion writes them**
 
 `renewal/promote.py`, after the coverage and item loops:
 
@@ -2199,12 +2199,12 @@ safe direction.
             ))
 ```
 
-- [ ] **Step 7: Settings**
+- [x] **Step 7: Settings**
 
 `EXTRAS_CONFIG`, defaulted to `config/extras.yaml`, exactly mirroring
 `MATERIALITY_CONFIG` in `renewal/config.py` and `.env.example`.
 
-- [ ] **Step 8: Run and commit**
+- [x] **Step 8: Run and commit**
 
 ```bash
 .venv/bin/pytest
