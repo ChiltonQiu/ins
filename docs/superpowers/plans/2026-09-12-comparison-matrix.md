@@ -2522,7 +2522,7 @@ git commit -m "feat(pipeline): promote what arrives clean and linked to a policy
 
 `REASONS` does not change. Both codes were declared in Phase 2 so the vocabulary would be stable across exactly this change.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Extend `tests/test_attention.py`:
 
@@ -2554,12 +2554,12 @@ def test_premium_change_never_fires_on_a_quoted_column(session):
 def test_neither_rule_duplicates_on_a_second_run(session): ...
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_attention.py -v`
 Expected: FAIL — `ImportError: cannot import name 'evaluate_promotion'`
 
-- [ ] **Step 3: Replace the stale comment and write the rules**
+- [x] **Step 3: Replace the stale comment and write the rules**
 
 The comment at `renewal/attention/rules.py:44-49` becomes accurate:
 
@@ -2623,7 +2623,7 @@ def evaluate_comparison(
     )
 ```
 
-- [ ] **Step 4: Call them**
+- [x] **Step 4: Call them**
 
 `renewal/pipeline.py` — after `run_promote_stage` returns a term.
 `renewal/web/review.py` — after each `promote()` in the promote loop.
@@ -2649,14 +2649,14 @@ handing the dataclass across would close an import cycle.
 `settings=None` skips the rule, which is what the tests that build a matrix
 without settings rely on.
 
-- [ ] **Step 5: The link**
+- [x] **Step 5: The link**
 
 `renewal/templates/attention.html`: a `renewal_received` row gets a
 **Compare** button pointing at
 `/policies/{{ policy_id }}/compare?baseline={{ prior }}&comparand={{ current }}`.
 That is the one click D10 describes; nothing builds until she takes it.
 
-- [ ] **Step 6: Settings, run, commit**
+- [x] **Step 6: Settings, run, commit**
 
 `ATTENTION_PREMIUM_PCT`, default 10, in `renewal/config.py` and `.env.example`.
 
