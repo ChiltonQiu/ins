@@ -110,6 +110,49 @@ Two routes are outside the login, because neither caller can sign in:
 There are no roles: every account can do everything. Nothing yet records
 *which* account made a correction or confirmed a date.
 
+## The daily summary
+
+Everything else here happens because a document arrived. This is the one thing
+that happens because a day passed.
+
+Once a day, after `Send that summary after` on `/settings`, one email goes out
+saying how many documents need a person, how many items are in the attention
+queue, and how many dates fall inside the window — with the nearest one named.
+Numbers, a date and a link; no client names, no filenames, nothing that would
+put client detail on a mail server. It is the same body the notification sent
+when a document finishes processing uses, so the two cannot disagree.
+
+When nothing is waiting, nothing is sent — until `Say so even when nothing
+needs me, every` days have passed with no summary at all, and then one goes out
+saying exactly that. A quiet week and a forwarding rule that broke on Thursday
+are otherwise the same thing from where you sit. A fresh install qualifies
+immediately, so the first summary arrives on an empty system: that is how you
+learn the mail configuration works.
+
+Two variables set the clock, and both are deployment configuration rather than
+preferences:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `AGENCY_TZ` | `UTC` | Whose eight o'clock `Send that summary after` means. Everything else in this application is UTC, so leaving this unset sends the summary at four in the morning on the east coast. A name it cannot parse falls back to UTC with a warning rather than sending nothing. |
+| `DIGEST_TICK_SECONDS` | `300` | How often the application asks whether the summary is due. `0` turns the in-process clock off. |
+
+The clock is a thread inside the application, so it has the same failure mode
+the background intake does: it dies with the process. A day the application is
+down for its entirety is a day with no summary — but nothing is lost, because
+the summary is computed from what is true rather than from events that might
+have been missed. A process that was down at eight and comes up at two sends it
+at two, and the next day's summary names the same deadline anyway.
+
+To run it from cron instead, set `DIGEST_TICK_SECONDS=0` and add:
+
+```bash
+*/5 * * * * cd /srv/renewal && .venv/bin/python -m scripts.digest
+```
+
+The once-a-day record lives in the database, so a cron entry and a running
+application cannot between them send two.
+
 ## Tests
 
 ```bash

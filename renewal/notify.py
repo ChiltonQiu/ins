@@ -5,8 +5,12 @@ The principle it appears to break -- that nothing is sent from here -- is about
 client-facing mail and is intact: no draft, no comparison and no client
 communication is ever sent automatically. This says a number and a link.
 
-No scheduler. The background task that produced the backlog is what notices it,
-which is why attention/rules.py:13 can go on being true.
+No scheduler here. The background task that produced the backlog is what
+notices it — this is the event-triggered half, and it is why
+attention/rules.py:13 can go on being true. The clock that speaks in a week
+when nothing arrives at all is renewal/digest/clock.py. Both send the same
+body, because they are one question asked by two clocks rather than two
+notification systems.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from renewal.config import Settings
-from renewal.inbox import needs_you_count
+from renewal.digest.content import collect, lines
 from renewal.models import NotificationSend
 
 logger = logging.getLogger(__name__)
@@ -60,7 +64,8 @@ def maybe_notify(session: Session, *, settings: Settings, send=None) -> bool:
     if not settings.smtp_host or not settings.notify_to:
         return False
 
-    count = needs_you_count(session)
+    digest = collect(session, settings=settings)
+    count = digest.needs_you
     if count == 0:
         return False
 
@@ -77,12 +82,12 @@ def maybe_notify(session: Session, *, settings: Settings, send=None) -> bool:
         f"{count} document{'' if count == 1 else 's'} need"
         f"{'s' if count == 1 else ''} you"
     )
-    # A number and a link. Naming the documents here would put client detail
-    # into a mailbox, which is exactly what the login exists to prevent.
+    # The same lines the daily summary sends, so the two cannot drift into
+    # disagreeing. Still numbers and a link: naming the documents here would
+    # put client detail into a mailbox, which is what the login prevents.
     body = (
-        f"{count} document{'' if count == 1 else 's'} in the inbox could not be "
-        "filed without a person.\n\n"
-        f"{settings.base_url}/\n"
+        "\n".join(lines(digest, settings=settings))
+        + f"\n\n{settings.base_url}/\n"
     )
 
     try:

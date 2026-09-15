@@ -33,6 +33,15 @@ def _waiting(session, store, n=1):
     session.flush()
 
 
+def _waiting_document(session, store, name="waiting.pdf"):
+    document = ingest_pdf(
+        session, store, data=make_text_pdf([["unrecognisable"]]),
+        original_filename=name, source="manual_upload", agency_id=1,
+    )
+    session.flush()
+    return document
+
+
 def test_nothing_waiting_sends_nothing(session, store):
     sent = []
     assert not maybe_notify(
@@ -122,3 +131,28 @@ def test_the_email_carries_no_client_or_policy_detail(session, store):
     )
     assert "0.pdf" not in sent[0]
     assert sent[0].count("http") == 1
+
+
+def test_the_event_email_carries_the_deadline_too(session, store):
+    """The same body the daily summary sends. A document arriving is a good
+    moment to mention that something else is due on Tuesday, and one body for
+    both is what keeps the two from drifting into disagreeing."""
+    from datetime import date
+
+    from renewal.models import DocumentDate
+
+    document = _waiting_document(session, store)
+    session.add(DocumentDate(
+        document_id=document.id, date_value=date.today() + timedelta(days=5),
+        date_type="policy_expiration", source_page=1, source_text="Expires",
+        confidence=0.9, extractor_version="dates-regex-v1", pass_name="regex",
+    ))
+    session.flush()
+
+    sent = []
+    maybe_notify(
+        session, settings=_settings_with_mail(),
+        send=lambda subject, body, **k: sent.append(body),
+    )
+    assert "date" in sent[0]
+    assert "soonest" in sent[0]
