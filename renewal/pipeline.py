@@ -126,7 +126,11 @@ def run_fields_stage(
 
 
 def run_promote_stage(
-    session: Session, document: Document, *, settings: Settings
+    session: Session,
+    document: Document,
+    *,
+    settings: Settings,
+    acknowledged: frozenset[str] = frozenset(),
 ) -> PolicyTerm | None:
     """Promote what needs no human, and leave everything else alone.
 
@@ -171,7 +175,10 @@ def run_promote_stage(
     # promotable, which is how a stuck document gets unstuck.
     if not effective_values(session, extraction.id):
         return None
-    if unresolved_field_paths(session, extraction.id):
+    # acknowledged is empty on every automatic run: nothing is ever waved
+    # through without a human looking at it. It carries a value only when she
+    # has opened the document and ticked the flagged path herself.
+    if unresolved_field_paths(session, extraction.id, acknowledged):
         return None
     if (
         session.query(PolicyTerm)
@@ -198,7 +205,10 @@ def run_promote_stage(
 
     kind = "quoted" if latest_class(session, document.id) == "quote" else "bound"
     try:
-        return promote(session, extraction, link.policy_id, kind=kind)
+        return promote(
+            session, extraction, link.policy_id, kind=kind,
+            acknowledged=acknowledged,
+        )
     except PromotionBlocked:
         # Unreachable given the check above, and caught anyway: a malformed
         # date is blocked by promote() for a reason the stage cannot see.
@@ -223,6 +233,7 @@ def run_stages(
     extract_fields: bool = True,
     model_client: ModelClient | None = None,
     settings: Settings | None = None,
+    acknowledged: frozenset[str] = frozenset(),
 ) -> Document:
     """Everything that happens to a document after it is stored.
 
@@ -255,7 +266,9 @@ def run_stages(
     # After the fields stage, because it promotes what that stage extracted,
     # and before attention, because Task 9's rules read the term it writes.
     if settings is not None:
-        term = run_promote_stage(session, document, settings=settings)
+        term = run_promote_stage(
+            session, document, settings=settings, acknowledged=acknowledged,
+        )
         if term is not None:
             evaluate_promotion(session, term)
     # Last: its rules read the label and the link that the stages above wrote.

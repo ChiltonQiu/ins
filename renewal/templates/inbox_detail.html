@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}{{ document.original_filename }}{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1 class="path">{{ document.original_filename }}</h1>
+  <span class="sub">{{ state.summary }}</span>
+  <span class="actions">
+    <a class="btn" href="/documents/{{ document.id }}">Open the PDF</a>
+  </span>
+</div>
+
+<section class="panel">
+  <header>
+    <h2>Fields</h2>
+    {% if rate is not none %}
+    <span class="rate">
+      {% if rate < 0.5 %}
+      <span class="flag">{{ "%.1f"|format(100 * rate) }}% verified</span>
+      {% else %}
+      <span class="ok">{{ "%.1f"|format(100 * rate) }}% verified</span>
+      {% endif %}
+    </span>
+    {% endif %}
+  </header>
+
+  {% if extraction %}
+  <p class="meta">
+    extraction #{{ extraction.id }} · {{ extraction.extractor_version }}
+    <br>{{ extraction.model_id }}, status {{ extraction.status }}
+  </p>
+  {% endif %}
+
+  {% if fields or extra_fields %}
+  <table class="fields">
+    <thead>
+      <tr><th>Field</th><th>Value</th><th>Source</th></tr>
+    </thead>
+    <tbody>
+      {% for field in fields %}
+      <tr {% if field.needs_review %}class="attn"{% endif %}>
+        <td class="path">{{ field.field_path | wbr }}</td>
+        <td>
+          <div class="value-cell">
+            <input type="text" value="{{ field.effective_value or '' }}"
+                   aria-label="{{ field.field_path }}"
+                   data-field-id="{{ field.id }}"
+                   data-original="{{ field.value or '' }}"
+                   class="correctable">
+            <form class="inline" method="post" action="/fields/{{ field.id }}/reject">
+              <button class="btn quiet" type="submit"
+                      title="This value is not on the document">not present</button>
+            </form>
+            <span class="saved" data-saved-for="{{ field.id }}" aria-live="polite"></span>
+          </div>
+        </td>
+        <td class="meta">
+          {% if field.needs_review %}<span class="flag">needs review</span> · {% endif %}
+          confidence {{ "%.2f"|format(field.confidence) }}, page {{ field.source_page }}
+          {% if field.validation_error %}
+            <br><span class="flag">{{ field.validation_error }}</span>
+          {% endif %}
+          {% if field.source_text_span %}
+            <br>{{ field.source_text_span }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {% for path, value in extra_fields %}
+      <tr>
+        <td class="path">{{ path | wbr }}</td>
+        <td class="path">{{ value }}</td>
+        <td class="meta">added by hand</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <p>Nothing could be read from this document.</p>
+    <p>
+      Usually it is a scan the text layer missed. Add the fields you need by
+      hand below, or open the PDF and check it is the right file.
+    </p>
+  </div>
+  {% endif %}
+
+  {% if extraction %}
+  <form method="post" action="/extractions/{{ extraction.id }}/fields"
+        class="add-missing">
+    <input type="text" name="field_path" aria-label="Field path"
+           placeholder="field path, e.g. policy.total_premium" required>
+    <input type="text" name="corrected_value" aria-label="Value"
+           placeholder="value" required>
+    <button class="btn" type="submit">Add missing field</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="promote">
+  <h2>File it</h2>
+  {% if blocked %}
+  <p class="notice bad">
+    These fields still need checking: {{ blocked|join(", ") }}. Correct them
+    above, or tick them here to accept the extracted value as it stands.
+  </p>
+  {% endif %}
+  <form method="post" action="/documents/{{ document.id }}/retry">
+    {% if blocked %}
+    <fieldset class="ack">
+      {% for path in blocked %}
+      <label class="inline">
+        <input type="checkbox" name="acknowledged" value="{{ path }}">
+        {{ path }} is correct
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
+    <button class="btn primary" type="submit">File it</button>
+  </form>
+</section>
+{% endblock %}

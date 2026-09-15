@@ -256,3 +256,42 @@ def test_a_stalled_row_offers_the_retry_button(signed, engine, settings):
     with signed() as client:
         page = client.get("/")
     assert "/retry" in page.text
+
+
+def test_the_detail_view_shows_the_fields_and_the_source_link(
+    signed, engine, settings
+):
+    with signed() as client:
+        client.post(
+            "/documents",
+            files={"document": ("dropped.pdf",
+                                make_text_pdf([["Policy Number: AU-4471"]]),
+                                "application/pdf")},
+            follow_redirects=False,
+        )
+
+    session = sessionmaker(bind=engine)()
+    try:
+        document_id = session.query(Document).one().id
+    finally:
+        session.close()
+
+    with signed() as client:
+        page = client.get(f"/documents/{document_id}/review")
+    assert page.status_code == 200
+    assert "dropped.pdf" in page.text
+    # Every claim in this app is one click from the page it was read off.
+    assert f'href="/documents/{document_id}"' in page.text
+
+
+def test_the_detail_view_of_a_missing_document_is_a_404(signed):
+    with signed() as client:
+        page = client.get("/documents/999999/review")
+    assert page.status_code == 404
+
+
+def test_a_needs_you_row_links_to_the_detail_view(signed, engine, settings):
+    _document(engine, settings, filename="mystery.pdf")
+    with signed() as client:
+        page = client.get("/")
+    assert "/review" in page.text

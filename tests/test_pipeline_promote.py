@@ -315,3 +315,29 @@ def test_a_failed_extraction_filled_in_by_hand_does_promote(session, settings):
     term = run_promote_stage(session, document, settings=settings)
     assert term is not None
     assert term.total_premium == "3900.00"
+
+
+def test_an_acknowledged_flag_lets_the_stage_promote(session, settings):
+    """The escape hatch the run flow owned, moved rather than deleted.
+
+    A correctly-extracted value that the extractor flagged anyway has to be
+    clearable without writing a fake correction into the dataset that exists to
+    make extraction better.
+
+    The sibling above — test_a_flagged_field_waits_for_a_human — is the half of
+    this that must not change: with nothing acknowledged, the stage still
+    declines.
+    """
+    policy = _policy(session)
+    document = _document(session)
+    _link(session, document, client_id=policy.client_id, policy_id=policy.id)
+    _extraction(session, document, needs_review=True)
+
+    assert run_promote_stage(session, document, settings=settings) is None
+
+    term = run_promote_stage(
+        session, document, settings=settings,
+        acknowledged=frozenset({"policy.total_premium"}),
+    )
+    assert term is not None
+    assert session.query(PolicyTerm).count() == 1

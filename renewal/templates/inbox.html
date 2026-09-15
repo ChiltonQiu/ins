@@ -35,7 +35,7 @@
   <ul class="inbox">
     {% for state in groups.working %}
     <li data-state="{{ state.bucket }}">
-      <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
+      <span class="path"><a href="/documents/{{ state.document.id }}/review">{{ state.document.original_filename }}</a></span>
       <span class="muted">{{ state.summary }}</span>
       {% if state.bucket == "stalled" %}
       {# inline-retry, not inline: form.inline is bound in app.js to a
@@ -57,12 +57,15 @@
   <ul class="inbox">
     {% for state in groups.needs_you %}
     <li data-state="needs_you" data-reason="{{ state.reason }}">
-      <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
+      <span class="path"><a href="/documents/{{ state.document.id }}/review">{{ state.document.original_filename }}</a></span>
       <span>{{ state.summary }}</span>
       {% if state.reason == "failed" %}
       <form class="inline-retry" method="post" action="/documents/{{ state.document.id }}/retry">
         <button class="btn quiet" type="submit">Try again</button>
       </form>
+      {% endif %}
+      {% if state.reason in ("needs_review", "nothing_extracted") %}
+      <a class="btn quiet" href="/documents/{{ state.document.id }}/review">Open it</a>
       {% endif %}
     </li>
     {% endfor %}
@@ -76,7 +79,7 @@
   <ul class="inbox">
     {% for state in groups.done %}
     <li data-state="done">
-      <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
+      <span class="path"><a href="/documents/{{ state.document.id }}/review">{{ state.document.original_filename }}</a></span>
       {# The row says what it became, not merely that it finished. This is how
          she knows the automatic part worked without visiting anything. #}
       {% if state.comparison_id %}

@@ -75,6 +75,7 @@ def process_document(
     *,
     model_client: ModelClient | None = None,
     settings: Settings | None = None,
+    acknowledged: frozenset[str] = frozenset(),
 ) -> None:
     """Run the stages for one document and record where it ended up.
 
@@ -95,6 +96,7 @@ def process_document(
                 document,
                 model_client=model_client,
                 settings=settings,
+                acknowledged=acknowledged,
             )
             _set_status(session, document, "processed")
             logger.info("background done document_id=%s", document_id)
