@@ -7,19 +7,21 @@ renewal/inbox.py; this module parses the request and renders.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import case
+from sqlalchemy import case, select
 
 from renewal.background import process_document
 from renewal.corrections import effective_values
 from renewal.extract.validate import verification_rate
 from renewal.inbox import anything_in_flight, bucketed, inbox_rows, state_of
 from renewal.ingest import ingest_pdf
-from renewal.models import Document, ExtractedField, Extraction
+from renewal.models import Client, Document, ExtractedField, Extraction, Policy
 from renewal.promote import unresolved_field_paths
+from renewal.resolve.service import assign, candidates_for, latest_link
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -52,10 +54,49 @@ def register(app, deps: Deps) -> None:
     def inbox(request: Request):
         with session_factory() as session:
             groups = bucketed(inbox_rows(session))
+
+            # Built only for the rows that need them, so an inbox of Done rows
+            # costs no extra queries at all.
+            candidates: dict[int, list[dict]] = {}
+            policies: dict[int, list[Policy]] = {}
+            for state in groups["needs_you"]:
+                if state.reason == "needs_client":
+                    matches = candidates_for(session, state.document)
+                    names = dict(
+                        session.query(Client.id, Client.display_name).filter(
+                            Client.id.in_([m.client_id for m in matches] or [0])
+                        )
+                    )
+                    candidates[state.document.id] = [
+                        {
+                            "client_id": m.client_id,
+                            "policy_id": m.policy_id,
+                            "name": names.get(
+                                m.client_id, f"client {m.client_id}"
+                            ),
+                            "score": m.score,
+                            "reason": m.reason,
+                        }
+                        for m in matches
+                    ]
+                elif state.reason == "needs_policy" and state.client_id:
+                    policies[state.document.id] = list(
+                        session.scalars(
+                            select(Policy)
+                            .where(Policy.client_id == state.client_id)
+                            .order_by(Policy.policy_number)
+                        )
+                    )
+
             return TEMPLATES.TemplateResponse(
                 request,
                 "inbox.html",
-                {"groups": groups, "in_flight": anything_in_flight(session)},
+                {
+                    "groups": groups,
+                    "in_flight": anything_in_flight(session),
+                    "candidates": candidates,
+                    "policies": policies,
+                },
             )
 
     @router.post("/documents")
@@ -184,5 +225,36 @@ def register(app, deps: Deps) -> None:
                     "rate": rate,
                 },
             )
+
+    @router.post("/documents/{document_id}/policy")
+    def set_policy(document_id: int, policy_id: int = Form(...)):
+        """The needs_policy fix.
+
+        The client is already decided; this only says which of that client's
+        policies the document belongs to. candidates is recomputed rather than
+        taken from the form, so what she chose over is what the system actually
+        offered.
+        """
+        with session_factory() as session:
+            document = session.get(Document, document_id)
+            if document is None:
+                raise HTTPException(status_code=404, detail="no such document")
+            link = latest_link(session, document_id)
+            if link is None:
+                raise HTTPException(
+                    status_code=400, detail="file this to a client first"
+                )
+            policy = session.get(Policy, policy_id)
+            if policy is None or policy.client_id != link.client_id:
+                raise HTTPException(
+                    status_code=404, detail="no such policy for this client"
+                )
+            assign(
+                session, document_id, client_id=link.client_id,
+                policy_id=policy_id,
+                candidates=[asdict(m) for m in candidates_for(session, document)],
+            )
+            session.commit()
+        return RedirectResponse("/", status_code=303)
 
     app.include_router(router)

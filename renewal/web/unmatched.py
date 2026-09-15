@@ -1,64 +1,27 @@
-"""The queue of documents that could not be attached to a client safely.
+"""Filing a document against a client.
 
-Every assignment here is a human decision that gets recorded with the
-alternatives it was chosen over. That record is the training data for making
-matching better, and it is the reason assignment writes a row rather than
-setting a field.
+The queue this module used to render is now a bucket of the inbox, but the two
+fixes stayed here: every assignment here is a human decision that gets recorded
+with the alternatives it was chosen over. That record is the training data for
+making matching better, and it is the reason assignment writes a row rather
+than setting a field.
 """
 
 from __future__ import annotations
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Form, HTTPException
+from fastapi.responses import RedirectResponse
 
 from renewal.models import Client, Document
-from renewal.resolve.service import assign, candidates_for, unmatched
-from renewal.text.store import page_text
+from renewal.resolve.service import assign, candidates_for
 from renewal.web.deps import Deps
-from renewal.web.templating import TEMPLATES
-
-# Enough of the first page to recognise the document without reading it. The
-# queue is scanned, not read.
-SNIPPET_CHARS = 400
 
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
     router = APIRouter()
-
-    @router.get("/unmatched", response_class=HTMLResponse)
-    def show_unmatched(request: Request):
-        with session_factory() as session:
-            rows = []
-            for document in unmatched(session):
-                matches = candidates_for(session, document)
-                names = {
-                    client_id: name
-                    for client_id, name in session.query(
-                        Client.id, Client.display_name
-                    ).filter(Client.id.in_([m.client_id for m in matches] or [0]))
-                }
-                rows.append(
-                    {
-                        "document": document,
-                        "snippet": page_text(session, document.id, 1)[:SNIPPET_CHARS],
-                        "candidates": [
-                            {
-                                "client_id": m.client_id,
-                                "policy_id": m.policy_id,
-                                "name": names.get(m.client_id, f"client {m.client_id}"),
-                                "score": m.score,
-                                "reason": m.reason,
-                            }
-                            for m in matches
-                        ],
-                    }
-                )
-            return TEMPLATES.TemplateResponse(
-                request, "unmatched.html", {"rows": rows}
-            )
 
     @router.post("/unmatched/{document_id}/assign")
     def assign_document(
@@ -79,7 +42,7 @@ def register(app, deps: Deps) -> None:
                 candidates=[asdict(m) for m in matches],
             )
             session.commit()
-        return RedirectResponse("/unmatched", status_code=303)
+        return RedirectResponse("/", status_code=303)
 
     @router.post("/unmatched/{document_id}/new-client")
     def new_client_for_document(
@@ -95,7 +58,7 @@ def register(app, deps: Deps) -> None:
             assign(session, document_id, client_id=client.id, policy_id=None,
                    candidates=[])
             session.commit()
-        return RedirectResponse("/unmatched", status_code=303)
+        return RedirectResponse("/", status_code=303)
 
     app.include_router(router)
 

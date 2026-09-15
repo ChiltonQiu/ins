@@ -295,3 +295,109 @@ def test_a_needs_you_row_links_to_the_detail_view(signed, engine, settings):
     with signed() as client:
         page = client.get("/")
     assert "/review" in page.text
+
+
+def test_a_needs_client_row_offers_the_ranked_candidates(
+    signed, engine, settings
+):
+    """A name that looks close is a candidate, not a decision.
+
+    Deliberately not a policy number: an exact policy-number match scores 1.0
+    and auto-links under D8, so such a document never reaches this bucket at
+    all. The row that needs her is the one where the name is similar and
+    nothing is certain.
+    """
+    session = sessionmaker(bind=engine)()
+    try:
+        session.add(Client(display_name="Ramirez Landscaping Incorporated"))
+        document = ingest_pdf(
+            session, BlobStore(settings.blob_root),
+            data=make_text_pdf([["Named Insured: Ramirez Landscaping"]]),
+            original_filename="mystery.pdf", source="manual_upload",
+            agency_id=1,
+        )
+        session.commit()
+        document_id = document.id
+    finally:
+        session.close()
+
+    # Text has to exist for candidate extraction to read anything.
+    with signed() as client:
+        client.post(f"/documents/{document_id}/retry", follow_redirects=False)
+        page = client.get("/")
+
+    assert f"/unmatched/{document_id}/assign" in page.text
+    assert "Ramirez Landscaping Incorporated" in page.text
+
+
+def test_assigning_a_client_from_the_inbox_lands_back_on_the_inbox(
+    signed, engine, settings
+):
+    session = sessionmaker(bind=engine)()
+    try:
+        client_row = Client(display_name="Ramirez Landscaping")
+        session.add(client_row)
+        session.flush()
+        client_id = client_row.id
+        session.commit()
+    finally:
+        session.close()
+
+    document_id = _document(engine, settings, filename="mystery.pdf")
+    with signed() as client:
+        response = client.post(
+            f"/unmatched/{document_id}/assign",
+            data={"client_id": str(client_id)},
+            follow_redirects=False,
+        )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+
+
+def test_the_old_unmatched_page_is_gone(signed):
+    with signed() as client:
+        page = client.get("/unmatched", follow_redirects=False)
+    assert page.status_code == 404
+
+
+def test_a_needs_policy_row_offers_that_clients_policies(
+    signed, engine, settings
+):
+    session = sessionmaker(bind=engine)()
+    try:
+        client_row = Client(display_name="Ramirez Landscaping")
+        session.add(client_row)
+        session.flush()
+        policy = Policy(
+            client_id=client_row.id, carrier_name="Progressive",
+            policy_number="AU-4471", line_of_business="commercial_auto",
+        )
+        session.add(policy)
+        document = ingest_pdf(
+            session, BlobStore(settings.blob_root),
+            data=make_text_pdf([["DECLARATIONS PAGE", "premium and limits"]]),
+            original_filename="dec.pdf", source="manual_upload", agency_id=1,
+        )
+        session.flush()
+        assign(session, document.id, client_id=client_row.id, policy_id=None,
+               candidates=[])
+        session.commit()
+        document_id, policy_id = document.id, policy.id
+    finally:
+        session.close()
+
+    with signed() as client:
+        response = client.post(
+            f"/documents/{document_id}/policy",
+            data={"policy_id": str(policy_id)},
+            follow_redirects=False,
+        )
+    assert response.status_code == 303
+
+    session = sessionmaker(bind=engine)()
+    try:
+        from renewal.resolve.service import latest_link
+
+        assert latest_link(session, document_id).policy_id == policy_id
+    finally:
+        session.close()

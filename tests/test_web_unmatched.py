@@ -1,3 +1,12 @@
+"""Filing a document against a client.
+
+The queue itself is now a bucket of the inbox (tests/test_web_inbox.py); what
+is tested here is the pair of fixes that queue offers, and the record each one
+writes. The record is the point: a manual link stores the candidates that were
+on screen when she chose, which is the training data for making matching
+better.
+"""
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
@@ -65,12 +74,6 @@ def seeded(engine, tmp_path):
     yield ids
 
 
-def test_the_queue_lists_unmatched_documents_with_candidates(client_app, seeded):
-    response = client_app.get("/unmatched")
-    assert response.status_code == 200
-    assert "Acme Landscaping LLC" in response.text
-
-
 def test_assigning_writes_a_manual_link_with_the_candidates_shown(
     client_app, seeded, db
 ):
@@ -98,10 +101,18 @@ def test_creating_a_client_from_the_queue_links_the_document(client_app, seeded,
 
 
 def test_an_assigned_document_leaves_the_queue(client_app, seeded):
+    """The queue is a bucket of the inbox now, so this asks the inbox.
+
+    Pointed at /unmatched it would pass on the 404 body — a test passing
+    because the page it looks at does not exist.
+    """
     document_id, client_id = seeded
+    inbox = client_app.get("/")
+    assert f"/unmatched/{document_id}/assign" in inbox.text
+
     client_app.post(f"/unmatched/{document_id}/assign",
                     data={"client_id": str(client_id)}, follow_redirects=False)
-    assert f"/unmatched/{document_id}/assign" not in client_app.get("/unmatched").text
+    assert f"/unmatched/{document_id}/assign" not in client_app.get("/").text
 
 
 def test_assigning_a_client_that_does_not_exist_is_rejected(client_app, seeded):

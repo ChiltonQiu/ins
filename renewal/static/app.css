@@ -1345,3 +1345,20 @@ ul.inbox > li[data-state="stalled"] {
   margin: 0 0 1.2rem;
   font-size: 0.92rem;
 }
+
+/* The fix on a needs-you row. inline-fix rather than inline: form.inline is
+   bound in app.js to the fetch-and-reload handler for the 204 correction
+   endpoints, and these redirect. */
+.fix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  flex: 1 1 100%;
+}
+
+.inline-fix {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}

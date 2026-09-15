@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func, select
 
 from renewal.blobstore import BlobNotFound
@@ -94,6 +94,35 @@ def register(app, deps: Deps) -> None:
             return TEMPLATES.TemplateResponse(
                 request, "prep.html", {"p": got, "residual_label": RESIDUAL_LABEL}
             )
+
+    @router.post("/clients")
+    def add_client(display_name: str = Form(...)):
+        """Adopted from the run-setup form when that was deleted. It kept its
+        URL: the new-client box on a needs_client inbox row posts here."""
+        with session_factory() as session:
+            session.add(Client(display_name=display_name))
+            session.commit()
+        return RedirectResponse("/", status_code=303)
+
+    @router.post("/policies")
+    def add_policy(
+        client_id: int = Form(...),
+        carrier_name: str = Form(...),
+        policy_number: str = Form(...),
+        line_of_business: str = Form(...),
+    ):
+        """Creating a policy from a document is the needs_policy fix."""
+        with session_factory() as session:
+            session.add(
+                Policy(
+                    client_id=client_id,
+                    carrier_name=carrier_name,
+                    policy_number=policy_number,
+                    line_of_business=line_of_business,
+                )
+            )
+            session.commit()
+        return RedirectResponse("/", status_code=303)
 
     @router.get("/documents/{document_id}")
     def show_document(document_id: int):
