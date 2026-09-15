@@ -133,6 +133,12 @@ class InsuredItem(Base):
 
 class Document(Base):
     __tablename__ = "document"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('processing', 'processed', 'failed')",
+            name="ck_document_status",
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     blob_sha256: Mapped[str] = mapped_column(Text, index=True)
     original_filename: Mapped[str] = mapped_column(Text)
@@ -140,6 +146,12 @@ class Document(Base):
     has_text_layer: Mapped[bool] = mapped_column(Boolean)
     doc_type: Mapped[str] = mapped_column(Text)  # 'dec_page' in v0
     source: Mapped[str] = mapped_column(Text, server_default="manual_upload")
+    # Only the in-flight fact. Every other thing the inbox shows is computed at
+    # read time from rows the pipeline writes, because those change the moment
+    # she acts and a stored copy would be stale immediately after the act that
+    # fixed it.
+    status: Mapped[str] = mapped_column(Text, server_default="processed")
+    status_changed_at: Mapped[datetime] = _created_at()
     agency_id: Mapped[int | None] = mapped_column(
         ForeignKey("agency.id"), nullable=True
     )

@@ -136,3 +136,39 @@ def test_correction_kind_is_constrained(session):
     )
     with pytest.raises(IntegrityError):
         session.flush()
+
+
+def test_a_document_is_processed_unless_something_says_otherwise(session, store):
+    """The default is the finished state, not the in-flight one.
+
+    Every path that creates a document synchronously — bulk import, the mail
+    body document — is finished the moment it returns. Only the background
+    path sets 'processing' explicitly, so the default needs no backfill for
+    the rows that already exist.
+    """
+    from renewal.ingest import ingest_pdf
+    from tests.pdfmaker import make_text_pdf
+
+    document = ingest_pdf(
+        session, store, data=make_text_pdf([["x"]]),
+        original_filename="a.pdf", source="bulk_import", agency_id=1,
+    )
+    session.refresh(document)
+    assert document.status == "processed"
+    assert document.status_changed_at is not None
+
+
+def test_an_unknown_document_status_is_rejected(session, store):
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    from renewal.ingest import ingest_pdf
+    from tests.pdfmaker import make_text_pdf
+
+    document = ingest_pdf(
+        session, store, data=make_text_pdf([["x"]]),
+        original_filename="a.pdf", source="bulk_import", agency_id=1,
+    )
+    document.status = "thinking about it"
+    with pytest.raises(IntegrityError):
+        session.flush()
