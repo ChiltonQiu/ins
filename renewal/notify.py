@@ -3,7 +3,7 @@
 The first outbound mail this application sends, and the only one it will send.
 The principle it appears to break -- that nothing is sent from here -- is about
 client-facing mail and is intact: no draft, no comparison and no client
-communication is ever sent automatically. This says a number and a link.
+communication is ever sent automatically. This says numbers, a date and a link.
 
 No scheduler here. The background task that produced the backlog is what
 notices it — this is the event-triggered half, and it is why
@@ -45,6 +45,13 @@ def send_email(subject: str, body: str, *, settings: Settings) -> None:
 
 
 def _last_send(session: Session) -> NotificationSend | None:
+    """The newest row of either kind.
+
+    Deliberately not filtered to event-triggered rows: the daily summary is an
+    email too, and "at most one email an hour" is the promise /settings makes.
+    So a summary at eight holds this back until nine, which is the same answer
+    she would want if two documents had arrived five minutes apart.
+    """
     return session.scalar(
         select(NotificationSend).order_by(NotificationSend.id.desc()).limit(1)
     )

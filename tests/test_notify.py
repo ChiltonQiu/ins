@@ -156,3 +156,22 @@ def test_the_event_email_carries_the_deadline_too(session, store):
     )
     assert "date" in sent[0]
     assert "soonest" in sent[0]
+
+
+def test_a_summary_holds_back_the_event_email_for_the_hour(session, store):
+    """At most one email an hour is what /settings promises, and the daily
+    summary is an email. A summary at eight holds this back until nine."""
+    from datetime import date
+
+    from renewal.models import NotificationSend
+
+    _waiting(session, store, 1)
+    session.add(NotificationSend(document_count=1, digest_date=date.today()))
+    session.flush()
+
+    sent = []
+    assert not maybe_notify(
+        session, settings=_settings_with_mail(),
+        send=lambda *a, **k: sent.append(a),
+    )
+    assert sent == []

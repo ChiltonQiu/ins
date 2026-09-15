@@ -220,6 +220,16 @@ def test_the_preferences_panel_shows_the_values_in_force(client_app):
     assert 'value="10.0"' in page or 'value="10"' in page
 
 
+def test_the_daily_summary_preferences_render(client_app):
+    """The panel is data-driven from DEFINITIONS, so this is really asking
+    whether a new preference reaches the page without a template edit."""
+    page = client_app.get("/settings").text
+    assert 'name="digest_enabled"' in page
+    assert 'name="digest_hour"' in page
+    assert 'name="digest_quiet_days"' in page
+    assert "Email me a summary every day" in page
+
+
 def test_saving_a_preference_takes_effect(client_app, db):
     from renewal.settings_store import effective
     from tests.test_dates_llm import _settings
