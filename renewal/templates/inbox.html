@@ -37,6 +37,14 @@
     <li data-state="{{ state.bucket }}">
       <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
       <span class="muted">{{ state.summary }}</span>
+      {% if state.bucket == "stalled" %}
+      {# inline-retry, not inline: form.inline is bound in app.js to a
+         fetch-and-reload handler built for the 204 correction endpoints, and
+         this one redirects. #}
+      <form class="inline-retry" method="post" action="/documents/{{ state.document.id }}/retry">
+        <button class="btn quiet" type="submit">Try again</button>
+      </form>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -51,6 +59,11 @@
     <li data-state="needs_you" data-reason="{{ state.reason }}">
       <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
       <span>{{ state.summary }}</span>
+      {% if state.reason == "failed" %}
+      <form class="inline-retry" method="post" action="/documents/{{ state.document.id }}/retry">
+        <button class="btn quiet" type="submit">Try again</button>
+      </form>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

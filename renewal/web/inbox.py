@@ -7,12 +7,15 @@ renewal/inbox.py; this module parses the request and renders.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from renewal.background import process_document
 from renewal.inbox import anything_in_flight, bucketed, inbox_rows
 from renewal.ingest import ingest_pdf
+from renewal.models import Document
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -69,6 +72,34 @@ def register(app, deps: Deps) -> None:
             row.status = "processing"
             session.commit()
             document_id = row.id
+
+        deps.runner.submit(
+            process_document,
+            session_factory,
+            store,
+            document_id,
+            model_client=model_client,
+            settings=settings,
+        )
+        return RedirectResponse("/", status_code=303)
+
+    @router.post("/documents/{document_id}/retry")
+    def retry_document(document_id: int):
+        """Re-run the stages for one document.
+
+        Safe on anything: every stage checks its own work before doing it, and
+        promotion is idempotent per extraction and per blob. A retry of a
+        document that already finished writes nothing.
+        """
+        with session_factory() as session:
+            row = session.get(Document, document_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="no such document")
+            row.status = "processing"
+            # Reset the clock, or a retried document is stalled the instant it
+            # is retried.
+            row.status_changed_at = datetime.now(timezone.utc)
+            session.commit()
 
         deps.runner.submit(
             process_document,

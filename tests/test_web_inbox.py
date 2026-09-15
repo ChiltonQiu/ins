@@ -190,3 +190,69 @@ def test_a_file_that_is_not_a_pdf_is_refused_with_a_reason(signed):
         )
     assert response.status_code == 400
     assert "PDF" in response.text
+
+
+def test_retry_reruns_a_stalled_document(signed, engine, settings):
+    from renewal.models import DocumentText
+
+    document_id = _document(engine, settings, filename="stuck.pdf",
+                            status="processing", age=timedelta(hours=3))
+    with signed() as client:
+        response = client.post(f"/documents/{document_id}/retry",
+                               follow_redirects=False)
+    assert response.status_code == 303
+
+    session = sessionmaker(bind=engine)()
+    try:
+        assert session.get(Document, document_id).status == "processed"
+        assert session.query(DocumentText).filter_by(
+            document_id=document_id
+        ).count() == 1
+    finally:
+        session.close()
+
+
+def test_retrying_a_finished_document_changes_nothing(signed, engine, settings):
+    """Idempotent by construction: every stage checks its own work first."""
+    from renewal.models import DocumentText
+
+    with signed() as client:
+        client.post(
+            "/documents",
+            files={"document": ("dropped.pdf",
+                                make_text_pdf([["Policy Number: AU-4471"]]),
+                                "application/pdf")},
+            follow_redirects=False,
+        )
+
+    session = sessionmaker(bind=engine)()
+    try:
+        document_id = session.query(Document).one().id
+    finally:
+        session.close()
+
+    with signed() as client:
+        client.post(f"/documents/{document_id}/retry", follow_redirects=False)
+
+    session = sessionmaker(bind=engine)()
+    try:
+        assert session.query(DocumentText).filter_by(
+            document_id=document_id
+        ).count() == 1
+    finally:
+        session.close()
+
+
+def test_retrying_a_document_that_does_not_exist_is_a_404(signed):
+    with signed() as client:
+        response = client.post("/documents/999999/retry",
+                               follow_redirects=False)
+    assert response.status_code == 404
+
+
+def test_a_stalled_row_offers_the_retry_button(signed, engine, settings):
+    _document(engine, settings, filename="stuck.pdf", status="processing",
+              age=timedelta(hours=3))
+    with signed() as client:
+        page = client.get("/")
+    assert "/retry" in page.text
