@@ -27,7 +27,7 @@ from renewal.models import (
     PolicyTerm,
     Reclassification,
 )
-from renewal.web.deps import Deps
+from renewal.web.deps import Deps, acting_user_id
 from renewal.web.templating import TEMPLATES
 
 
@@ -80,6 +80,7 @@ def register(app, deps: Deps) -> None:
 
     @router.post("/comparisons")
     def create_comparison(
+        request: Request,
         policy_id: int = Form(...),
         baseline: int = Form(...),
         comparand: list[int] = Form(default=[]),
@@ -100,6 +101,7 @@ def register(app, deps: Deps) -> None:
                     columns=specs,
                     rules=load_rules(settings.materiality_config),
                     settings=settings,
+                    user_id=acting_user_id(request),
                 )
             except ColumnsRejected as rejected:
                 raise HTTPException(status_code=400, detail=str(rejected))
@@ -155,6 +157,7 @@ def register(app, deps: Deps) -> None:
 
     @router.post("/differences/{difference_id}/reclassify", status_code=204)
     def reclassify_difference(
+        request: Request,
         difference_id: int,
         to_materiality: str = Form(...),
         note: str | None = Form(None),
@@ -163,7 +166,8 @@ def register(app, deps: Deps) -> None:
             difference = session.get(Difference, difference_id)
             if difference is None:
                 raise HTTPException(status_code=404, detail="no such difference")
-            reclassify(session, difference, to_materiality, note=note)
+            reclassify(session, difference, to_materiality, note=note,
+                       user_id=acting_user_id(request))
             session.commit()
         return Response(status_code=204)
 

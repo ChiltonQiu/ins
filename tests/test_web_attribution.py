@@ -5,6 +5,8 @@ only place that knows who is asking, so every test here goes through it rather
 than calling a service function with a user_id it made up.
 """
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
@@ -25,7 +27,8 @@ def settings(tmp_path):
         extraction_model="claude-opus-5",
         draft_model="claude-sonnet-5",
         confidence_threshold=0.80,
-        materiality_config=tmp_path / "materiality.yaml",
+        # The real rules: a comparison built through the route loads them.
+        materiality_config=Path("config/materiality.yaml"),
         session_cookie_secure=False,
     )
 
@@ -211,3 +214,63 @@ def test_filing_a_document_by_hand_records_who_filed_it(signed, db):
     link = db.query(DocumentLink).one()
     assert link.method == "manual"
     assert link.user_id == _me(db).id
+
+
+def test_a_comparison_records_who_built_it(signed, db):
+    """Named by the comparison-matrix spec: who built a comparison, and who
+    reclassified a row."""
+    from renewal.models import Client, Comparison, Policy, PolicyTerm
+
+    client = Client(display_name="Ramirez Landscaping")
+    db.add(client)
+    db.flush()
+    policy = Policy(client_id=client.id, carrier_name="Acme",
+                    policy_number="P-1", line_of_business="general_liability")
+    db.add(policy)
+    db.flush()
+    terms = [
+        PolicyTerm(policy_id=policy.id, kind="bound"),
+        PolicyTerm(policy_id=policy.id, kind="bound"),
+    ]
+    db.add_all(terms)
+    db.commit()
+
+    response = signed.post("/comparisons", data={
+        "policy_id": str(policy.id),
+        "baseline": str(terms[0].id),
+        "comparand": str(terms[1].id),
+    }, follow_redirects=False)
+    assert response.status_code in (200, 303), response.text[:200]
+
+    built = db.query(Comparison).one()
+    assert built.user_id == _me(db).id
+
+
+def test_a_comparison_the_pipeline_built_names_nobody(session, store, settings):
+    """The pipeline builds a comparison when a renewal term lands. Nobody
+    pressed a button, so nothing may claim anybody did."""
+    from renewal.comparison import ColumnSpec, build_matrix
+    from renewal.materiality import load_rules
+    from renewal.models import Client, Policy, PolicyTerm
+
+    client = Client(display_name="Ramirez Landscaping")
+    session.add(client)
+    session.flush()
+    policy = Policy(client_id=client.id, carrier_name="Acme",
+                    policy_number="P-1", line_of_business="general_liability")
+    session.add(policy)
+    session.flush()
+    terms = [
+        PolicyTerm(policy_id=policy.id, kind="bound"),
+        PolicyTerm(policy_id=policy.id, kind="bound"),
+    ]
+    session.add_all(terms)
+    session.flush()
+
+    built = build_matrix(
+        session,
+        columns=[ColumnSpec(terms[0].id, "baseline"),
+                 ColumnSpec(terms[1].id, "comparand")],
+        rules=load_rules(Path("config/materiality.yaml")),
+    )
+    assert built.user_id is None

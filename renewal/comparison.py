@@ -179,6 +179,7 @@ def build_matrix(
     rules: RuleSet,
     run_id: int | None = None,
     settings: Settings | None = None,
+    user_id: int | None = None,
 ) -> Comparison:
     """The one way a comparison is written.
 
@@ -190,7 +191,9 @@ def build_matrix(
     """
     terms = _terms_for(session, columns)
 
-    comparison = Comparison(renewal_run_id=run_id)
+    # user_id is None when the pipeline built this: nobody pressed a button,
+    # so nothing may claim anybody did.
+    comparison = Comparison(renewal_run_id=run_id, user_id=user_id)
     session.add(comparison)
     session.flush()
 
@@ -265,6 +268,7 @@ def build_comparison(
     rules: RuleSet,
     run_id: int | None = None,
     settings: Settings | None = None,
+    user_id: int | None = None,
 ) -> Comparison:
     """The pairwise case.
 
@@ -282,6 +286,7 @@ def build_comparison(
         rules=rules,
         run_id=run_id,
         settings=settings,
+        user_id=user_id,
     )
 
 
@@ -467,6 +472,7 @@ def reclassify(
     difference: Difference,
     to_materiality: str,
     note: str | None = None,
+    user_id: int | None = None,
 ) -> Reclassification:
     log = Reclassification(
         difference_id=difference.id,
@@ -474,6 +480,7 @@ def reclassify(
         to_materiality=to_materiality,
         rule_id=difference.rule_id,
         note=note,
+        user_id=user_id,
     )
     session.add(log)
     session.flush()
