@@ -672,12 +672,30 @@ class NotificationSend(Base):
     A row rather than a column on agency, because the count at the time is
     worth keeping: it is the only record of how big the backlog got, and the
     guard reads the timestamp off the newest row anyway.
+
+    digest_date set means a daily summary, and it is what stops the next tick
+    from sending a second one. NULL means the event-triggered email, of which
+    a busy morning may hold several.
     """
 
     __tablename__ = "notification_send"
     id: Mapped[int] = mapped_column(primary_key=True)
     document_count: Mapped[int] = mapped_column(Integer)
+    digest_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     sent_at: Mapped[datetime] = _created_at()
+
+
+# One summary per day, and no constraint at all on the event-triggered email.
+# A CHECK cannot express "unique among the non-NULLs"; a partial unique index
+# can. Declared here rather than in __table_args__ for the reason
+# uq_app_user_email_lower is: it names a column the class body has not defined
+# yet at the time the arguments are evaluated.
+Index(
+    "uq_notification_send_digest_date",
+    NotificationSend.__table__.c.digest_date,
+    unique=True,
+    postgresql_where=NotificationSend.__table__.c.digest_date.isnot(None),
+)
 
 
 class AttentionItem(Base):
