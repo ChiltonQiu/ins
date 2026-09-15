@@ -73,10 +73,11 @@ def install(app, deps: Deps) -> None:
             return await call_next(request)
 
         token = request.cookies.get(COOKIE_NAME)
-        # Read out as plain strings rather than kept as an ORM object: the
+        # Read out as plain values rather than kept as an ORM object: the
         # session closes here, and a template rendering a detached instance
-        # later would raise. The topbar needs an address, nothing more.
-        identity: tuple[str, str] | None = None
+        # later would raise. The topbar needs an address and a name; the id is
+        # what every attributed write points at.
+        identity: tuple[int, str, str] | None = None
         if token:
             with session_factory() as session:
                 user = lookup_session(
@@ -86,7 +87,7 @@ def install(app, deps: Deps) -> None:
                     ).session_ttl_hours,
                 )
                 if user is not None:
-                    identity = (user.email, user.display_name)
+                    identity = (user.id, user.email, user.display_name)
                 # Committed either way: lookup_session slides the expiry on a
                 # hit and sweeps nothing on a miss.
                 session.commit()
@@ -101,5 +102,9 @@ def install(app, deps: Deps) -> None:
                 )
             return PlainTextResponse("sign in first", status_code=403)
 
-        request.state.user_email, request.state.user_display_name = identity
+        (
+            request.state.user_id,
+            request.state.user_email,
+            request.state.user_display_name,
+        ) = identity
         return await call_next(request)

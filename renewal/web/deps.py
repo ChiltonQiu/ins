@@ -24,3 +24,14 @@ class Deps:
     # a ThreadRunner; tests pass an InlineRunner so their assertions are not
     # racing a thread.
     runner: Any = None
+
+
+def acting_user_id(request) -> int | None:
+    """Who is making this request, for a row that records a decision.
+
+    getattr with a default rather than a bare attribute read: the .ics feed and
+    the mail webhook never pass the gate and have no user on their state.
+    Neither writes an attributed row today, and this is what keeps it safe if
+    one ever does.
+    """
+    return getattr(request.state, "user_id", None)
