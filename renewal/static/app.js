@@ -219,3 +219,14 @@ if (restored !== null) {
     }
   });
 })();
+
+// The inbox refreshes itself while something is still being read, and stops
+// the moment nothing is. A page that polls forever is a page that burns a
+// query every few seconds on an idle tab all afternoon.
+(function () {
+  var page = document.querySelector('[data-poll="inbox"]');
+  if (!page) return;
+  window.setTimeout(function () {
+    window.location.reload();
+  }, 4000);
+})();

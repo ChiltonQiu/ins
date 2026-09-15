@@ -20,3 +20,7 @@ class Deps:
     store: BlobStore
     model_client: Any
     session_factory: Any
+    # Where work that must not block the response goes. The application builds
+    # a ThreadRunner; tests pass an InlineRunner so their assertions are not
+    # racing a thread.
+    runner: Any = None

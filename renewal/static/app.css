@@ -1336,3 +1336,12 @@ ul.inbox > li[data-state="stalled"] {
   border-left: 3px solid var(--warn);
   padding-left: 0.6rem;
 }
+
+.dropbox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 1.2rem;
+  font-size: 0.92rem;
+}

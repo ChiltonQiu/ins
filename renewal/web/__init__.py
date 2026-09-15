@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from renewal.background import ThreadRunner
 from renewal.blobstore import BlobStore
 from renewal.config import Settings
 from renewal.web import (
@@ -46,7 +47,7 @@ def build_inbound_provider(settings: Settings):
 
 def create_app(
     *, settings: Settings, store: BlobStore, model_client, session_factory,
-    inbound_provider=None,
+    inbound_provider=None, runner=None,
 ):
     app = FastAPI()
     app.mount(
@@ -76,6 +77,7 @@ def create_app(
         store=store,
         model_client=model_client,
         session_factory=session_factory,
+        runner=runner if runner is not None else ThreadRunner(),
     )
     for module in ROUTER_MODULES:
         module.register(app, deps)

@@ -38,11 +38,14 @@ def settings(tmp_path):
 
 @pytest.fixture
 def app(engine, clean_db, settings):
+    from renewal.background import InlineRunner
+
     return create_app(
         settings=settings,
         store=BlobStore(settings.blob_root),
         model_client=None,
         session_factory=sessionmaker(bind=engine),
+        runner=InlineRunner(),
     )
 
 
@@ -113,3 +116,77 @@ def test_the_inbox_no_longer_lists_runs(signed):
     with signed() as client:
         page = client.get("/")
     assert "Renewal runs" not in page.text
+
+
+def test_dropping_a_file_in_files_it_and_answers_immediately(
+    signed, engine, settings
+):
+    """The receipt. The row exists the instant the file lands, before any
+    processing has happened — that is the confirmation that it arrived."""
+    with signed() as client:
+        response = client.post(
+            "/documents",
+            files={"document": ("dropped.pdf",
+                                make_text_pdf([["Policy Number: AU-4471"]]),
+                                "application/pdf")},
+            follow_redirects=False,
+        )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+
+    session = sessionmaker(bind=engine)()
+    try:
+        document = session.query(Document).one()
+        assert document.original_filename == "dropped.pdf"
+        assert document.source == "manual_upload"
+    finally:
+        session.close()
+
+
+def test_the_dropped_file_appears_on_the_inbox(signed, engine, settings):
+    with signed() as client:
+        client.post(
+            "/documents",
+            files={"document": ("dropped.pdf",
+                                make_text_pdf([["Policy Number: AU-4471"]]),
+                                "application/pdf")},
+            follow_redirects=False,
+        )
+        page = client.get("/")
+    assert "dropped.pdf" in page.text
+
+
+def test_the_stages_run_and_the_status_settles(signed, engine, settings):
+    """With the inline runner the stages have finished by the time the
+    response comes back, which is what lets this assert instead of sleep."""
+    from renewal.models import DocumentText
+
+    with signed() as client:
+        client.post(
+            "/documents",
+            files={"document": ("dropped.pdf",
+                                make_text_pdf([["Policy Number: AU-4471"]]),
+                                "application/pdf")},
+            follow_redirects=False,
+        )
+
+    session = sessionmaker(bind=engine)()
+    try:
+        document = session.query(Document).one()
+        assert document.status == "processed"
+        assert session.query(DocumentText).filter_by(
+            document_id=document.id
+        ).count() == 1
+    finally:
+        session.close()
+
+
+def test_a_file_that_is_not_a_pdf_is_refused_with_a_reason(signed):
+    with signed() as client:
+        response = client.post(
+            "/documents",
+            files={"document": ("notes.txt", b"just some text", "text/plain")},
+            follow_redirects=False,
+        )
+    assert response.status_code == 400
+    assert "PDF" in response.text

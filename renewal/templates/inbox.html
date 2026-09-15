@@ -7,6 +7,15 @@
   {% if total %}<span class="sub">{{ total }} document{{ "" if total == 1 else "s" }}, newest first</span>{% endif %}
 </div>
 
+{# The backup path, not the main one. Deliberately small: mail is how
+   documents are meant to arrive, and a big upload box on the front door
+   suggests otherwise. #}
+<form class="dropbox" method="post" action="/documents" enctype="multipart/form-data">
+  <label for="dropbox-file">Got one by hand?</label>
+  <input id="dropbox-file" type="file" name="document" accept="application/pdf" required>
+  <button class="btn" type="submit">Add it</button>
+</form>
+
 {% if not total %}
 <div class="empty">
   <p>Nothing has come in yet.</p>
