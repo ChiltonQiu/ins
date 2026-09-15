@@ -25,8 +25,9 @@ from renewal.blobstore import BlobStore
 from renewal.config import Settings
 from renewal.mail.provider import InboundEmail
 from renewal.models import Agency, Document, DocumentText, InboundMessage
+from renewal.ingest import ingest_pdf
 from renewal.pipeline import (
-    ingest_document, run_classify_stage, run_dates_stage, run_resolve_stage,
+    run_classify_stage, run_dates_stage, run_resolve_stage,
 )
 from renewal.providers import ModelClient
 from renewal.text.store import TEXT_VERSION
@@ -55,6 +56,7 @@ def receive(
     *,
     client: ModelClient,
     settings: Settings,
+    on_document=None,
 ) -> InboundMessage:
     raw_digest = store.put(email.raw_mime, ext="eml")
     agency = agency_for(session, email.to_address)
@@ -123,6 +125,7 @@ def receive(
     run_dates_stage(session, body_document, client=client, settings=settings)
     run_classify_stage(session, body_document, client=client, settings=settings)
 
+    stored: list[int] = []
     for attachment in email.attachments:
         if attachment.content_type not in PDF_TYPES:
             logger.info(
@@ -130,15 +133,26 @@ def receive(
                 message.id, attachment.content_type,
             )
             continue
-        ingest_document(
+        # Stored and recorded here; read, classified and extracted afterwards.
+        # A hosted provider retries any non-200 and times out around 10-30
+        # seconds, so OCR plus three model calls inside this call means the
+        # same message processed twice.
+        document = ingest_pdf(
             session, store, data=attachment.data,
-            original_filename=attachment.filename, source="email_attachment",
-            agency_id=agency.id, inbound_message_id=message.id,
-            model_client=client, settings=settings,
+            original_filename=attachment.filename,
+            source="email_attachment", agency_id=agency.id,
+            inbound_message_id=message.id,
         )
+        document.status = "processing"
+        session.flush()
+        stored.append(document.id)
 
     # The one place a row written here is updated, inside the same transaction
     # that created it — the row is never observed in its intermediate state.
     message.processing_status = "processed"
     session.flush()
+
+    if on_document is not None:
+        for document_id in stored:
+            on_document(document_id)
     return message

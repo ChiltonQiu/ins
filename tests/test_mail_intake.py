@@ -127,3 +127,32 @@ def test_an_email_body_is_never_picked_up_by_the_structured_extractor(session, s
     _receive(session, store, _email())
     body = session.query(Document).filter_by(source="email_body").one()
     assert body.doc_type == "email_body"
+
+
+def test_attachments_are_handed_off_rather_than_extracted_inline(
+    session, store
+):
+    """The webhook has to answer before a provider's retry timer fires.
+
+    A hosted provider retries any non-200, and today a slow extraction inside
+    this call means the same message is processed twice.
+    """
+    from renewal.models import Extraction
+
+    _agency(session)
+    handed_off = []
+    message = receive(
+        session, store, _email(), client=StubClient('{"dates": []}'),
+        settings=_settings(), on_document=handed_off.append,
+    )
+
+    assert message.processing_status == "processed"
+    attachment = session.query(Document).filter_by(
+        source="email_attachment"
+    ).one()
+    assert handed_off == [attachment.id]
+    assert attachment.status == "processing"
+    # The stages have not run: that is the background task's job now.
+    assert session.query(Extraction).filter_by(
+        document_id=attachment.id
+    ).count() == 0

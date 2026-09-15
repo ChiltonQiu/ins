@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from renewal.background import process_document
 from renewal.mail.intake import receive
 from renewal.mail.provider import InboundProvider
 from renewal.models import InboundMessage
@@ -67,11 +68,26 @@ def register(app, deps: Deps, provider: InboundProvider) -> None:
             logger.info("inbound mail recorded message_row_id=%s status=failed", row_id)
             return JSONResponse({"status": "failed"})
 
+        pending: list[int] = []
         with session_factory() as session:
             message = receive(session, store, email,
-                              client=model_client, settings=settings)
+                              client=model_client, settings=settings,
+                              on_document=pending.append)
             session.commit()
             row_id, status = message.id, message.processing_status
+
+        # After the commit: the background task opens its own session and must
+        # not race a transaction that has not landed yet.
+        for document_id in pending:
+            deps.runner.submit(
+                process_document,
+                session_factory,
+                store,
+                document_id,
+                model_client=model_client,
+                settings=settings,
+            )
+
         # Ids and statuses only. Never the body, never the subject.
         logger.info("inbound mail recorded message_row_id=%s status=%s",
                     row_id, status)
