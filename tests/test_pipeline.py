@@ -256,3 +256,41 @@ def test_a_failed_field_stage_does_not_lose_the_document(session, store):
         model_client=HalfDown(), settings=_settings(),
     )
     assert session.query(DocumentText).filter_by(document_id=document.id).count() == 1
+
+
+def test_run_stages_works_on_a_document_that_already_exists(session, store):
+    """The background path's shape: the row is written in the request, the
+    stages run afterwards against that row."""
+    from renewal.ingest import ingest_pdf
+    from renewal.pipeline import run_stages
+
+    document = ingest_pdf(
+        session, store, data=make_text_pdf([["Expiration Date: 07/01/2026"]]),
+        original_filename="dec.pdf", source="manual_upload", agency_id=1,
+    )
+    assert session.query(DocumentText).filter_by(
+        document_id=document.id
+    ).count() == 0
+
+    run_stages(session, store, document)
+
+    assert session.query(DocumentText).filter_by(
+        document_id=document.id
+    ).count() == 1
+
+
+def test_run_stages_is_idempotent(session, store):
+    """Retry depends on this. Every stage checks its own work first."""
+    from renewal.ingest import ingest_pdf
+    from renewal.pipeline import run_stages
+
+    document = ingest_pdf(
+        session, store, data=make_text_pdf([["Expiration Date: 07/01/2026"]]),
+        original_filename="dec.pdf", source="manual_upload", agency_id=1,
+    )
+    run_stages(session, store, document)
+    run_stages(session, store, document)
+
+    assert session.query(DocumentText).filter_by(
+        document_id=document.id
+    ).count() == 1

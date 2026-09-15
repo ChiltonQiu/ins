@@ -215,30 +215,24 @@ def run_attention_stage(
         logger.exception("attention stage failed document_id=%s", document.id)
 
 
-def ingest_document(
+def run_stages(
     session: Session,
     store: BlobStore,
+    document: Document,
     *,
-    data: bytes,
-    original_filename: str,
-    source: str,
-    agency_id: int,
-    inbound_message_id: int | None = None,
     extract_fields: bool = True,
     model_client: ModelClient | None = None,
     settings: Settings | None = None,
 ) -> Document:
-    if source not in SOURCES:
-        raise ValueError(f"unknown document source: {source!r}")
-    document = ingest_pdf(
-        session,
-        store,
-        data=data,
-        original_filename=original_filename,
-        source=source,
-        agency_id=agency_id,
-        inbound_message_id=inbound_message_id,
-    )
+    """Everything that happens to a document after it is stored.
+
+    Split out of ingest_document so the background task can run it against a
+    row that already exists: the row is written inside the request, so the
+    receipt appears the instant the file lands, and these stages run after the
+    response has gone out.
+
+    Every stage is idempotent, which is what makes the Retry button safe.
+    """
     run_text_stage(session, store, document)
     run_resolve_stage(session, document)
     # Optional rather than required: with no model configured the regex pass
@@ -268,3 +262,37 @@ def ingest_document(
     if settings is not None:
         run_attention_stage(session, document, settings=settings)
     return document
+
+
+def ingest_document(
+    session: Session,
+    store: BlobStore,
+    *,
+    data: bytes,
+    original_filename: str,
+    source: str,
+    agency_id: int,
+    inbound_message_id: int | None = None,
+    extract_fields: bool = True,
+    model_client: ModelClient | None = None,
+    settings: Settings | None = None,
+) -> Document:
+    if source not in SOURCES:
+        raise ValueError(f"unknown document source: {source!r}")
+    document = ingest_pdf(
+        session,
+        store,
+        data=data,
+        original_filename=original_filename,
+        source=source,
+        agency_id=agency_id,
+        inbound_message_id=inbound_message_id,
+    )
+    return run_stages(
+        session,
+        store,
+        document,
+        extract_fields=extract_fields,
+        model_client=model_client,
+        settings=settings,
+    )
