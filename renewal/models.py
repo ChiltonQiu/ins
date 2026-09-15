@@ -39,6 +39,20 @@ def _created_at() -> Mapped[datetime]:
     return mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+def _decided_by() -> Mapped[int | None]:
+    """Which account made this judgment.
+
+    Nullable permanently: rows written before attribution existed have no user,
+    and a row the pipeline wrote has none by definition. RESTRICT rather than
+    CASCADE — a user who decided something cannot be deleted, because deleting
+    them would take the record of the decision with them. is_active is how an
+    account is turned off.
+    """
+    return mapped_column(
+        ForeignKey("app_user.id", ondelete="RESTRICT"), nullable=True
+    )
+
+
 class Client(Base):
     __tablename__ = "client"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -217,6 +231,7 @@ class Correction(Base):
     corrected_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     corrected_at: Mapped[datetime] = _created_at()
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_id: Mapped[int | None] = _decided_by()
 
 
 class RenewalRun(Base):
@@ -253,6 +268,7 @@ class Comparison(Base):
         ForeignKey("policy_term.id"), nullable=True
     )
     created_at: Mapped[datetime] = _created_at()
+    user_id: Mapped[int | None] = _decided_by()
     differences: Mapped[list["Difference"]] = relationship(back_populates="comparison")
 
 
@@ -284,6 +300,7 @@ class Reclassification(Base):
     rule_id: Mapped[str] = mapped_column(Text)
     reclassified_at: Mapped[datetime] = _created_at()
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_id: Mapped[int | None] = _decided_by()
 
 
 class Draft(Base):
@@ -510,6 +527,7 @@ class DocumentLink(Base):
     method: Mapped[str] = mapped_column(Text)
     confidence: Mapped[float] = mapped_column(Float)
     candidates: Mapped[list] = mapped_column(JSONB, default=list)
+    user_id: Mapped[int | None] = _decided_by()
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -574,6 +592,7 @@ class DateEvent(Base):
     action: Mapped[str] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     actor: Mapped[str] = mapped_column(Text, server_default="human")
+    user_id: Mapped[int | None] = _decided_by()
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -593,6 +612,7 @@ class ManualDate(Base):
     date_type: Mapped[str] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[str] = mapped_column(Text, server_default="human")
+    user_id: Mapped[int | None] = _decided_by()
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -609,6 +629,7 @@ class ManualDateEvent(Base):
     action: Mapped[str] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     actor: Mapped[str] = mapped_column(Text, server_default="human")
+    user_id: Mapped[int | None] = _decided_by()
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -724,6 +745,7 @@ class AttentionEvent(Base):
     action: Mapped[str] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     actor: Mapped[str] = mapped_column(Text, server_default="human")
+    user_id: Mapped[int | None] = _decided_by()
     created_at: Mapped[datetime] = _created_at()
 
 
