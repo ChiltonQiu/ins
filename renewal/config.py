@@ -51,6 +51,11 @@ class Settings:
     notify_enabled: bool = True
     notify_min_interval_minutes: int = 60
     base_url: str = "http://127.0.0.1:8000"
+    # The daily summary. Operator-editable; the values here are the floor a
+    # fresh install starts from.
+    digest_enabled: bool = True
+    digest_hour: int = 8
+    digest_quiet_days: int = 7
     # How eager the queue is. Operator-editable; the value here is the floor a
     # fresh install starts from.
     unconfirmed_date_window_days: int = 14
@@ -62,6 +67,11 @@ class Settings:
     inbox_limit: int = 200
     intake_workers: int = 2
     name_similarity_floor: float = 0.3
+    # Everything else in this application is UTC. This is the one place a
+    # local hour is meant, and getting it wrong sends the summary in the
+    # middle of the night rather than not at all.
+    agency_tz: str = "UTC"
+    digest_tick_seconds: int = 300
 
 
 def load_settings() -> Settings:
@@ -117,6 +127,13 @@ def load_settings() -> Settings:
         unconfirmed_date_window_days=int(
             os.environ.get("UNCONFIRMED_DATE_WINDOW_DAYS", "14")
         ),
+        digest_enabled=os.environ.get(
+            "DIGEST_ENABLED", "true"
+        ).lower() not in ("0", "false", "no"),
+        digest_hour=int(os.environ.get("DIGEST_HOUR", "8")),
+        digest_quiet_days=int(os.environ.get("DIGEST_QUIET_DAYS", "7")),
+        agency_tz=os.environ.get("AGENCY_TZ", "UTC"),
+        digest_tick_seconds=int(os.environ.get("DIGEST_TICK_SECONDS", "300")),
         stalled_after_minutes=int(os.environ.get("STALLED_AFTER_MINUTES", "10")),
         inbox_poll_seconds=int(os.environ.get("INBOX_POLL_SECONDS", "4")),
         inbox_limit=int(os.environ.get("INBOX_LIMIT", "200")),

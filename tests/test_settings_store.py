@@ -137,3 +137,26 @@ def test_the_auto_link_threshold_is_not_a_setting():
     client's renewal to another client's policy."""
     assert "auto_link_threshold" not in BY_KEY
     assert not any("auto_link" in d.key for d in DEFINITIONS)
+
+
+def test_the_digest_hour_is_a_preference_within_the_day(session):
+    write(session, "digest_hour", "6")
+    assert effective(session, _settings()).digest_hour == 6
+
+    with pytest.raises(Invalid):
+        write(session, "digest_hour", "24")
+
+
+def test_the_quiet_window_is_a_preference(session):
+    write(session, "digest_quiet_days", "3")
+    assert effective(session, _settings()).digest_quiet_days == 3
+
+    with pytest.raises(Invalid):
+        write(session, "digest_quiet_days", "0")
+
+
+def test_the_timezone_is_not_a_preference():
+    """Deployment configuration: set once against the machine, never a
+    judgment about insurance."""
+    assert "agency_tz" not in BY_KEY
+    assert "digest_tick_seconds" not in BY_KEY

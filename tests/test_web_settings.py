@@ -12,6 +12,33 @@ from renewal.web import create_app
 from tests.authhelp import sign_in
 
 
+def _form(**overrides):
+    """Every field on the preferences form, because a browser posts every one.
+
+    save_preferences is deliberately all-or-nothing (a partial save leaves her
+    guessing which fields took), so a hard-coded subset here is a test that
+    breaks the next time a preference is added — and breaks by refusing the
+    whole form, which looks nothing like the cause. Pass None to leave a
+    checkbox unticked.
+    """
+    from renewal.settings_store import DEFINITIONS
+
+    defaults = {
+        "notify_enabled": "on",
+        "notify_to": "her@agency.com",
+        "notify_min_interval_minutes": "60",
+        "digest_enabled": "on",
+        "digest_hour": "8",
+        "digest_quiet_days": "7",
+        "attention_premium_pct": "10",
+        "unconfirmed_date_window_days": "14",
+        "session_ttl_hours": "12",
+    }
+    missing = {d.key for d in DEFINITIONS} - set(defaults)
+    assert not missing, f"preference added with no value here: {missing}"
+    return {k: v for k, v in (defaults | overrides).items() if v is not None}
+
+
 @pytest.fixture
 def client_app(engine, clean_db, tmp_path):
     settings = Settings(
@@ -199,14 +226,8 @@ def test_saving_a_preference_takes_effect(client_app, db):
 
     response = client_app.post(
         "/settings/preferences",
-        data={
-            "notify_enabled": "on",
-            "notify_to": "her@agency.com",
-            "notify_min_interval_minutes": "30",
-            "attention_premium_pct": "25",
-            "unconfirmed_date_window_days": "30",
-            "session_ttl_hours": "8",
-        },
+        data=_form(notify_min_interval_minutes="30", attention_premium_pct="25",
+                   unconfirmed_date_window_days="30", session_ttl_hours="8"),
         follow_redirects=False,
     )
     assert response.status_code == 303
@@ -225,11 +246,7 @@ def test_an_unticked_checkbox_turns_it_off(client_app, db):
 
     client_app.post(
         "/settings/preferences",
-        data={"notify_to": "her@agency.com",
-              "notify_min_interval_minutes": "60",
-              "attention_premium_pct": "10",
-              "unconfirmed_date_window_days": "14",
-              "session_ttl_hours": "12"},
+        data=_form(notify_enabled=None),
         follow_redirects=False,
     )
     assert effective(db, _settings()).notify_enabled is False
@@ -242,12 +259,7 @@ def test_a_refused_value_stores_nothing_at_all(client_app, db):
 
     response = client_app.post(
         "/settings/preferences",
-        data={"notify_enabled": "on",
-              "notify_to": "her@agency.com",
-              "notify_min_interval_minutes": "60",
-              "attention_premium_pct": "500",
-              "unconfirmed_date_window_days": "14",
-              "session_ttl_hours": "12"},
+        data=_form(attention_premium_pct="500"),
         follow_redirects=False,
     )
     assert response.status_code == 303

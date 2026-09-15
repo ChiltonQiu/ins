@@ -78,3 +78,21 @@ def test_llm_base_url_is_none_when_set_to_empty_string(monkeypatch):
     settings = load_settings()
 
     assert settings.llm_base_url is None
+
+
+def test_the_agency_timezone_comes_from_the_environment(monkeypatch):
+    """Every timestamp here is UTC. Without this, an eight o'clock summary is
+    sent at four in the morning on the east coast."""
+    monkeypatch.setenv("AGENCY_TZ", "America/New_York")
+    assert load_settings().agency_tz == "America/New_York"
+
+
+def test_the_agency_timezone_defaults_to_utc(monkeypatch):
+    monkeypatch.setattr(config, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.delenv("AGENCY_TZ", raising=False)
+    assert load_settings().agency_tz == "UTC"
+
+
+def test_the_tick_interval_comes_from_the_environment(monkeypatch):
+    monkeypatch.setenv("DIGEST_TICK_SECONDS", "60")
+    assert load_settings().digest_tick_seconds == 60

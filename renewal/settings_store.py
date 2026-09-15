@@ -89,6 +89,43 @@ DEFINITIONS: tuple[Definition, ...] = (
         unit="minutes",
     ),
     Definition(
+        key="digest_enabled",
+        label="Email me a summary every day",
+        help=(
+            "Sent once a day whether or not anything arrived, which is the "
+            "only thing here that speaks without being spoken to. Off means "
+            "you hear from this application only when a document lands."
+        ),
+        kind="bool",
+    ),
+    Definition(
+        key="digest_hour",
+        label="Send that summary after",
+        help=(
+            "The hour of your own day, not the server's. If the application "
+            "was not running at that hour, the summary goes out when it comes "
+            "back — a late summary is worth more than none."
+        ),
+        kind="int",
+        minimum=0,
+        maximum=23,
+        unit="o'clock",
+    ),
+    Definition(
+        key="digest_quiet_days",
+        label="Say so even when nothing needs me, every",
+        help=(
+            "When nothing is waiting, no summary is sent — until this many "
+            "days have passed, and then one goes out saying exactly that. A "
+            "quiet week and a forwarding rule that broke on Thursday look "
+            "identical from here otherwise."
+        ),
+        kind="int",
+        minimum=1,
+        maximum=30,
+        unit="days",
+    ),
+    Definition(
         key="attention_premium_pct",
         label="Flag a premium change over",
         help=(
