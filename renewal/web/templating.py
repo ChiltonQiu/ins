@@ -11,7 +11,17 @@ from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
-TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+
+def _nav(request) -> dict:
+    """Defaults to zero so a template rendered outside a request cycle — an
+    error page, a test — still renders."""
+    return {"needs_you_count": getattr(request.state, "needs_you_count", 0)}
+
+
+TEMPLATES = Jinja2Templates(
+    directory=str(Path(__file__).parent.parent / "templates"),
+    context_processors=[_nav],
+)
 
 
 def _wbr(path: str) -> Markup:

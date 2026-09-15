@@ -39,6 +39,17 @@ class Settings:
     session_cookie_secure: bool = True
     session_ttl_hours: int = 12
     attention_premium_pct: float = 10.0
+    # Operator notifications. An empty smtp_host turns them off, which is the
+    # default: a misconfigured mail server must never be able to cost a
+    # document.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    notify_from: str = ""
+    notify_to: str = ""
+    notify_min_interval_minutes: int = 60
+    base_url: str = "http://127.0.0.1:8000"
 
 
 def load_settings() -> Settings:
@@ -78,4 +89,14 @@ def load_settings() -> Settings:
             "SESSION_COOKIE_SECURE", "true"
         ).lower() not in ("0", "false", "no"),
         session_ttl_hours=int(os.environ.get("SESSION_TTL_HOURS", "12")),
+        smtp_host=os.environ.get("SMTP_HOST", ""),
+        smtp_port=int(os.environ.get("SMTP_PORT", "587")),
+        smtp_username=os.environ.get("SMTP_USERNAME", ""),
+        smtp_password=os.environ.get("SMTP_PASSWORD", ""),
+        notify_from=os.environ.get("NOTIFY_FROM", ""),
+        notify_to=os.environ.get("NOTIFY_TO", ""),
+        notify_min_interval_minutes=int(
+            os.environ.get("NOTIFY_MIN_INTERVAL_MINUTES", "60")
+        ),
+        base_url=os.environ.get("BASE_URL", "http://127.0.0.1:8000"),
     )

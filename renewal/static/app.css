@@ -1362,3 +1362,15 @@ ul.inbox > li[data-state="stalled"] {
   align-items: center;
   gap: 0.3rem;
 }
+
+.badge {
+  display: inline-block;
+  min-width: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 0.6rem;
+  background: var(--warn);
+  color: var(--paper);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}

@@ -23,7 +23,7 @@ from renewal.web import (
     mail as mail_routes, review, runs, search as search_routes,
     settings as settings_routes, unmatched,
 )
-from renewal.web import security
+from renewal.web import navbadge, security
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -85,4 +85,5 @@ def create_app(
         app, deps, inbound_provider or build_inbound_provider(settings)
     )
     security.install(app, deps)
+    navbadge.install(app, deps)
     return app

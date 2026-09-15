@@ -26,7 +26,7 @@
     <a class="brand" href="/">Renewal <span>compare</span></a>
     <nav>
       {% set path = request.url.path %}
-      <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Inbox</a>
+      <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Inbox{% if needs_you_count %} <span class="badge">{{ needs_you_count }}</span>{% endif %}</a>
       <a href="/calendar" {% if path.startswith("/calendar") %}aria-current="page"{% endif %}>Calendar</a>
       <a href="/search" {% if path == "/search" %}aria-current="page"{% endif %}>Search</a>
       <a href="/clients" {% if path.startswith("/clients") %}aria-current="page"{% endif %}>Clients</a>

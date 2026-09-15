@@ -644,6 +644,20 @@ class InboundMessage(Base):
     created_at: Mapped[datetime] = _created_at()
 
 
+class NotificationSend(Base):
+    """One row per operator email sent.
+
+    A row rather than a column on agency, because the count at the time is
+    worth keeping: it is the only record of how big the backlog got, and the
+    guard reads the timestamp off the newest row anyway.
+    """
+
+    __tablename__ = "notification_send"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_count: Mapped[int] = mapped_column(Integer)
+    sent_at: Mapped[datetime] = _created_at()
+
+
 class AttentionItem(Base):
     """Not a task manager: a list of documents that appear to need a human
     response, with a suggested reason. Never auto-resolves, never auto-acts."""

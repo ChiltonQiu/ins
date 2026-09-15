@@ -401,3 +401,19 @@ def test_a_needs_policy_row_offers_that_clients_policies(
         assert latest_link(session, document_id).policy_id == policy_id
     finally:
         session.close()
+
+
+def test_the_nav_carries_the_needs_you_count(signed, engine, settings):
+    """On every page, not just the inbox: the point of a badge is that she
+    sees it while she is somewhere else."""
+    _document(engine, settings, filename="a.pdf")
+    _document(engine, settings, filename="b.pdf")
+    with signed() as client:
+        page = client.get("/calendar")
+    assert 'class="badge">2<' in page.text
+
+
+def test_an_empty_queue_shows_no_badge(signed):
+    with signed() as client:
+        page = client.get("/calendar")
+    assert 'class="badge"' not in page.text

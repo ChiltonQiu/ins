@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from renewal.blobstore import BlobStore
 from renewal.config import Settings
 from renewal.models import Document
+from renewal.notify import maybe_notify
 from renewal.pipeline import run_stages
 from renewal.providers import ModelClient
 
@@ -100,6 +101,17 @@ def process_document(
             )
             _set_status(session, document, "processed")
             logger.info("background done document_id=%s", document_id)
+            # No scheduler: the task that produced the backlog is what
+            # notices it. Guarded to one an hour inside maybe_notify.
+            if settings is not None:
+                try:
+                    maybe_notify(session, settings=settings)
+                    session.commit()
+                except Exception:  # noqa: BLE001 - never costs the document
+                    logger.exception(
+                        "notify failed document_id=%s", document_id
+                    )
+                    session.rollback()
         except Exception:  # noqa: BLE001 - the status must never be left behind
             logger.exception("background failed document_id=%s", document_id)
             session.rollback()
