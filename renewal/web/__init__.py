@@ -11,25 +11,25 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from renewal.blobstore import BlobStore
 from renewal.config import Settings
-from renewal.models import Client, Policy, RenewalRun
 from renewal.web import (
     attention as attention_routes, auth as auth_routes, calendar,
-    clients as client_routes, comparison, mail as mail_routes, review, runs,
-    search as search_routes, settings as settings_routes, unmatched,
+    clients as client_routes, comparison, inbox as inbox_routes,
+    mail as mail_routes, review, runs, search as search_routes,
+    settings as settings_routes, unmatched,
 )
 from renewal.web import security
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
 ROUTER_MODULES = (
-    runs, review, comparison, unmatched, calendar, settings_routes,
-    search_routes, client_routes, attention_routes, auth_routes,
+    inbox_routes, runs, review, comparison, unmatched, calendar,
+    settings_routes, search_routes, client_routes, attention_routes,
+    auth_routes,
 )
 
 
@@ -70,20 +70,6 @@ def create_app(
             },
             status_code=exc.status_code,
         )
-
-    @app.get("/", response_class=HTMLResponse)
-    def index(request: Request):
-        with session_factory() as session:
-            run_rows = (
-                session.query(RenewalRun, Client, Policy)
-                .join(Policy, RenewalRun.policy_id == Policy.id)
-                .join(Client, Policy.client_id == Client.id)
-                .order_by(RenewalRun.id.desc())
-                .all()
-            )
-            return TEMPLATES.TemplateResponse(
-                request, "index.html", {"runs": run_rows}
-            )
 
     deps = Deps(
         settings=settings,

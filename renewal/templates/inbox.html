@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+{% set total = groups.working | length + groups.needs_you | length + groups.done | length %}
+<div class="pagehead" {% if in_flight %}data-poll="inbox"{% endif %}>
+  <h1>Inbox</h1>
+  {% if total %}<span class="sub">{{ total }} document{{ "" if total == 1 else "s" }}, newest first</span>{% endif %}
+</div>
+
+{% if not total %}
+<div class="empty">
+  <p>Nothing has come in yet.</p>
+  <p>
+    Documents arrive on their own when a carrier emails them. Anything that
+    lands here is read, filed, and compared without being asked — and anything
+    that genuinely needs you says so.
+  </p>
+</div>
+{% else %}
+
+{# Working on it first: it is the only bucket that changes on its own, and
+   burying it under a long Done list means she never sees it move. #}
+{% if groups.working %}
+<section class="panel bucket" data-bucket="working">
+  <header><h2>Working on it</h2><span class="sub muted">{{ groups.working | length }}</span></header>
+  <ul class="inbox">
+    {% for state in groups.working %}
+    <li data-state="{{ state.bucket }}">
+      <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
+      <span class="muted">{{ state.summary }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if groups.needs_you %}
+<section class="panel bucket" data-bucket="needs-you">
+  <header><h2>Needs you</h2><span class="sub muted">{{ groups.needs_you | length }}</span></header>
+  <ul class="inbox">
+    {% for state in groups.needs_you %}
+    <li data-state="needs_you" data-reason="{{ state.reason }}">
+      <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
+      <span>{{ state.summary }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if groups.done %}
+<section class="panel bucket" data-bucket="done">
+  <header><h2>Done</h2><span class="sub muted">{{ groups.done | length }}</span></header>
+  <ul class="inbox">
+    {% for state in groups.done %}
+    <li data-state="done">
+      <span class="path"><a href="/documents/{{ state.document.id }}">{{ state.document.original_filename }}</a></span>
+      {# The row says what it became, not merely that it finished. This is how
+         she knows the automatic part worked without visiting anything. #}
+      {% if state.comparison_id %}
+      <span><a href="/comparisons/{{ state.comparison_id }}">{{ state.summary }}</a></span>
+      {% else %}
+      <span class="muted">{{ state.summary }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endif %}
+{% endblock %}

@@ -1297,3 +1297,42 @@ ul.prep-changes li {
 p.prep-line {
   margin: 6px 0 0;
 }
+
+/* The inbox. One list shape for three buckets, because the difference between
+   them is what the row says, not how it looks. */
+.bucket > header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+ul.inbox {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+ul.inbox > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.9rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+ul.inbox > li:first-child {
+  border-top: 0;
+}
+
+ul.inbox > li > .path {
+  flex: 0 1 18rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Stalled is the one row in this bucket that is not going to fix itself. */
+ul.inbox > li[data-state="stalled"] {
+  border-left: 3px solid var(--warn);
+  padding-left: 0.6rem;
+}
