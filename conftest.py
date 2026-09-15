@@ -56,10 +56,7 @@ TABLES = (
 )
 
 
-@pytest.fixture
-def clean_db(engine):
-    """For tests that commit (the web tests). The `session` fixture rolls back,
-    but a committing test would otherwise leak rows into the next one."""
+def _truncate(engine):
     with engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
         # agency is reference data seeded by a migration, not test data. If it
@@ -67,4 +64,19 @@ def clean_db(engine):
         # sequence, so every later test using agency_id=1 would fail somewhere
         # far from the cause. Fail here instead.
         assert conn.execute(text("SELECT count(*) FROM agency")).scalar() == 1
+
+
+@pytest.fixture
+def clean_db(engine):
+    """For tests that commit (the web tests). The `session` fixture rolls back,
+    but a committing test would otherwise leak rows into the next one.
+
+    Both sides, not just the front. Truncating only on the way in works right
+    up until a committing test file sorts ahead of a rollback-only one, and
+    then it fails as a count being one too high in a test that does not commit
+    anything and has nothing to do with the one that leaked. Cleaning up after
+    itself makes a committing test self-contained wherever it runs.
+    """
+    _truncate(engine)
     yield
+    _truncate(engine)
