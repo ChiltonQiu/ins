@@ -30,7 +30,12 @@ from renewal.corrections import effective_values
 from renewal.dates.service import extract_dates
 from renewal.extract.runner import extract
 from renewal.ingest import ingest_pdf
-from renewal.models import Document, DocumentText, Extraction, PolicyTerm
+from renewal.comparison import build_comparison, matrix_for
+from renewal.draft import generate_draft
+from renewal.materiality import load_rules
+from renewal.models import (
+    Comparison, ComparisonColumn, Document, DocumentText, Extraction, PolicyTerm,
+)
 from renewal.pdftext import PageText
 from renewal.promote import PromotionBlocked, promote, unresolved_field_paths
 from renewal.providers import ModelClient
@@ -216,6 +221,72 @@ def run_promote_stage(
         return None
 
 
+def _already_compared(session: Session, baseline_id: int, comparand_id: int) -> bool:
+    """Both terms already sit in one comparison together."""
+    mine = select(ComparisonColumn.comparison_id).where(
+        ComparisonColumn.policy_term_id == comparand_id
+    )
+    return session.scalar(
+        select(ComparisonColumn.comparison_id)
+        .where(ComparisonColumn.policy_term_id == baseline_id)
+        .where(ComparisonColumn.comparison_id.in_(mine))
+        .limit(1)
+    ) is not None
+
+
+def run_compare_stage(
+    session: Session,
+    term: PolicyTerm,
+    *,
+    settings: Settings,
+    model_client: ModelClient | None = None,
+) -> Comparison | None:
+    """Build the renewal comparison the moment the renewal term exists.
+
+    Without this the pipeline promotes a term and stops, and premium_change --
+    the item whose whole job is to prompt her to compare -- is raised inside
+    build_matrix, which only runs once she already has. The alert lived behind
+    the click it existed to prompt.
+
+    Renewals only. A quoted term is not draft_eligible and never reaches the
+    build: putting competitors side by side is a recommendation however it is
+    worded, and that still waits for a person.
+    """
+    if term.kind != "bound":
+        return None
+    prior = session.scalar(
+        select(PolicyTerm)
+        .where(PolicyTerm.policy_id == term.policy_id)
+        .where(PolicyTerm.kind == "bound")
+        .where(PolicyTerm.id != term.id)
+        .order_by(
+            PolicyTerm.effective_date.desc().nullslast(), PolicyTerm.id.desc()
+        )
+        .limit(1)
+    )
+    if prior is None:
+        return None  # new business: nothing to compare against
+    if _already_compared(session, prior.id, term.id):
+        return None
+    try:
+        comparison = build_comparison(
+            session,
+            prior_term=prior,
+            renewal_term=term,
+            rules=load_rules(settings.materiality_config),
+            settings=settings,
+        )
+        matrix = matrix_for(session, comparison, settings=settings)
+        if matrix.draft_eligible and model_client is not None:
+            generate_draft(
+                session, matrix, client=model_client, settings=settings
+            )
+        return comparison
+    except Exception:  # noqa: BLE001 - the document survives a failed stage
+        logger.exception("compare stage failed policy_term_id=%s", term.id)
+        return None
+
+
 def run_attention_stage(
     session: Session, document: Document, *, settings: Settings
 ) -> None:
@@ -271,6 +342,12 @@ def run_stages(
         )
         if term is not None:
             evaluate_promotion(session, term)
+            # The renewal comparison, built without being asked. This is what
+            # puts premium_change in front of her instead of behind a click she
+            # has to know to make.
+            run_compare_stage(
+                session, term, settings=settings, model_client=model_client,
+            )
     # Last: its rules read the label and the link that the stages above wrote.
     if settings is not None:
         run_attention_stage(session, document, settings=settings)

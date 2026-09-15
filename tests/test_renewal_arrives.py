@@ -1,8 +1,8 @@
 """A renewal arrives through the pipe, end to end.
 
 The claim this holds: a renewal dec page dropped in becomes a term, raises a
-renewal_received item, and that item's Compare button lands on the picker with
-both terms ticked — and nothing is compared until she clicks it.
+renewal_received item, compares itself against the prior term, and that item's
+Compare button lands on the picker with both terms ticked.
 
 Every stage it crosses is tested on its own elsewhere. This is the one test
 that puts them in a line, because the value of any of them is that the line
@@ -132,12 +132,20 @@ def test_a_renewal_dec_page_becomes_a_term_and_raises_one_item(session, store):
     )
 
 
-def test_nothing_is_compared_until_she_clicks(session, store):
-    """The whole design in one assertion. The item is an offer, not a job."""
+def test_a_renewal_compares_itself(session, store):
+    """This assertion used to read the other way.
+
+    "Nothing is compared until she clicks" was the design until the click was
+    found to be sitting in front of the notification that existed to prompt it
+    — premium_change is raised inside build_matrix, which nothing but that
+    click ever called. A renewal is one policy\'s own history and the
+    arithmetic is the same whoever asks for it, so it is built when the term
+    lands. A quote still waits: see tests/test_auto_renewal.py.
+    """
     _incumbent(session)
     _arrive(session, store)
-    assert session.query(Comparison).count() == 0
-    assert session.query(Draft).count() == 0
+    assert session.query(Comparison).count() == 1
+    assert session.query(Draft).count() == 1
 
 
 def test_the_same_file_delivered_twice_promotes_once(session, store):

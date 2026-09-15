@@ -260,13 +260,19 @@ def build_matrix(
 def build_comparison(
     session: Session,
     *,
-    run_id: int,
     prior_term: PolicyTerm,
     renewal_term: PolicyTerm,
     rules: RuleSet,
+    run_id: int | None = None,
     settings: Settings | None = None,
 ) -> Comparison:
-    """The pairwise case, kept so the promote path reads as it did."""
+    """The pairwise case.
+
+    run_id is optional and is never passed any more: RenewalRun is not written
+    by anything after the automatic-intake change. It stays in the signature
+    because comparisons built before that change carry one, and it is the only
+    record of what those rows meant.
+    """
     return build_matrix(
         session,
         columns=[
