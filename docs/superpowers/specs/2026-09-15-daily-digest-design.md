@@ -77,7 +77,9 @@ Tuesday. Missing 08:00 is not missing the event; there is no event.
 6. **Silence is itself reported.** When nothing needs her, the summary is not
    sent — except that after `digest_quiet_days` with no summary at all, one
    goes out saying so. An application that speaks only when it has news cannot
-   be told apart from one that has died.
+   be told apart from one that has died. A fresh install has sent nothing ever,
+   so it qualifies immediately: the first summary arrives on an empty system
+   and is how she learns the wiring works.
 7. **The email says numbers, a date, and a link.** No client names, no policy
    numbers, no document filenames. `renewal/notify.py:78` is unchanged law: the
    login exists to keep client detail off a mail server, and a summary is not
