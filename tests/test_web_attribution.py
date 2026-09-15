@@ -125,3 +125,47 @@ def test_a_correction_records_who_made_it(signed, db):
 
     correction = db.query(Correction).one()
     assert correction.user_id == _me(db).id
+
+
+def _document_date(db):
+    from datetime import date
+
+    from renewal.models import Document, DocumentDate
+
+    document = Document(blob_sha256="b" * 64, original_filename="b.pdf",
+                        page_count=1, has_text_layer=True, doc_type="dec_page",
+                        agency_id=1)
+    db.add(document)
+    db.flush()
+    row = DocumentDate(
+        document_id=document.id, date_value=date(2026, 12, 1),
+        date_type="policy_expiration", source_page=1, source_text="Expires",
+        confidence=0.9, extractor_version="dates-regex-v1", pass_name="regex",
+    )
+    db.add(row)
+    db.commit()
+    return row
+
+
+def test_confirming_a_date_records_who_confirmed_it(signed, db):
+    from renewal.models import DateEvent
+
+    row = _document_date(db)
+    assert signed.post(f"/dates/{row.id}/confirm").status_code in (200, 303)
+
+    event = db.query(DateEvent).one()
+    assert event.action == "confirmed"
+    assert event.user_id == _me(db).id
+
+
+def test_adding_a_date_by_hand_records_who_added_it(signed, db):
+    from renewal.models import ManualDate
+
+    response = signed.post("/manual-dates", data={
+        "title": "Call the carrier", "date_value": "2026-12-01",
+        "date_type": "other",
+    })
+    assert response.status_code in (200, 303)
+
+    added = db.query(ManualDate).one()
+    assert added.user_id == _me(db).id

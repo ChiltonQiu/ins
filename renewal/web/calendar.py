@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from renewal.calendarview.agenda import ALL_STATUSES, agenda
 from renewal.dates.service import confirm, dismiss
 from renewal.models import Client, ManualDate, ManualDateEvent
-from renewal.web.deps import Deps
+from renewal.web.deps import Deps, acting_user_id
 from renewal.web.templating import TEMPLATES
 
 # There is no tenancy yet; every screen is this one agency's, and every
@@ -126,14 +126,16 @@ def register(app, deps: Deps) -> None:
     @router.post("/dates/{document_date_id}/confirm")
     def confirm_date(request: Request, document_date_id: int):
         with session_factory() as session:
-            confirm(session, document_date_id)
+            confirm(session, document_date_id,
+                    user_id=acting_user_id(request))
             session.commit()
         return RedirectResponse(_back_to(request), status_code=303)
 
     @router.post("/dates/{document_date_id}/dismiss")
     def dismiss_date(request: Request, document_date_id: int):
         with session_factory() as session:
-            dismiss(session, document_date_id)
+            dismiss(session, document_date_id,
+                    user_id=acting_user_id(request))
             session.commit()
         return RedirectResponse(_back_to(request), status_code=303)
 
@@ -151,7 +153,7 @@ def register(app, deps: Deps) -> None:
                 ManualDate(
                     agency_id=AGENCY_ID, client_id=client_id, title=title,
                     date_value=date_value, date_type=date_type, notes=notes,
-                    created_by="human",
+                    created_by="human", user_id=acting_user_id(request),
                 )
             )
             session.commit()
@@ -162,7 +164,8 @@ def register(app, deps: Deps) -> None:
         with session_factory() as session:
             session.add(
                 ManualDateEvent(manual_date_id=manual_date_id,
-                                action="dismissed", actor="human")
+                                action="dismissed", actor="human",
+                                user_id=acting_user_id(request))
             )
             session.commit()
         return RedirectResponse(_back_to(request), status_code=303)

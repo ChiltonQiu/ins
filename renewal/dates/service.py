@@ -141,17 +141,19 @@ def status_of(session: Session, document_date_id: int) -> str:
     return action or "unconfirmed"
 
 
-def confirm(session: Session, document_date_id: int, *, actor: str = "human"):
+def confirm(session: Session, document_date_id: int, *, actor: str = "human",
+            user_id: int | None = None):
     event = DateEvent(document_date_id=document_date_id, action="confirmed",
-                      actor=actor)
+                      actor=actor, user_id=user_id)
     session.add(event)
     session.flush()
     return event
 
 
-def dismiss(session: Session, document_date_id: int, *, actor: str = "human"):
+def dismiss(session: Session, document_date_id: int, *, actor: str = "human",
+            user_id: int | None = None):
     event = DateEvent(document_date_id=document_date_id, action="dismissed",
-                      actor=actor)
+                      actor=actor, user_id=user_id)
     session.add(event)
     session.flush()
     return event
