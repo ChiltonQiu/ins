@@ -169,3 +169,45 @@ def test_adding_a_date_by_hand_records_who_added_it(signed, db):
 
     added = db.query(ManualDate).one()
     assert added.user_id == _me(db).id
+
+
+def test_clearing_an_attention_item_records_who_cleared_it(signed, db):
+    from renewal.models import AttentionEvent, AttentionItem, Document
+
+    document = Document(blob_sha256="c" * 64, original_filename="c.pdf",
+                        page_count=1, has_text_layer=True, doc_type="dec_page",
+                        agency_id=1)
+    db.add(document)
+    db.flush()
+    item = AttentionItem(document_id=document.id,
+                         reason_code="unmatched_document",
+                         reason_text="Could not be attached to a client")
+    db.add(item)
+    db.commit()
+
+    assert signed.post(f"/attention/{item.id}/done").status_code in (200, 303)
+
+    event = db.query(AttentionEvent).one()
+    assert event.action == "done"
+    assert event.user_id == _me(db).id
+
+
+def test_filing_a_document_by_hand_records_who_filed_it(signed, db):
+    """The one place D8 lets a human override the exact-match rule, and so the
+    one most worth being able to ask about."""
+    from renewal.models import Client, Document, DocumentLink
+
+    document = Document(blob_sha256="d" * 64, original_filename="d.pdf",
+                        page_count=1, has_text_layer=True, doc_type="dec_page",
+                        agency_id=1)
+    client = Client(display_name="Ramirez Landscaping")
+    db.add_all([document, client])
+    db.commit()
+
+    response = signed.post(f"/unmatched/{document.id}/assign",
+                           data={"client_id": str(client.id)})
+    assert response.status_code in (200, 303)
+
+    link = db.query(DocumentLink).one()
+    assert link.method == "manual"
+    assert link.user_id == _me(db).id

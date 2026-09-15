@@ -206,9 +206,11 @@ def open_items(
 
 
 def resolve(
-    session: Session, item_id: int, *, action: str, actor: str = "human"
+    session: Session, item_id: int, *, action: str, actor: str = "human",
+    user_id: int | None = None,
 ) -> AttentionEvent:
-    event = AttentionEvent(attention_item_id=item_id, action=action, actor=actor)
+    event = AttentionEvent(attention_item_id=item_id, action=action,
+                           actor=actor, user_id=user_id)
     session.add(event)
     session.flush()
     return event

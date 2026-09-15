@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from renewal.attention.rules import open_items, resolve
 from renewal.settings_store import effective
-from renewal.web.deps import Deps
+from renewal.web.deps import Deps, acting_user_id
 from renewal.web.templating import TEMPLATES
 
 # The same two reasons the calendar pins, marked with the same class, so the
@@ -56,16 +56,18 @@ def register(app, deps: Deps) -> None:
             )
 
     @router.post("/attention/{item_id}/done")
-    def mark_done(item_id: int):
+    def mark_done(request: Request, item_id: int):
         with session_factory() as session:
-            resolve(session, item_id, action="done")
+            resolve(session, item_id, action="done",
+                    user_id=acting_user_id(request))
             session.commit()
         return RedirectResponse("/attention", status_code=303)
 
     @router.post("/attention/{item_id}/dismiss")
-    def mark_dismissed(item_id: int):
+    def mark_dismissed(request: Request, item_id: int):
         with session_factory() as session:
-            resolve(session, item_id, action="dismissed")
+            resolve(session, item_id, action="dismissed",
+                    user_id=acting_user_id(request))
             session.commit()
         return RedirectResponse("/attention", status_code=303)
 

@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from renewal.models import Client, Document
 from renewal.resolve.service import assign, candidates_for
-from renewal.web.deps import Deps
+from renewal.web.deps import Deps, acting_user_id
 
 
 def register(app, deps: Deps) -> None:
@@ -25,6 +25,7 @@ def register(app, deps: Deps) -> None:
 
     @router.post("/unmatched/{document_id}/assign")
     def assign_document(
+        request: Request,
         document_id: int,
         client_id: int = Form(...),
         policy_id: int | None = Form(None),
@@ -40,13 +41,14 @@ def register(app, deps: Deps) -> None:
             assign(
                 session, document_id, client_id=client_id, policy_id=policy_id,
                 candidates=[asdict(m) for m in matches],
+                user_id=acting_user_id(request),
             )
             session.commit()
         return RedirectResponse("/", status_code=303)
 
     @router.post("/unmatched/{document_id}/new-client")
     def new_client_for_document(
-        document_id: int, display_name: str = Form(...)
+        request: Request, document_id: int, display_name: str = Form(...)
     ):
         with session_factory() as session:
             _document_or_404(session, document_id)
@@ -56,7 +58,7 @@ def register(app, deps: Deps) -> None:
             # No candidates: nothing was offered, which is why she is typing a
             # name. An empty list records that honestly.
             assign(session, document_id, client_id=client.id, policy_id=None,
-                   candidates=[])
+                   candidates=[], user_id=acting_user_id(request))
             session.commit()
         return RedirectResponse("/", status_code=303)
 

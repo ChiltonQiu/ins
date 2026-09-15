@@ -24,7 +24,7 @@ from renewal.ingest import ingest_pdf
 from renewal.models import Client, Document, ExtractedField, Extraction, Policy
 from renewal.promote import unresolved_field_paths
 from renewal.resolve.service import assign, candidates_for, latest_link
-from renewal.web.deps import Deps
+from renewal.web.deps import Deps, acting_user_id
 from renewal.web.templating import TEMPLATES
 
 AGENCY_ID = 1
@@ -237,7 +237,9 @@ def register(app, deps: Deps) -> None:
             )
 
     @router.post("/documents/{document_id}/policy")
-    def set_policy(document_id: int, policy_id: int = Form(...)):
+    def set_policy(
+        request: Request, document_id: int, policy_id: int = Form(...)
+    ):
         """The needs_policy fix.
 
         The client is already decided; this only says which of that client's
@@ -263,6 +265,7 @@ def register(app, deps: Deps) -> None:
                 session, document_id, client_id=link.client_id,
                 policy_id=policy_id,
                 candidates=[asdict(m) for m in candidates_for(session, document)],
+                user_id=acting_user_id(request),
             )
             session.commit()
         return RedirectResponse("/", status_code=303)

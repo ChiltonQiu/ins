@@ -87,10 +87,14 @@ def resolve_document(session: Session, document: Document) -> DocumentLink | Non
 def assign(
     session: Session, document_id: int, *, client_id: int,
     policy_id: int | None, candidates: list[dict],
+    user_id: int | None = None,
 ) -> DocumentLink:
+    """The human override. The auto-link path above writes method='auto' and
+    takes no user_id: there is no person to name."""
     link = DocumentLink(
         document_id=document_id, client_id=client_id, policy_id=policy_id,
         method="manual", confidence=1.0, candidates=candidates,
+        user_id=user_id,
     )
     session.add(link)
     session.flush()
