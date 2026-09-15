@@ -12,12 +12,12 @@ is why a value reverted to what the extractor said is still recorded.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import Response
 
 from renewal.corrections import record_correction
 from renewal.models import ExtractedField
-from renewal.web.deps import Deps
+from renewal.web.deps import Deps, acting_user_id
 
 
 def register(app, deps: Deps) -> None:
@@ -25,7 +25,9 @@ def register(app, deps: Deps) -> None:
     router = APIRouter()
 
     @router.post("/fields/{field_id}/correct", status_code=204)
-    def correct_field(field_id: int, corrected_value: str = Form(...)):
+    def correct_field(
+        request: Request, field_id: int, corrected_value: str = Form(...)
+    ):
         with session_factory() as session:
             field = session.get(ExtractedField, field_id)
             if field is None:
@@ -38,12 +40,13 @@ def register(app, deps: Deps) -> None:
                 kind="wrong_value",
                 extracted_value=field.value,
                 corrected_value=corrected_value,
+                user_id=acting_user_id(request),
             )
             session.commit()
         return Response(status_code=204)
 
     @router.post("/fields/{field_id}/reject", status_code=204)
-    def reject_field(field_id: int):
+    def reject_field(request: Request, field_id: int):
         with session_factory() as session:
             field = session.get(ExtractedField, field_id)
             if field is None:
@@ -55,12 +58,14 @@ def register(app, deps: Deps) -> None:
                 field_path=field.field_path,
                 kind="hallucination",
                 extracted_value=field.value,
+                user_id=acting_user_id(request),
             )
             session.commit()
         return Response(status_code=204)
 
     @router.post("/extractions/{extraction_id}/fields", status_code=204)
     def add_missing_field(
+        request: Request,
         extraction_id: int,
         field_path: str = Form(...),
         corrected_value: str = Form(...),
@@ -72,6 +77,7 @@ def register(app, deps: Deps) -> None:
                 field_path=field_path,
                 kind="omission",
                 corrected_value=corrected_value,
+                user_id=acting_user_id(request),
             )
             session.commit()
         return Response(status_code=204)

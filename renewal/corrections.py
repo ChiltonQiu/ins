@@ -25,6 +25,7 @@ def record_correction(
     extracted_value: str | None = None,
     corrected_value: str | None = None,
     note: str | None = None,
+    user_id: int | None = None,
 ) -> Correction:
     if kind not in KINDS:
         raise ValueError(f"unknown correction kind: {kind}")
@@ -36,6 +37,7 @@ def record_correction(
         extracted_value=extracted_value,
         corrected_value=corrected_value,
         note=note,
+        user_id=user_id,
     )
     session.add(correction)
     session.flush()
