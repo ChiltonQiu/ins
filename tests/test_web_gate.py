@@ -77,9 +77,13 @@ def signed_in(bare_client, db):
     return bare_client
 
 
+# Real pages only. /runs/new and /unmatched were on this list until the
+# screens behind them were deleted, and the gate runs before routing — so an
+# unauthenticated request to a route that no longer exists still redirects,
+# and the case went on passing while testing nothing.
 @pytest.mark.parametrize(
     "path", ["/", "/calendar", "/search", "/clients", "/attention",
-             "/unmatched", "/settings", "/runs/new"],
+             "/settings", "/documents/1/review"],
 )
 def test_a_protected_page_redirects_to_login(bare_client, path):
     response = bare_client.get(path, follow_redirects=False)

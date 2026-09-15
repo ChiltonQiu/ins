@@ -417,3 +417,57 @@ def test_an_empty_queue_shows_no_badge(signed):
     with signed() as client:
         page = client.get("/calendar")
     assert 'class="badge"' not in page.text
+
+
+@pytest.mark.parametrize("path", ["/runs/new", "/runs/1/review"])
+def test_the_run_pages_are_gone(signed, path):
+    with signed() as client:
+        page = client.get(path, follow_redirects=False)
+    assert page.status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/runs", "/runs/1/promote"])
+def test_the_run_posts_are_gone(signed, path):
+    with signed() as client:
+        page = client.post(path, follow_redirects=False)
+    assert page.status_code in (404, 405)
+
+
+def test_the_correction_endpoints_kept_their_urls(signed, engine, settings):
+    """app.js posts to these by literal path. Moving them would break every
+    correction silently, with a 404 nobody sees."""
+    from renewal.models import Correction, Extraction
+
+    session = sessionmaker(bind=engine)()
+    try:
+        document = ingest_pdf(
+            session, BlobStore(settings.blob_root),
+            data=make_text_pdf([["Policy Number: AU-4471"]]),
+            original_filename="dec.pdf", source="manual_upload", agency_id=1,
+        )
+        session.flush()
+        extraction = Extraction(
+            document_id=document.id, extractor_version="v1",
+            model_id="claude-opus-5", status="ok",
+        )
+        session.add(extraction)
+        session.commit()
+        extraction_id = extraction.id
+    finally:
+        session.close()
+
+    with signed() as client:
+        response = client.post(
+            f"/extractions/{extraction_id}/fields",
+            data={"field_path": "policy.total_premium",
+                  "corrected_value": "1234.00"},
+        )
+    assert response.status_code == 204
+
+    session = sessionmaker(bind=engine)()
+    try:
+        assert session.query(Correction).filter_by(
+            extraction_id=extraction_id
+        ).count() == 1
+    finally:
+        session.close()

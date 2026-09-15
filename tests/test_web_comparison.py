@@ -1,11 +1,13 @@
 from contextlib import contextmanager
 import json
 import re
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from renewal.background import InlineRunner
 from renewal.blobstore import BlobStore
 from renewal.carriers import set_admitted
 from renewal.comparison import ColumnSpec, build_matrix
@@ -16,6 +18,7 @@ from renewal.models import (
     Client,
     Comparison,
     Difference,
+    Document,
     Draft,
     Extraction,
     Policy,
@@ -27,36 +30,89 @@ from renewal.web import create_app
 from tests.authhelp import sign_in
 from tests.pdfmaker import make_text_pdf
 
-PRIOR = ["PROGRESSIVE AUTO", "Total Policy Premium $1,840.00"]
-RENEWAL = ["PROGRESSIVE AUTO", "Total Policy Premium $2,180.00"]
+# The policy number is what files these against the policy: an exact match is
+# the only auto-link D8 allows. Without it both documents would sit in the
+# inbox waiting to be told who they belong to.
+PRIOR = [
+    "PROGRESSIVE AUTO",
+    "Policy Number: AU-4471",
+    "Total Policy Premium $1,840.00",
+    "Effective Date: 07/01/2025",
+    "Expiration Date: 07/01/2026",
+]
+RENEWAL = [
+    "PROGRESSIVE AUTO",
+    "Policy Number: AU-4471",
+    "Total Policy Premium $2,180.00",
+    "Effective Date: 07/01/2026",
+    "Expiration Date: 07/01/2027",
+]
+
+DATE_MODEL = "date-model-for-tests"
 
 
 class ScriptedClient:
-    """Returns extraction JSON for the first two calls, draft text after."""
+    """One client for every stage, told apart by the model each one asks for.
+
+    The original dispatched on a bare call count, which worked when the only
+    way in was a form that called the extractor exactly twice. The pipeline
+    classifies and date-extracts as well, so a bare count sends the wrong
+    answer to the wrong stage.
+
+    Within the extraction model the count is still how prior and renewal are
+    told apart — the content handed to the extractor is the PDF, not its text,
+    so there is nothing in it to read a premium off. The two documents go in
+    in a fixed order, which is what makes that sound.
+    """
 
     def __init__(self):
-        self.calls = 0
+        self.extractions = 0
 
     def complete(self, *, model, system, content):
-        self.calls += 1
-        if self.calls == 1:
-            return self._extraction("1840.00", "Total Policy Premium $1,840.00")
-        if self.calls == 2:
-            return self._extraction("2180.00", "Total Policy Premium $2,180.00")
-        return "Your renewal premium is $340 higher than last term."
+        if model == "claude-haiku-4-5-20251001":
+            return json.dumps({"doc_class": "declarations", "confidence": 0.95})
+        if model == DATE_MODEL:
+            return json.dumps({"dates": []})
+        if model == "claude-sonnet-5":
+            return "Your renewal premium is $340 higher than last term."
+        self.extractions += 1
+        return self._extraction(PRIOR if self.extractions == 1 else RENEWAL)
 
     @staticmethod
-    def _extraction(premium, source):
+    def _extraction(page):
+        """Every source_text is a line from the page verbatim.
+
+        Validation checks the cited text against the cited page; a source that
+        paraphrases — "Effective Date: 2025-07-01" against a page that reads
+        07/01/2025 — comes back flagged, the extraction lands 'partial', and
+        the promote gate correctly declines. The stub has to be as honest as a
+        real extractor is expected to be.
+        """
+        premium = page[2].split("$")[1]
+        effective = page[3].split(": ")[1]
+        expiration = page[4].split(": ")[1]
+
+        def iso(american):
+            month, day, year = american.split("/")
+            return f"{year}-{month}-{day}"
+
         return json.dumps(
             {
                 "fields": [
                     {
-                        "field_path": "policy.total_premium",
-                        "value": premium,
+                        "field_path": path,
+                        "value": value,
                         "confidence": 0.95,
                         "source_page": 1,
-                        "source_text": source,
+                        "source_text": text,
                     }
+                    for path, value, text in (
+                        ("policy.total_premium", premium.replace(",", ""),
+                         page[2]),
+                        ("policy.policy_number", "AU-4471", page[1]),
+                        ("policy.effective_date", iso(effective), page[3]),
+                        ("policy.expiration_date", iso(expiration), page[4]),
+                    )
                 ]
             }
         )
@@ -73,12 +129,17 @@ def app(engine, clean_db, tmp_path):
         confidence_threshold=0.80,
         materiality_config="config/materiality.yaml",
         session_cookie_secure=False,
+        # Distinct from draft_model, which also defaults to claude-sonnet-5.
+        # The stub tells the stages apart by model name and cannot do that if
+        # two of them answer to the same one.
+        date_model=DATE_MODEL,
     )
     return create_app(
         settings=settings,
         store=BlobStore(settings.blob_root),
         model_client=ScriptedClient(),
         session_factory=sessionmaker(bind=engine),
+        runner=InlineRunner(),
     )
 
 
@@ -119,28 +180,34 @@ def policy_id(engine):
     yield out
 
 
-def _run(client, policy_id):
-    response = client.post(
-        "/runs",
-        data={"policy_id": str(policy_id)},
-        files={
-            "prior": ("prior.pdf", make_text_pdf([PRIOR]), "application/pdf"),
-            "renewal": ("renewal.pdf", make_text_pdf([RENEWAL]), "application/pdf"),
-        },
-        follow_redirects=False,
-    )
-    assert response.status_code == 303, (response.status_code, response.text[:200])
-    return int(response.headers["location"].split("/")[2])
+def _compare(client, engine):
+    """Two dec pages through the front door, and what builds itself from them.
 
-
-def test_promote_builds_terms_comparison_and_draft(signed, policy_id, engine):
-    with signed() as client:
-        run_id = _run(client, policy_id)
+    This used to post a prior and a renewal to a form that asked which policy
+    they belonged to. Both files now go in the same way any document does, and
+    the comparison exists by the time the second one has been read.
+    """
+    for name, page in (("prior.pdf", PRIOR), ("renewal.pdf", RENEWAL)):
         response = client.post(
-            f"/runs/{run_id}/promote", data={}, follow_redirects=False
+            "/documents",
+            files={"document": (name, make_text_pdf([page]), "application/pdf")},
+            follow_redirects=False,
         )
-    assert response.status_code == 303
-    assert "/comparisons/" in response.headers["location"]
+        assert response.status_code == 303, (response.status_code, response.text[:200])
+
+    sess = sessionmaker(bind=engine)()
+    try:
+        return sess.query(Comparison).one().id
+    finally:
+        sess.close()
+
+
+def test_two_dec_pages_become_terms_a_comparison_and_a_draft(
+    signed, policy_id, engine
+):
+    """What POST /runs/{id}/promote used to do, reached with no human."""
+    with signed() as client:
+        _compare(client, engine)
 
     sess = sessionmaker(bind=engine)()
     assert sess.query(PolicyTerm).count() == 2
@@ -150,13 +217,10 @@ def test_promote_builds_terms_comparison_and_draft(signed, policy_id, engine):
     sess.close()
 
 
-def test_comparison_page_shows_draft_beside_the_diff(signed, policy_id):
+def test_comparison_page_shows_draft_beside_the_diff(signed, policy_id, engine):
     with signed() as client:
-        run_id = _run(client, policy_id)
-        location = client.post(
-            f"/runs/{run_id}/promote", data={}, follow_redirects=False
-        ).headers["location"]
-        page = client.get(location)
+        comparison_id = _compare(client, engine)
+        page = client.get(f"/comparisons/{comparison_id}")
     assert "$340 higher" in page.text
     assert "policy.total_premium" in page.text
     assert "1840.00" in page.text
@@ -166,11 +230,7 @@ def test_comparison_page_shows_draft_beside_the_diff(signed, policy_id):
 
 def test_editing_the_draft_writes_a_new_row(signed, policy_id, engine):
     with signed() as client:
-        run_id = _run(client, policy_id)
-        location = client.post(
-            f"/runs/{run_id}/promote", data={}, follow_redirects=False
-        ).headers["location"]
-        comparison_id = int(location.split("/")[-1])
+        comparison_id = _compare(client, engine)
         client.post(
             f"/comparisons/{comparison_id}/draft",
             data={"final_text": "Edited by the agent."},
@@ -187,10 +247,7 @@ def test_editing_the_draft_writes_a_new_row(signed, policy_id, engine):
 
 def test_reclassifying_from_the_ui_is_logged(signed, policy_id, engine):
     with signed() as client:
-        run_id = _run(client, policy_id)
-        location = client.post(
-            f"/runs/{run_id}/promote", data={}, follow_redirects=False
-        ).headers["location"]
+        _compare(client, engine)
         sess = sessionmaker(bind=engine)()
         difference_id = sess.query(Difference).first().id
         sess.close()
@@ -205,39 +262,10 @@ def test_reclassifying_from_the_ui_is_logged(signed, policy_id, engine):
     sess.close()
 
 
-def test_promote_is_refused_while_a_field_needs_review(signed, policy_id, engine):
-    with signed() as client:
-        run_id = _run(client, policy_id)
-        sess = sessionmaker(bind=engine)()
-        for extraction in sess.query(Extraction).all():
-            for field in extraction.fields:
-                field.needs_review = True
-        sess.commit()
-        sess.close()
-
-        response = client.post(
-            f"/runs/{run_id}/promote", data={}, follow_redirects=False
-        )
-    assert response.status_code == 400
-    assert "policy.total_premium" in response.text
-
-
-def test_acknowledging_a_field_allows_promotion(signed, policy_id, engine):
-    with signed() as client:
-        run_id = _run(client, policy_id)
-        sess = sessionmaker(bind=engine)()
-        for extraction in sess.query(Extraction).all():
-            for field in extraction.fields:
-                field.needs_review = True
-        sess.commit()
-        sess.close()
-
-        response = client.post(
-            f"/runs/{run_id}/promote",
-            data={"acknowledged": "policy.total_premium"},
-            follow_redirects=False,
-        )
-    assert response.status_code == 303
+# The two promote-gate tests that stood here went with POST /runs/{id}/promote.
+# What they claimed is claimed now where the gate actually lives:
+# tests/test_pipeline_promote.py — a flagged field stops the stage, and an
+# acknowledged one lets it through.
 
 
 def _diff_head(page):
@@ -249,6 +277,23 @@ def _diff_head(page):
     return re.search(
         r'<table class="diffs">.*?<thead>(.*?)</thead>', page, re.S
     ).group(1)
+
+
+def _a_document(sess) -> int:
+    """A document row for a legacy RenewalRun to point at.
+
+    Its bytes do not matter: nothing reads these two documents. What matters
+    is that the foreign keys resolve, so the pre-matrix row is shaped exactly
+    as it was when the run flow wrote it.
+    """
+    document = Document(
+        blob_sha256=f"legacy-{uuid4().hex}", original_filename="legacy.pdf",
+        page_count=1, has_text_layer=True, doc_type="dec_page",
+        source="manual_upload", agency_id=1,
+    )
+    sess.add(document)
+    sess.flush()
+    return document.id
 
 
 def _two_terms(engine, policy_id, *, prior="3900.00", renewal="4210.00"):
@@ -304,19 +349,27 @@ def test_a_two_column_comparison_still_renders_prior_and_renewal(
     assert "Prior" in head and "Renewal" in head
 
 
-def test_a_legacy_comparison_renders_and_links_back_to_its_run(
-    signed, policy_id, engine
-):
-    """A comparison written before the matrix has a run; the crumb points at
-    it. One written from the record does not, and must not render a link to
-    run #None."""
-    with signed() as client:
-        run_id = _run(client, policy_id)
+def test_a_legacy_comparison_still_renders(signed, policy_id, engine):
+    """A comparison written before the matrix has a renewal_run_id.
 
+    It used to render a crumb linking back to that run. The run screen is
+    gone, so the crumb is the client on every comparison now — but the row
+    still has to render, which is the whole reason the column stayed.
+    """
     prior_id, renewal_id = _two_terms(engine, policy_id)
     sess = sessionmaker(bind=engine)()
+    # Written directly: RenewalRun is never written by the application any
+    # more, and this is a row from before it stopped. It still needs the pair
+    # of documents it held, so they are written here too.
+    run = RenewalRun(
+        policy_id=policy_id,
+        prior_document_id=_a_document(sess),
+        renewal_document_id=_a_document(sess),
+    )
+    sess.add(run)
+    sess.flush()
     comparison = Comparison(
-        renewal_run_id=run_id, prior_term_id=prior_id, renewal_term_id=renewal_id
+        renewal_run_id=run.id, prior_term_id=prior_id, renewal_term_id=renewal_id
     )
     sess.add(comparison)
     sess.flush()
@@ -337,12 +390,21 @@ def test_a_legacy_comparison_renders_and_links_back_to_its_run(
     with signed() as client:
         page = client.get(f"/comparisons/{comparison_id}").text
     assert "3900.00" in page and "4210.00" in page
-    assert f"/runs/{run_id}/review" in page
+    assert "back to Ramirez Landscaping" in page
+    # The screen that number pointed at no longer exists; nothing may link to
+    # it, least of all a row that still carries the id.
+    assert "/runs/" not in page
 
 
-def test_a_comparison_with_no_run_does_not_render_a_run_crumb(
+def test_a_comparison_crumb_points_at_the_client(
     signed, policy_id, engine
 ):
+    """Every comparison, whether or not it carries a run id.
+
+    This used to check that a comparison with no run did not render a link to
+    run #None. No comparison renders a run link now, so the claim is the
+    simpler one underneath it: the way back is the client.
+    """
     prior_id, renewal_id = _two_terms(engine, policy_id)
     sess = sessionmaker(bind=engine)()
     comparison = build_matrix(
@@ -359,7 +421,7 @@ def test_a_comparison_with_no_run_does_not_render_a_run_crumb(
 
     with signed() as client:
         page = client.get(f"/comparisons/{comparison_id}").text
-    assert "/runs/None/review" not in page
+    assert "/runs/" not in page
     assert "back to Ramirez Landscaping" in page
 
 
@@ -472,13 +534,20 @@ def test_a_legacy_comparison_still_shows_its_draft_and_its_breakdown(
     is the guarantee the checkpoint in Task 4 was placed to protect."""
     from renewal.models import Draft
 
-    with signed() as client:
-        run_id = _run(client, policy_id)
-
     prior_id, renewal_id = _two_terms(engine, policy_id)
     sess = sessionmaker(bind=engine)()
+    # Written directly: RenewalRun is never written by the application any
+    # more, and this is a row from before it stopped. It still needs the pair
+    # of documents it held, so they are written here too.
+    run = RenewalRun(
+        policy_id=policy_id,
+        prior_document_id=_a_document(sess),
+        renewal_document_id=_a_document(sess),
+    )
+    sess.add(run)
+    sess.flush()
     comparison = Comparison(
-        renewal_run_id=run_id, prior_term_id=prior_id, renewal_term_id=renewal_id
+        renewal_run_id=run.id, prior_term_id=prior_id, renewal_term_id=renewal_id
     )
     sess.add(comparison)
     sess.flush()
@@ -505,7 +574,7 @@ def test_a_legacy_comparison_still_shows_its_draft_and_its_breakdown(
     with signed() as client:
         page = client.get(f"/comparisons/{comparison_id}").text
 
-    assert f"/runs/{run_id}/review" in page          # its run crumb
+    assert "back to Ramirez Landscaping" in page      # its crumb
     assert "$310 higher" in page                      # its draft
     assert "not attributable" in page                 # its premium breakdown
     assert "Prior" in _diff_head(page)                # its two named columns

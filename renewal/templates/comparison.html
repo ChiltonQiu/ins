@@ -1,13 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Comparison #{{ comparison.id }}{% endblock %}
 {% block crumb %}
+{# Always the client now. A comparison built before automatic intake still
+   carries a renewal_run_id, but the screen that number pointed at is gone and
+   the client page is where every comparison belongs anyway. #}
 <span class="crumb">
-  {% if comparison.renewal_run_id %}
-  <a href="/runs/{{ comparison.renewal_run_id }}/review">back to run
-    #{{ comparison.renewal_run_id }}</a>
-  {% else %}
   <a href="/clients/{{ client.id }}">back to {{ client.display_name }}</a>
-  {% endif %}
 </span>
 {% endblock %}
 {% block content %}
