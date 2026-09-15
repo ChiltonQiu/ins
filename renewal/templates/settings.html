@@ -5,6 +5,69 @@
   <h1>Settings</h1>
 </div>
 
+{% if error %}
+<div class="notice bad"><p>{{ error }}</p></div>
+{% endif %}
+
+<section class="panel settings">
+  <h2>Preferences</h2>
+  <p>
+    How eager the alerts are and who hears about them. These take effect the
+    next time a page is read — nothing needs restarting.
+  </p>
+
+  {% if not mail_configured %}
+  <div class="notice">
+    <p>
+      No mail server is configured, so no email can be sent whatever is set
+      below. That part lives in the environment (<code>SMTP_HOST</code>)
+      rather than here, because it is set once when the application is
+      installed.
+    </p>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/settings/preferences" class="prefs">
+    {% for definition in definitions %}
+    <div class="field">
+      {% if definition.kind == "bool" %}
+      <label>
+        <input type="checkbox" name="{{ definition.key }}" value="on"
+               {% if values[definition.key] %}checked{% endif %}>
+        {{ definition.label }}
+      </label>
+      {% else %}
+      <label for="pref-{{ definition.key }}">{{ definition.label }}</label>
+      <span class="prefinput">
+        <input id="pref-{{ definition.key }}" name="{{ definition.key }}"
+               {% if definition.kind == "email" %}type="email" autocomplete="email"
+               {% else %}type="number" inputmode="decimal"
+                 {% if definition.minimum is not none %}min="{{ definition.minimum }}"{% endif %}
+                 {% if definition.maximum is not none %}max="{{ definition.maximum }}"{% endif %}
+                 {% if definition.kind == "float" %}step="any"{% endif %}
+               {% endif %}
+               value="{{ values[definition.key] }}">
+        {% if definition.unit %}<span class="unit">{{ definition.unit }}</span>{% endif %}
+      </span>
+      {% endif %}
+      <span class="hint">{{ definition.help }}</span>
+    </div>
+    {% endfor %}
+    <p><button class="btn primary" type="submit">Save preferences</button></p>
+  </form>
+
+  {% if last_notification %}
+  <p class="meta">
+    Last notification sent
+    {{ last_notification.sent_at.strftime("%Y-%m-%d %H:%M") }},
+    covering {{ last_notification.document_count }}
+    document{{ "" if last_notification.document_count == 1 else "s" }}.
+  </p>
+  {% else %}
+  <p class="meta">No notification has been sent yet.</p>
+  {% endif %}
+</section>
+
 <section class="panel settings">
   <h2>Calendar subscription</h2>
   <p>

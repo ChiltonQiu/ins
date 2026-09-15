@@ -119,9 +119,9 @@ def test_a_near_unconfirmed_date_appears_in_the_queue_without_a_row(session, sto
         confidence=0.5, extractor_version="dates-regex-v1", pass_name="regex"))
     session.flush()
     reasons = {r.reason_code for r in open_items(session, today=TODAY)}
-    assert "unconfirmed_date_within_14_days" in reasons
+    assert "unconfirmed_date_soon" in reasons
     assert session.query(AttentionItem).filter_by(
-        reason_code="unconfirmed_date_within_14_days").count() == 0
+        reason_code="unconfirmed_date_soon").count() == 0
 
 
 def test_a_date_beyond_the_window_is_not_in_the_queue(session, store):
@@ -132,7 +132,7 @@ def test_a_date_beyond_the_window_is_not_in_the_queue(session, store):
         date_type="policy_expiration", source_page=1, source_text="x",
         confidence=0.5, extractor_version="dates-regex-v1", pass_name="regex"))
     session.flush()
-    assert "unconfirmed_date_within_14_days" not in {
+    assert "unconfirmed_date_soon" not in {
         r.reason_code for r in open_items(session, today=TODAY)}
 
 
@@ -147,7 +147,7 @@ def test_a_confirmed_date_leaves_the_queue(session, store):
     session.add(row)
     session.flush()
     confirm(session, row.id)
-    assert "unconfirmed_date_within_14_days" not in {
+    assert "unconfirmed_date_soon" not in {
         r.reason_code for r in open_items(session, today=TODAY)}
 
 
@@ -434,3 +434,21 @@ def test_other_items_carry_no_compare_link(session, store):
     row = next(r for r in open_items(session, today=TODAY)
                if r.document_id == document.id)
     assert row.compare_url is None
+
+
+def test_the_date_window_is_a_parameter(session, store):
+    """How far ahead she wants warning is a judgment about how she works, so
+    it is hers to set. The reason code stopped naming a number when the number
+    stopped being fixed at fourteen."""
+    document = _document(session, store, _lines("a page"))
+    session.add(DocumentDate(
+        document_id=document.id, date_value=TODAY + timedelta(days=25),
+        date_type="policy_expiration", source_page=1, source_text="x",
+        confidence=0.5, extractor_version="dates-regex-v1", pass_name="regex"))
+    session.flush()
+
+    def reasons(**kwargs):
+        return {r.reason_code for r in open_items(session, today=TODAY, **kwargs)}
+
+    assert "unconfirmed_date_soon" not in reasons()             # 14 days
+    assert "unconfirmed_date_soon" in reasons(window_days=30)

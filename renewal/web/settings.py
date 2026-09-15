@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import secrets
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -22,9 +23,11 @@ from renewal.carriers import (
     unresolved_carrier_names,
 )
 from renewal.models import (
-    Agency, Carrier, CarrierAdmittedStatus, CarrierAlias, Policy,
-    PolicyBillingType,
+    Agency, Carrier, CarrierAdmittedStatus, CarrierAlias, NotificationSend,
+    Policy, PolicyBillingType,
 )
+from renewal.settings_store import DEFINITIONS, Invalid, effective
+from renewal.settings_store import write as write_setting
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -49,6 +52,7 @@ def _one_of(value: str, allowed: tuple[str, ...], field: str) -> str:
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
+    base_settings = deps.settings
     router = APIRouter()
 
     @router.get("/calendar/{token}.ics")
@@ -67,7 +71,7 @@ def register(app, deps: Deps) -> None:
         return Response(content=body, media_type="text/calendar; charset=utf-8")
 
     @router.get("/settings", response_class=HTMLResponse)
-    def show_settings(request: Request):
+    def show_settings(request: Request, error: str | None = None):
         with session_factory() as session:
             agency = session.get(Agency, AGENCY_ID)
             if agency is None:
@@ -107,8 +111,63 @@ def register(app, deps: Deps) -> None:
                     "policies": policies,
                     "admitted_statuses": ADMITTED_STATUSES,
                     "billing_types": BILLING_TYPES,
+                    "definitions": DEFINITIONS,
+                    "values": _current(session),
+                    "mail_configured": bool(base_settings.smtp_host),
+                    "last_notification": session.scalar(
+                        select(NotificationSend)
+                        .order_by(NotificationSend.id.desc())
+                        .limit(1)
+                    ),
+                    "error": error,
                 },
             )
+
+    def _current(session) -> dict:
+        """What each setting is right now, whether she set it or not.
+
+        Read off the effective Settings rather than off her stored rows, so an
+        untouched setting shows the value actually in force instead of an
+        empty box that looks like nothing is configured.
+        """
+        got = effective(session, base_settings)
+        return {
+            definition.key: getattr(got, definition.key)
+            for definition in DEFINITIONS
+        }
+
+    @router.post("/settings/preferences")
+    async def save_preferences(request: Request):
+        """Every setting on the panel, saved together.
+
+        One form rather than one per field: these are read together and she
+        reasons about them together, and a per-field save turns changing two
+        of them into two page loads.
+
+        async because the form is read off the request body. The fields are
+        data-driven from DEFINITIONS rather than declared, so adding a setting
+        is one entry there and one block in the template, never a third edit
+        here.
+        """
+        form = await request.form()
+        with session_factory() as session:
+            try:
+                for definition in DEFINITIONS:
+                    # A checkbox that is off is absent from the form rather
+                    # than false, so the default has to be the empty string
+                    # and not a skip.
+                    write_setting(
+                        session, definition.key, form.get(definition.key, "")
+                    )
+            except Invalid as refused:
+                session.rollback()
+                # Nothing is stored: a form that saved four of six fields and
+                # refused the fifth would leave her guessing which took.
+                return RedirectResponse(
+                    f"/settings?error={quote(str(refused))}", status_code=303
+                )
+            session.commit()
+        return RedirectResponse("/settings", status_code=303)
 
     @router.post("/settings/regenerate-ics-token")
     def regenerate_ics_token():

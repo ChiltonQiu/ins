@@ -2,7 +2,7 @@
 {% block title %}Inbox{% endblock %}
 {% block content %}
 {% set total = groups.working | length + groups.needs_you | length + groups.done | length %}
-<div class="pagehead" {% if in_flight %}data-poll="inbox"{% endif %}>
+<div class="pagehead" {% if in_flight %}data-poll="inbox" data-poll-seconds="{{ poll_seconds }}"{% endif %}>
   <h1>Inbox</h1>
   {% if total %}<span class="sub">{{ total }} document{{ "" if total == 1 else "s" }}, newest first</span>{% endif %}
 </div>

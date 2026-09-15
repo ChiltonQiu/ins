@@ -34,7 +34,11 @@ def _normalize(value: str) -> str:
 
 
 def rank_matches(
-    session: Session, candidates: Candidates, *, limit: int = 5
+    session: Session,
+    candidates: Candidates,
+    *,
+    limit: int = 5,
+    name_floor: float = NAME_SIMILARITY_FLOOR,
 ) -> list[Match]:
     matches: dict[tuple[int, int | None], Match] = {}
 
@@ -54,7 +58,7 @@ def rank_matches(
         similarity = func.similarity(Client.display_name, candidates.named_insured)
         rows = session.execute(
             select(Client.id, similarity)
-            .where(similarity > NAME_SIMILARITY_FLOOR)
+            .where(similarity > name_floor)
             .order_by(similarity.desc())
             .limit(limit)
         ).all()

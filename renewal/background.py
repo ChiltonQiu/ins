@@ -27,6 +27,7 @@ from renewal.config import Settings
 from renewal.models import Document
 from renewal.notify import maybe_notify
 from renewal.pipeline import run_stages
+from renewal.settings_store import effective
 from renewal.providers import ModelClient
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,10 @@ def process_document(
             # and nothing wrong.
             logger.info("background skip document_id=%s reason=missing", document_id)
             return
+        # Layered once, here, so every stage below sees the same values and
+        # her premium threshold reaches the alert the compare stage raises.
+        if settings is not None:
+            settings = effective(session, settings)
         try:
             run_stages(
                 session,

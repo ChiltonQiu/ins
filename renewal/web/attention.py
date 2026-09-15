@@ -17,6 +17,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from renewal.attention.rules import open_items, resolve
+from renewal.settings_store import effective
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -27,12 +28,20 @@ ESCALATED_REASONS = ("cancellation_notice", "non_renewal_notice")
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
+    settings = deps.settings
     router = APIRouter()
 
     @router.get("/attention", response_class=HTMLResponse)
     def show_attention(request: Request):
         with session_factory() as session:
-            rows = open_items(session)
+            # Her window, not the environment's. Computed on read, so changing
+            # it at /settings changes this list on the next load.
+            rows = open_items(
+                session,
+                window_days=effective(
+                    session, settings
+                ).unconfirmed_date_window_days,
+            )
             ordered = sorted(
                 rows,
                 key=lambda r: (

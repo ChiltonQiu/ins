@@ -48,8 +48,20 @@ class Settings:
     smtp_password: str = ""
     notify_from: str = ""
     notify_to: str = ""
+    notify_enabled: bool = True
     notify_min_interval_minutes: int = 60
     base_url: str = "http://127.0.0.1:8000"
+    # How eager the queue is. Operator-editable; the value here is the floor a
+    # fresh install starts from.
+    unconfirmed_date_window_days: int = 14
+    # Deployment tuning. Not operator-editable: none of it is a judgment about
+    # insurance, and all of it is the kind of number you set once against the
+    # machine you are running on.
+    stalled_after_minutes: int = 10
+    inbox_poll_seconds: int = 4
+    inbox_limit: int = 200
+    intake_workers: int = 2
+    name_similarity_floor: float = 0.3
 
 
 def load_settings() -> Settings:
@@ -98,5 +110,18 @@ def load_settings() -> Settings:
         notify_min_interval_minutes=int(
             os.environ.get("NOTIFY_MIN_INTERVAL_MINUTES", "60")
         ),
+        notify_enabled=os.environ.get(
+            "NOTIFY_ENABLED", "true"
+        ).lower() not in ("0", "false", "no"),
         base_url=os.environ.get("BASE_URL", "http://127.0.0.1:8000"),
+        unconfirmed_date_window_days=int(
+            os.environ.get("UNCONFIRMED_DATE_WINDOW_DAYS", "14")
+        ),
+        stalled_after_minutes=int(os.environ.get("STALLED_AFTER_MINUTES", "10")),
+        inbox_poll_seconds=int(os.environ.get("INBOX_POLL_SECONDS", "4")),
+        inbox_limit=int(os.environ.get("INBOX_LIMIT", "200")),
+        intake_workers=int(os.environ.get("INTAKE_WORKERS", "2")),
+        name_similarity_floor=float(
+            os.environ.get("NAME_SIMILARITY_FLOOR", "0.3")
+        ),
     )

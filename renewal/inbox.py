@@ -44,7 +44,15 @@ REASONS = (
 # Long enough that a slow provider call is not mistaken for a dead process,
 # short enough that she is not staring at a spinner for an afternoon. OCR plus
 # three model calls is the worst realistic case and runs well under this.
+#
+# The default, not the value: a caller with settings passes
+# stalled_after=stalled_after_from(settings) instead. Deployment tuning rather
+# than a judgment about insurance, so it is an env var and not a screen.
 STALLED_AFTER = timedelta(minutes=10)
+
+
+def stalled_after_from(settings) -> timedelta:
+    return timedelta(minutes=settings.stalled_after_minutes)
 
 
 @dataclass(frozen=True)

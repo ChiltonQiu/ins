@@ -17,7 +17,9 @@ from sqlalchemy import case, select
 from renewal.background import process_document
 from renewal.corrections import effective_values
 from renewal.extract.validate import verification_rate
-from renewal.inbox import anything_in_flight, bucketed, inbox_rows, state_of
+from renewal.inbox import (
+    anything_in_flight, bucketed, inbox_rows, stalled_after_from, state_of,
+)
 from renewal.ingest import ingest_pdf
 from renewal.models import Client, Document, ExtractedField, Extraction, Policy
 from renewal.promote import unresolved_field_paths
@@ -53,7 +55,11 @@ def register(app, deps: Deps) -> None:
     @router.get("/", response_class=HTMLResponse)
     def inbox(request: Request):
         with session_factory() as session:
-            groups = bucketed(inbox_rows(session))
+            groups = bucketed(inbox_rows(
+                session,
+                stalled_after=stalled_after_from(settings),
+                limit=settings.inbox_limit,
+            ))
 
             # Built only for the rows that need them, so an inbox of Done rows
             # costs no extra queries at all.
@@ -94,6 +100,7 @@ def register(app, deps: Deps) -> None:
                 {
                     "groups": groups,
                     "in_flight": anything_in_flight(session),
+                    "poll_seconds": settings.inbox_poll_seconds,
                     "candidates": candidates,
                     "policies": policies,
                 },
@@ -183,7 +190,10 @@ def register(app, deps: Deps) -> None:
             document = session.get(Document, document_id)
             if document is None:
                 raise HTTPException(status_code=404, detail="no such document")
-            state = state_of(session, document)
+            state = state_of(
+                session, document,
+                stalled_after=stalled_after_from(settings),
+            )
 
             extraction = (
                 session.query(Extraction)

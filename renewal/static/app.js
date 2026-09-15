@@ -226,7 +226,8 @@ if (restored !== null) {
 (function () {
   var page = document.querySelector('[data-poll="inbox"]');
   if (!page) return;
+  var seconds = Number(page.dataset.pollSeconds) || 4;
   window.setTimeout(function () {
     window.location.reload();
-  }, 4000);
+  }, seconds * 1000);
 })();

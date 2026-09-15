@@ -17,6 +17,7 @@ from urllib.parse import quote, urlsplit
 from starlette.responses import PlainTextResponse, RedirectResponse
 
 from renewal.auth.sessions import COOKIE_NAME, lookup_session
+from renewal.settings_store import effective
 from renewal.web.deps import Deps
 
 PUBLIC_EXACT = frozenset({"/login", "/logout"})
@@ -80,7 +81,9 @@ def install(app, deps: Deps) -> None:
             with session_factory() as session:
                 user = lookup_session(
                     session, token,
-                    ttl_hours=deps.settings.session_ttl_hours,
+                    ttl_hours=effective(
+                        session, deps.settings
+                    ).session_ttl_hours,
                 )
                 if user is not None:
                     identity = (user.email, user.display_name)

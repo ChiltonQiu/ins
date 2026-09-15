@@ -1374,3 +1374,33 @@ ul.inbox > li[data-state="stalled"] {
   font-weight: 600;
   text-align: center;
 }
+
+/* The preferences form. Label, control and explanation stacked, because the
+   explanation is the part that decides the number. */
+.prefs .field {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0 0 1rem;
+  max-width: 40rem;
+}
+
+.prefs .prefinput {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.prefs .prefinput input[type="number"] {
+  width: 7rem;
+}
+
+.prefs .unit {
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+.prefs .hint {
+  color: var(--ink-2);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}

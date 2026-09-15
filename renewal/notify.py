@@ -52,8 +52,13 @@ def maybe_notify(session: Session, *, settings: Settings, send=None) -> bool:
     Returns whether an email went out. The count is computed the same way the
     page computes it, so the email and the badge cannot disagree.
     """
+    # Three ways to be off, and all of them are legitimate: no mail server
+    # configured at all, no recipient, or she turned it off from /settings
+    # while keeping the address so she can turn it back on.
+    if not settings.notify_enabled:
+        return False
     if not settings.smtp_host or not settings.notify_to:
-        return False  # off, which is the default
+        return False
 
     count = needs_you_count(session)
     if count == 0:

@@ -644,6 +644,28 @@ class InboundMessage(Base):
     created_at: Mapped[datetime] = _created_at()
 
 
+class AgencySetting(Base):
+    """An operator-editable setting, appended rather than updated.
+
+    Latest row per key wins, which is PolicyBillingType's shape and for the
+    same reason: what she had it set to last month explains an item that fired
+    last month. A threshold that was 10% when an alert was raised and is 20%
+    now is the difference between a bug and a decision.
+
+    Values are text because that is what a form posts. Parsing and bounds live
+    in renewal/settings_store.py beside the definition of each key, so an
+    invalid value is refused at the form rather than stored and tripped over
+    later.
+    """
+
+    __tablename__ = "agency_setting"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    agency_id: Mapped[int] = mapped_column(ForeignKey("agency.id"), index=True)
+    key: Mapped[str] = mapped_column(Text)
+    value: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+
+
 class NotificationSend(Base):
     """One row per operator email sent.
 

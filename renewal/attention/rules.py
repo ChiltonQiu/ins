@@ -30,6 +30,8 @@ from renewal.models import (
 )
 from renewal.resolve.service import latest_link
 
+# The default, not the value. Operator-editable at /settings, because how far
+# ahead she wants to be warned is a judgment about how she works.
 UNCONFIRMED_DATE_WINDOW_DAYS = 14
 
 # renewal_received and premium_change are written by evaluate_promotion and
@@ -43,7 +45,7 @@ REASONS = (
     "renewal_received",
     "premium_change",
     "unmatched_document",
-    "unconfirmed_date_within_14_days",
+    "unconfirmed_date_soon",
 )
 
 _CLASS_REASONS = {
@@ -143,7 +145,12 @@ def evaluate(session: Session, document: Document, *, settings) -> list[Attentio
     return created
 
 
-def open_items(session: Session, *, today: date | None = None) -> list[QueueRow]:
+def open_items(
+    session: Session,
+    *,
+    today: date | None = None,
+    window_days: int = UNCONFIRMED_DATE_WINDOW_DAYS,
+) -> list[QueueRow]:
     today = today or date.today()
     resolved = select(AttentionEvent.attention_item_id).distinct()
 
@@ -173,7 +180,7 @@ def open_items(session: Session, *, today: date | None = None) -> list[QueueRow]
         ))
 
     judged = select(DateEvent.document_date_id).distinct()
-    horizon = today + timedelta(days=UNCONFIRMED_DATE_WINDOW_DAYS)
+    horizon = today + timedelta(days=window_days)
     near = (
         select(DocumentDate, DocumentLink.client_id, Client.display_name)
         .outerjoin(DocumentLink,
@@ -188,7 +195,10 @@ def open_items(session: Session, *, today: date | None = None) -> list[QueueRow]
         rows.append(QueueRow(
             item_id=None, document_id=row.document_id, client_id=client_id,
             client_name=client_name,
-            reason_code="unconfirmed_date_within_14_days",
+            # Never written to a row — this reason is computed on every read
+            # — so the code could be renamed when the window stopped being
+            # fixed at fourteen days and the old name became a lie.
+            reason_code="unconfirmed_date_soon",
             reason_text=f"Unconfirmed {row.date_type.replace('_', ' ')}",
             due_date=row.date_value, materialised=False,
         ))

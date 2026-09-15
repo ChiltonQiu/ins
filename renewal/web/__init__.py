@@ -77,7 +77,8 @@ def create_app(
         store=store,
         model_client=model_client,
         session_factory=session_factory,
-        runner=runner if runner is not None else ThreadRunner(),
+        runner=runner if runner is not None
+        else ThreadRunner(settings.intake_workers),
     )
     for module in ROUTER_MODULES:
         module.register(app, deps)

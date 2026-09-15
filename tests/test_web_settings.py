@@ -182,3 +182,85 @@ def test_aliasing_from_the_unresolved_list_picks_the_carrier_from_a_select(
     )
     assert response.status_code == 303
     assert resolve_carrier(db, "Some Other Insurance Company").id == carrier_id
+
+
+def test_the_preferences_panel_shows_the_values_in_force(client_app):
+    """Not her stored rows: an untouched setting has to show the value
+    actually in force, not an empty box that looks unconfigured."""
+    page = client_app.get("/settings").text
+    assert "Preferences" in page
+    assert 'name="attention_premium_pct"' in page
+    assert 'value="10.0"' in page or 'value="10"' in page
+
+
+def test_saving_a_preference_takes_effect(client_app, db):
+    from renewal.settings_store import effective
+    from tests.test_dates_llm import _settings
+
+    response = client_app.post(
+        "/settings/preferences",
+        data={
+            "notify_enabled": "on",
+            "notify_to": "her@agency.com",
+            "notify_min_interval_minutes": "30",
+            "attention_premium_pct": "25",
+            "unconfirmed_date_window_days": "30",
+            "session_ttl_hours": "8",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    got = effective(db, _settings())
+    assert got.attention_premium_pct == 25.0
+    assert got.unconfirmed_date_window_days == 30
+    assert got.notify_to == "her@agency.com"
+    assert got.notify_enabled is True
+
+
+def test_an_unticked_checkbox_turns_it_off(client_app, db):
+    """A checkbox that is off is absent from the form rather than false."""
+    from renewal.settings_store import effective
+    from tests.test_dates_llm import _settings
+
+    client_app.post(
+        "/settings/preferences",
+        data={"notify_to": "her@agency.com",
+              "notify_min_interval_minutes": "60",
+              "attention_premium_pct": "10",
+              "unconfirmed_date_window_days": "14",
+              "session_ttl_hours": "12"},
+        follow_redirects=False,
+    )
+    assert effective(db, _settings()).notify_enabled is False
+
+
+def test_a_refused_value_stores_nothing_at_all(client_app, db):
+    """Partial saves are worse than none: she would be left guessing which
+    fields took."""
+    from renewal.models import AgencySetting
+
+    response = client_app.post(
+        "/settings/preferences",
+        data={"notify_enabled": "on",
+              "notify_to": "her@agency.com",
+              "notify_min_interval_minutes": "60",
+              "attention_premium_pct": "500",
+              "unconfirmed_date_window_days": "14",
+              "session_ttl_hours": "12"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert "error=" in response.headers["location"]
+    assert db.query(AgencySetting).count() == 0
+
+
+def test_the_refusal_reaches_the_page(client_app):
+    response = client_app.post(
+        "/settings/preferences",
+        data={"notify_to": "nonsense", "notify_min_interval_minutes": "60",
+              "attention_premium_pct": "10",
+              "unconfirmed_date_window_days": "14",
+              "session_ttl_hours": "12"},
+    )
+    assert "not an email address" in response.text
