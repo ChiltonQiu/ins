@@ -1,12 +1,22 @@
 /* Renewal comparison. A desk tool: two documents, a few hundred fields, one
-   person checking them. Dense, but it should feel like a well-made office
-   application, not a terminal.
+   person checking them, on a deadline.
 
-   Type: one humanist sans, everywhere. Numbers and field paths get tabular
-   figures so columns line up - alignment was what the job needed, the
-   typewriter look was not.
-   Radius: 6px on controls, 10px on panels and tables. Nothing else is rounded.
-   Weights: 400 body, 500 labels and controls, 600 headings. No others. */
+   The system is Swiss: a grid, a rule, and type doing the work that colour and
+   shadow were doing before. Everything is orthogonal — no radius anywhere —
+   and structure comes from hairlines and alignment rather than from boxes
+   floating on a tinted ground.
+
+   Colour is restrained on purpose. Ink is the interface: primary buttons, the
+   active tab, links. One signal red is reserved for the things that are
+   actually an emergency — a cancellation notice, a failed document, a
+   destructive control — so that when something is red it means something. A
+   status that is merely *true* is said in weight and position, not in a
+   coloured wash, which is what made every screen read as two tinted halves.
+
+   Type: one neo-grotesque, everywhere. Tabular figures on anything compared
+   against the number above it. Headings tight, labels small and tracked, body
+   at a size a person reads for six hours.
+   Weights: 400 body, 500 labels, 600 headings, 700 the page title. */
 
 /* One value per token, both themes inside light-dark(). Which half applies is
    decided by color-scheme alone, so the header switch only has to set
@@ -16,67 +26,78 @@
 :root {
   color-scheme: light dark;
 
-  --paper: #f6f4f1;
-  --paper: light-dark(#f6f4f1, #1c1f23);
+  /* The sheet. A true neutral: the warm tint that used to be here is what made
+     everything read as sepia, and it was never carrying information. */
+  --paper: #ffffff;
+  --paper: light-dark(#ffffff, #0e0f11);
   --surface: #ffffff;
-  --surface: light-dark(#ffffff, #23272c);
-  --surface-sunk: #faf8f5;
-  --surface-sunk: light-dark(#faf8f5, #1f2226);
+  --surface: light-dark(#ffffff, #151719);
+  --surface-sunk: #f2f2f3;
+  --surface-sunk: light-dark(#f2f2f3, #1b1e21);
 
-  --ink: #24262b;
-  --ink: light-dark(#24262b, #e9eaec);
-  --ink-2: #565b63;
-  --ink-2: light-dark(#565b63, #b0b6bd);
-  --ink-3: #878d95;
-  --ink-3: light-dark(#878d95, #878e96);
+  --ink: #101214;
+  --ink: light-dark(#101214, #e9eaeb);
+  --ink-2: #4a4d52;
+  --ink-2: light-dark(#4a4d52, #a9aeb5);
+  --ink-3: #6b6f75;
+  --ink-3: light-dark(#6b6f75, #868b92);
 
-  --rule: #e7e3dd;
-  --rule: light-dark(#e7e3dd, #343a41);
-  --rule-strong: #d5d0c8;
-  --rule-strong: light-dark(#d5d0c8, #474e56);
+  /* Two weights of rule, and the difference between them is the whole layout.
+     A hairline separates rows; a full-strength rule separates ideas. */
+  --rule: #d9dadc;
+  --rule: light-dark(#d9dadc, #2a2d31);
+  --rule-strong: #101214;
+  --rule-strong: light-dark(#101214, #e9eaeb);
 
-  /* One accent. It is also the "this worked" colour, so a saved field and a
-     primary button read as the same idea. */
-  --accent: #2c7a5d;
-  --accent: light-dark(#2c7a5d, #63b693);
-  --accent-hover: #24654c;
-  --accent-hover: light-dark(#24654c, #7dc9a8);
-  --accent-wash: #e7f1ec;
-  --accent-wash: light-dark(#e7f1ec, #223129);
-  --accent-line: #a8c9ba;
-  --accent-line: light-dark(#a8c9ba, #3f6b58);
+  /* Ink is the accent. A primary button is black, the current tab is black,
+     and a link is ink with a rule under it — so nothing has to be tinted to
+     look actionable. */
+  --accent: #101214;
+  --accent: light-dark(#101214, #e9eaeb);
+  --accent-hover: #d81f11;
+  --accent-hover: light-dark(#d81f11, #ff6152);
+  --accent-wash: #f2f2f3;
+  --accent-wash: light-dark(#f2f2f3, #1f2226);
+  --accent-line: #b6b8bb;
+  --accent-line: light-dark(#b6b8bb, #4a4e54);
   --on-accent: #ffffff;
-  --on-accent: light-dark(#ffffff, #10231b);
+  --on-accent: light-dark(#ffffff, #0e0f11);
 
-  --danger: #b4483c;
-  --danger: light-dark(#b4483c, #e59284);
-  --danger-wash: #fbeeeb;
-  --danger-wash: light-dark(#fbeeeb, #33241f);
-  --danger-row: #fdf5f3;
-  --danger-row: light-dark(#fdf5f3, #2a201d);
-  --danger-line: #e8cdc7;
-  --danger-line: light-dark(#e8cdc7, #5a3a33);
-  --warn: #9a6f1c;
-  --warn: light-dark(#9a6f1c, #cfa963);
+  /* The one colour in the system. Spent only on what is actually wrong or
+     actually irreversible: a cancellation notice, a failed document, a
+     control that destroys something. */
+  --danger: #d81f11;
+  --danger: light-dark(#d81f11, #ff6152);
+  --danger-wash: #fdf1ef;
+  --danger-wash: light-dark(#fdf1ef, #2b1512);
+  --danger-row: #fdf6f5;
+  --danger-row: light-dark(#fdf6f5, #201312);
+  --danger-line: #e8b8b2;
+  --danger-line: light-dark(#e8b8b2, #6b2d25);
+  --warn: #8a6410;
+  --warn: light-dark(#8a6410, #d4a851);
   /* Search highlights only. Light enough to read black text on, in both
      themes — a saturated highlight makes the snippet harder to scan, which
      is the opposite of what a highlight is for. */
-  --warn-wash: #fdf3d8;
-  --warn-wash: light-dark(#fdf3d8, #4a3d1f);
+  --warn-wash: #fbf0cf;
+  --warn-wash: light-dark(#fbf0cf, #453a1d);
 
-  --shadow: 0 1px 2px rgb(36 38 43 / 0.05);
-  --shadow: light-dark(
-    0 1px 2px rgb(36 38 43 / 0.05),
-    0 1px 2px rgb(0 0 0 / 0.35)
-  );
+  /* No shadows. Depth is a rule or it is nothing — a drop shadow under every
+     panel is what made this look like software about software. */
+  --shadow: none;
 
-  --sans: "Cantarell", -apple-system, "Segoe UI Variable Text", "Segoe UI",
-    "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  /* A neo-grotesque, in the order it is likely to be installed. Liberation
+     Sans is metric-compatible with Helvetica and ships on every Linux desk
+     this runs on, so the fallback is the same shape rather than a different
+     personality. */
+  --sans: "Inter", "Helvetica Neue", Helvetica, "Liberation Sans", Arial,
+    "Segoe UI", sans-serif;
 
-  --r-control: 6px;
-  --r-panel: 10px;
+  /* Orthogonal. Both kept as tokens so a later change is one edit, not forty. */
+  --r-control: 0;
+  --r-panel: 0;
 
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* The switch in the header writes one of these. Absent means follow the
@@ -103,8 +124,9 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font: 400 14.5px/1.6 var(--sans);
+  font: 400 14px/1.55 var(--sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* Every number here is compared against another number one row up or one
@@ -116,11 +138,15 @@ textarea,
   font-variant-numeric: tabular-nums;
 }
 
+/* A link is ink with a rule under it, never a colour. The rule is the
+   affordance; the red on hover is the only moment colour is spent on
+   navigation. */
 a {
   color: var(--accent);
+  text-decoration-thickness: 1px;
   text-decoration-color: var(--accent-line);
-  text-underline-offset: 2px;
-  transition: color 120ms ease;
+  text-underline-offset: 3px;
+  transition: color 120ms ease, text-decoration-color 120ms ease;
 }
 
 a:hover {
@@ -128,10 +154,12 @@ a:hover {
   text-decoration-color: currentColor;
 }
 
+/* Focus is the one piece of chrome that must be unmissable, including on a
+   black button where an ink ring would vanish. It gets the signal colour. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--danger);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: 0;
 }
 
 .skip {
@@ -159,16 +187,18 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 30px;
-  height: 58px;
+  height: 56px;
   padding: 0 26px;
   background: var(--surface);
-  border-bottom: 1px solid var(--rule);
+  /* Full-strength: the masthead is a different kind of thing from the page
+     under it, and a hairline here made the two bleed together. */
+  border-bottom: 1px solid var(--rule-strong);
 }
 
 .brand {
   font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.005em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--ink);
   text-decoration: none;
   white-space: nowrap;
@@ -188,7 +218,8 @@ a:hover {
   color: var(--ink-2);
   text-decoration: none;
   font-weight: 500;
-  padding: 19px 0 18px;
+  padding: 18px 0 17px;
+  letter-spacing: -0.005em;
   border-bottom: 2px solid transparent;
 }
 
@@ -235,7 +266,7 @@ a:hover {
   color: var(--ink-3);
   background: transparent;
   border: 0;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 5px 9px;
   cursor: pointer;
   transition: color 120ms ease, background-color 120ms ease;
@@ -246,9 +277,8 @@ a:hover {
 }
 
 .themepick button[aria-pressed="true"] {
-  color: var(--ink);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  color: var(--on-accent);
+  background: var(--accent);
 }
 
 main {
@@ -260,17 +290,24 @@ main {
 /* ---- headings ---------------------------------------------------------- */
 
 h1 {
-  font-size: 21px;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.014em;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.024em;
   margin: 0;
+  text-wrap: balance;
 }
 
+/* Small, tracked and set in ink: a section label reads as a label rather than
+   as a smaller headline, which is what lets the rule above it do the
+   separating. */
 h2 {
-  font-size: 14.5px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1.3;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink);
   margin: 0 0 11px;
 }
 
@@ -279,9 +316,22 @@ h2 {
   align-items: baseline;
   gap: 14px;
   flex-wrap: wrap;
-  padding-bottom: 15px;
-  margin-bottom: 24px;
-  border-bottom: 1px solid var(--rule-strong);
+  padding-bottom: 12px;
+  margin-bottom: 26px;
+  /* The heaviest rule on the page, under the thing that names it. */
+  border-bottom: 2px solid var(--rule-strong);
+}
+
+/* The month grid puts its title in a pagehead. It is the name of the page at
+   that moment, so it is set as one — the section-label treatment would file
+   "September 2026" under the same weight as "Preferences". */
+.pagehead h2 {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  margin: 0;
 }
 
 .pagehead .sub {
@@ -295,8 +345,17 @@ h2 {
 
 /* ---- panels ------------------------------------------------------------ */
 
+/* A ruled block, not a card. The rule above it is what says "new idea" —
+   there is no border, no fill and no shadow, so several panels down a page
+   read as one grid rather than as a stack of floating objects. */
 .panel {
   min-width: 0;
+  border-top: 1px solid var(--rule-strong);
+  padding-top: 13px;
+}
+
+.panel + .panel {
+  margin-top: 30px;
 }
 
 .panel > header {
@@ -354,30 +413,19 @@ h2 {
 
 /* ---- tables ------------------------------------------------------------ */
 
+/* No frame and no fill: a table is already a grid, and wrapping it in a
+   rounded panel drew a box around a box. What it gets instead is a rule under
+   the header heavy enough to hold the columns together. */
 table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  box-shadow: var(--shadow);
-  margin: 0 0 18px;
-}
-
-/* Corners are rounded cell by cell. `overflow: hidden` would do it in one line
-   but it turns the table into a scroll container, and then the sticky header
-   sticks to the table instead of the window. */
-thead th:first-child {
-  border-top-left-radius: var(--r-panel);
-}
-
-thead th:last-child {
-  border-top-right-radius: var(--r-panel);
+  background: transparent;
+  margin: 0 0 22px;
 }
 
 tbody tr:last-child td:first-child {
-  border-bottom-left-radius: var(--r-panel);
+  border-bottom-left-radius: 0;
 }
 
 tbody tr:last-child td:last-child {
@@ -386,30 +434,35 @@ tbody tr:last-child td:last-child {
 
 thead th {
   position: sticky;
-  top: 58px;
+  top: 56px;
   z-index: 5;
-  background: var(--surface-sunk);
-  border-bottom: 1px solid var(--rule);
-  font-weight: 500;
-  font-size: 12.5px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule-strong);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: var(--ink-2);
   text-align: left;
-  padding: 9px 13px;
+  padding: 0 12px 7px;
   white-space: nowrap;
 }
 
 td {
   border-bottom: 1px solid var(--rule);
-  padding: 9px 13px;
+  padding: 9px 12px;
   vertical-align: top;
+}
+
+/* The row the cursor is on, said as faintly as it can be said and still be
+   seen. A hover that tints the row a colour competes with the one colour that
+   is supposed to mean something. */
+tbody tr:hover td {
+  background: var(--surface-sunk);
 }
 
 tbody tr:last-child td {
   border-bottom: 0;
-}
-
-tbody tr:hover {
-  background: var(--surface-sunk);
 }
 
 td.path,
@@ -441,18 +494,31 @@ tr.residual td {
   color: var(--ink-2);
 }
 
-/* A field the extractor is unsure about gets a soft wash and a bar, not a
-   badge. It marks the row without adding another coloured pill to the scan. */
+/* A field the extractor is unsure about is marked where the eye already is —
+   on the value — rather than with a bar down the side of the row. The path
+   cell carries the mark so the column stays scannable. */
 tr.attn td:first-child {
-  box-shadow: inset 3px 0 0 var(--danger);
+  font-weight: 600;
 }
 
-tr.attn {
-  background: var(--danger-row);
+tr.attn td:first-child::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  vertical-align: 1px;
+  /* Ochre, not red. A field the extractor is unsure about wants a look; a
+     cancellation notice is an emergency. Spending the same colour on both
+     leaves no way to tell them apart. */
+  background: var(--warn);
 }
 
-tr.attn:hover {
-  background: var(--danger-wash);
+/* No row tint. Marking a third of a long table with a coloured background is
+   what turned this screen into two shades of one hue; the mark on the path and
+   the weight on the row are enough to find them by. */
+tr.attn td {
+  background: transparent;
 }
 
 /* The run list is four short columns. Letting it span a 1440px window puts a
@@ -488,23 +554,54 @@ table.fields td.path {
 
 label {
   display: block;
-  font-weight: 500;
-  font-size: 13px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: var(--ink-2);
   margin-bottom: 5px;
+}
+
+/* A label wrapping its own checkbox is a sentence, not a field name. Small
+   caps would have it shouting a preference at the person setting it. */
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+}
+
+/* The browser draws these two, and left alone it draws them in its own blue —
+   the one colour in the interface nobody chose. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
 }
 
 label.inline {
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
+  font-size: 14px;
   font-weight: 400;
-  font-size: 14.5px;
+  letter-spacing: normal;
+  text-transform: none;
   color: var(--ink);
   margin: 0;
 }
 
+/* Every text-like control, listed rather than left to [type="text"] alone.
+   The date, number, email and password fields were falling through to the
+   browser's own widget, which is why the settings form and the sign-in page
+   did not look like the rest of the application. */
 input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="search"],
 input[type="file"],
 select,
 textarea {
@@ -513,7 +610,7 @@ textarea {
   line-height: 1.45;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid var(--rule-strong);
+  border: 1px solid var(--accent-line);
   border-radius: var(--r-control);
   padding: 7px 10px;
   max-width: 100%;
@@ -521,26 +618,64 @@ textarea {
 }
 
 input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="number"]:hover,
+input[type="date"]:hover,
+input[type="search"]:hover,
 select:hover {
-  border-color: var(--ink-3);
+  border-color: var(--ink-2);
 }
 
 input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="search"]:focus,
 textarea:focus,
 select:focus {
   border-color: var(--accent);
 }
 
+/* The browser draws its own button inside a file input. Left alone it is the
+   one control on the page wearing the operating system's clothes. */
+input[type="file"] {
+  padding: 5px 6px;
+}
+
+input[type="file"]::file-selector-button {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  padding: 5px 10px;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Held to the same contrast as body text: a placeholder is often the only
+   description of what a field wants. */
 input::placeholder {
   color: var(--ink-3);
+  opacity: 1;
 }
 
 textarea {
   width: 100%;
   resize: vertical;
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.65;
-  padding: 13px 15px;
+  padding: 13px 14px;
   border-radius: var(--r-panel);
 }
 
@@ -561,8 +696,13 @@ textarea {
   gap: 10px 12px;
 }
 
+.formrow {
+  align-items: end;
+}
+
 .formrow label {
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  line-height: 1.2;
 }
 
 /* Reference data, not the job. It sits below the upload form and keeps to a
@@ -579,22 +719,24 @@ textarea {
   font-weight: 500;
   line-height: 1;
   color: var(--ink);
-  background: var(--surface);
+  background: transparent;
   border: 1px solid var(--rule-strong);
   border-radius: var(--r-control);
-  padding: 9px 14px;
+  padding: 8px 14px;
   cursor: pointer;
-  transition: transform 160ms var(--ease-out), background-color 120ms ease,
-    border-color 120ms ease, color 120ms ease;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
+/* Inverts rather than shifts a tint: the same ink that drew the outline fills
+   it. One idea, two states. */
 .btn:hover {
-  background: var(--surface-sunk);
-  border-color: var(--ink-3);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .btn:active {
-  transform: scale(0.97);
+  background: var(--ink-2);
+  border-color: var(--ink-2);
 }
 
 .btn[disabled] {
@@ -607,12 +749,16 @@ textarea {
   color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: var(--shadow);
 }
 
 .btn.primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+}
+
+.btn.primary:active {
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 /* Low-frequency, and it sits next to every single value: it must not compete
@@ -648,39 +794,53 @@ textarea {
 
 /* ---- status text ------------------------------------------------------- */
 
+/* Small, tracked, and only ever on something that is genuinely wrong. Set as
+   a label rather than as coloured body text, so it reads at a glance without
+   having to tint the row it sits in. */
 .flag {
   color: var(--danger);
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
+/* "This is fine" said in weight, not in hue. Colouring every settled thing
+   green is what put a second tint on every screen and left nothing for the
+   one colour that matters. */
 .ok {
-  color: var(--accent);
-  font-weight: 500;
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .muted {
   color: var(--ink-3);
 }
 
+/* Ruled above, not striped down one side. The weight of the top rule is the
+   severity, and the block keeps the page's own background so it reads as a
+   paragraph the page is emphasising rather than as a component pasted on. */
 .notice {
-  border: 1px solid var(--rule);
-  border-left: 3px solid var(--warn);
-  border-radius: var(--r-control);
-  background: var(--surface);
-  padding: 12px 15px;
-  margin: 0 0 20px;
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  padding: 11px 0 12px;
+  margin: 0 0 22px;
   max-width: 72ch;
 }
 
+.notice p {
+  margin: 0;
+}
+
 .notice.bad {
-  border-left-color: var(--danger);
-  border-color: var(--danger-line);
-  background: var(--danger-wash);
+  border-top-color: var(--danger);
   color: var(--ink);
 }
 
 .saved {
-  color: var(--accent);
+  color: var(--ink);
   font-size: 12.5px;
   font-weight: 500;
   opacity: 0;
@@ -696,11 +856,11 @@ textarea {
   color: var(--danger);
 }
 
+/* An empty state is a sentence, not an object. It gets a rule and room. */
 .empty {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--surface);
-  padding: 28px 26px;
+  border-top: 1px solid var(--rule-strong);
+  background: transparent;
+  padding: 22px 0 0;
   max-width: 60ch;
 }
 
@@ -869,11 +1029,13 @@ table.diffs td.differs {
    appears beside bound terms. */
 .quoted {
   margin-left: 6px;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border: 1px solid var(--rule-strong);
-  border-radius: 9px;
-  font-weight: 400;
-  font-size: 12px;
+  border-radius: 0;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--ink-2);
   text-transform: none;
   letter-spacing: 0;
@@ -949,7 +1111,7 @@ p.total-delta.up {
 .snippet {
   background: var(--surface-sunk);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 10px 12px;
   margin: 0 0 12px;
   max-height: 8.5em;
@@ -981,17 +1143,19 @@ p.total-delta.up {
 
 
 /* The calendar. */
+/* Two strips of controls above a list. Ruled off rather than filled: a panel
+   of form fields on a tinted card reads as heavier than the list it filters,
+   which is backwards. */
 .addrow,
 .filters {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--surface);
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  padding: 0 0 14px;
+  margin-bottom: 14px;
 }
 
 .filters {
-  background: var(--surface-sunk);
+  padding-bottom: 12px;
 }
 
 .keyhint {
@@ -1007,16 +1171,24 @@ p.total-delta.up {
   gap: 4px;
 }
 
+/* A row in a list, ruled off from the next one. Boxing each entry turned an
+   agenda into a stack of cards and cost the alignment down the left edge that
+   makes a list readable at a glance. */
 .entry {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 8px 12px;
-  padding: 9px 12px;
-  border: 1px solid var(--rule);
-  border-left: 3px solid var(--rule-strong);
-  border-radius: 6px;
-  background: var(--surface);
+  /* Padded and pulled back out, so the hover band has room to breathe without
+     the text leaving the column it shares with everything above it. */
+  padding: 9px 8px;
+  margin: 0 -8px;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+}
+
+.entry:hover {
+  background: var(--surface-sunk);
 }
 
 .entry:focus {
@@ -1043,32 +1215,44 @@ p.total-delta.up {
 }
 
 /* Escalation has to read at a glance without relying on colour: a colourblind
-   reader gets the heavier left rule and the bold weight instead. */
+   reader gets the bold weight and the word ESCALATED, which is the label
+   beside it rather than a bar down the side. */
 .entry.escalated {
-  border-left-width: 6px;
-  border-left-color: var(--danger);
   font-weight: 600;
 }
 
 /* An unconfirmed date is not a fact. It is set back from a confirmed one in
-   weight and colour, and it also carries the word, since style alone is not a
-   claim anyone can read. */
+   colour, and it also carries the word, since style alone is not a claim
+   anyone can read. */
 .entry.unconfirmed {
-  border-style: dashed;
   color: var(--ink-2);
 }
 
-.entry.confirmed {
-  border-left-color: var(--accent);
+/* These carry .flag for the label shape, but only escalation is red. A
+   status that is merely not-yet-confirmed is ink: spending the signal colour
+   on the most common row in the list is what made it stop meaning anything. */
+.entry .status-flag,
+.entry .derived,
+.quoted {
+  color: var(--ink-2);
 }
 
 .entry .status-flag,
 .entry .escalated-flag,
 .entry .derived {
-  font-size: 12px;
-  padding: 1px 6px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1px solid var(--accent-line);
+  border-radius: 0;
+}
+
+.entry .escalated-flag {
+  color: var(--on-accent);
+  background: var(--danger);
+  border-color: var(--danger);
 }
 
 .entry .derived {
@@ -1120,10 +1304,11 @@ p.total-delta.up {
   white-space: nowrap;
 }
 
+/* In a month cell there is no room for a label, so the colour is the type
+   itself rather than a bar beside it. */
 .daylist li.escalated {
   font-weight: 700;
-  border-left: 3px solid var(--danger);
-  padding-left: 4px;
+  color: var(--danger);
 }
 
 .daylist li.unconfirmed {
@@ -1133,13 +1318,11 @@ p.total-delta.up {
 
 
 /* Settings. The feed URL is a credential, so it is shown whole rather than
-   truncated — she has to be able to see what she is about to copy. */
+   truncated — she has to be able to see what she is about to copy.
+
+   The panel rule above each section is all the separation these need; boxing
+   them made six cards down a page that is really one list of preferences. */
 .settings {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--surface);
-  padding: 18px 20px;
-  margin-bottom: 16px;
   max-width: 72ch;
 }
 
@@ -1147,7 +1330,7 @@ p.total-delta.up {
   overflow-wrap: anywhere;
   background: var(--surface-sunk);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 8px 10px;
 }
 
@@ -1157,9 +1340,9 @@ p.total-delta.up {
    in what they mean. These are the two markers it adds. */
 .flag.mismatch,
 .flag.overdue {
-  font-size: 12px;
-  padding: 1px 6px;
-  border-radius: 999px;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 0;
   border: 1px solid var(--danger-line);
   background: var(--danger-wash);
   color: var(--ink);
@@ -1185,10 +1368,9 @@ tr.unconfirmed td {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px 12px;
-  padding: 9px 12px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--surface);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
 }
 
 .result .snippet {
@@ -1247,8 +1429,28 @@ tr.unconfirmed td {
   }
 
   .topbar {
-    gap: 18px;
-    padding: 0 15px;
+    gap: 14px;
+    padding: 0 15px 8px;
+  }
+
+  /* Six destinations will not sit on one line on a phone. They wrap onto as
+     many rows as they need rather than running off the edge — losing the last
+     one to an overflow is the one outcome a navigation cannot have. */
+  .topbar nav {
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    min-width: 0;
+  }
+
+  .topbar nav a {
+    padding: 4px 0;
+    border-bottom-width: 2px;
+  }
+
+  /* Sticky column headers assume a 56px bar. Once it wraps, that number is a
+     guess, and a wrong one leaves the header floating over the first row. */
+  thead th {
+    position: static;
   }
 
   main {
@@ -1269,24 +1471,87 @@ tr.unconfirmed td {
 /* ---- login ------------------------------------------------------------- */
 /* The one page with no navigation: nothing behind it is reachable yet. */
 .loginbox {
-  max-width: 22rem;
-  margin: 12vh auto;
+  max-width: 21rem;
+  margin: 14vh auto;
   padding: 0 1rem;
 }
-.loginbox h1 { margin-bottom: 1.5rem; }
+
+.loginbox h1 {
+  font-size: 19px;
+  padding-bottom: 11px;
+  margin-bottom: 26px;
+  border-bottom: 2px solid var(--rule-strong);
+}
+
+.loginbox h1 span {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+/* Stacked, full measure: there is one thing to do on this page and the fields
+   are the whole of it. */
+.loginbox .formrow {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.loginbox label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 5px;
+}
+
+.loginbox input {
+  width: 100%;
+  font-size: 14px;
+  padding: 9px 11px;
+}
+
+.loginbox .btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 11px 14px;
+}
 .loginerror {
-  border-left: 3px solid var(--danger);
-  padding: 0.5rem 0.75rem;
+  border-top: 2px solid var(--danger);
+  padding: 0.6rem 0 0;
   margin-bottom: 1rem;
+  font-weight: 500;
 }
 
 /* Who is signed in, and the way out. Quiet: it is not the job. */
 .whoami {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   font-size: 0.85rem;
   color: var(--ink-3);
+}
+
+/* Signing out is a link, not an action anyone should hit by accident, so it is
+   set as one rather than given a button's weight. It was falling through to
+   the browser's default button, which is the loudest control on the page and
+   the least important thing on it. */
+.whoami button {
+  font: inherit;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 3px;
+  transition: color 120ms ease;
+}
+
+.whoami button:hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentColor;
 }
 
 /* The prep sheet is read on paper as often as on screen. Nothing that cannot
@@ -1352,10 +1617,20 @@ ul.inbox > li > .path {
   overflow-wrap: anywhere;
 }
 
-/* Stalled is the one row in this bucket that is not going to fix itself. */
+/* Stalled is the one row in this bucket that is not going to fix itself, so
+   it is the one row set in ink rather than left at the list's default. */
 ul.inbox > li[data-state="stalled"] {
-  border-left: 3px solid var(--warn);
-  padding-left: 0.6rem;
+  font-weight: 500;
+}
+
+ul.inbox > li[data-state="stalled"] > .path::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  vertical-align: 1px;
+  background: var(--warn);
 }
 
 .dropbox {
@@ -1384,15 +1659,19 @@ ul.inbox > li[data-state="stalled"] {
   gap: 0.3rem;
 }
 
+/* A count, set solid so it reads as a quantity rather than as an alarm. It is
+   ink because a number of documents waiting is not an emergency — the red in
+   this interface is kept for things that are. */
 .badge {
   display: inline-block;
-  min-width: 1.15rem;
-  padding: 0 0.3rem;
-  border-radius: 0.6rem;
-  background: var(--warn);
-  color: var(--paper);
-  font-size: 0.78rem;
+  min-width: 1.1rem;
+  padding: 1px 0.3rem;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.72rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
