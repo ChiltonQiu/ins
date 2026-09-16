@@ -107,8 +107,17 @@ Two routes are outside the login, because neither caller can sign in:
   that provider must never be configured on an install reachable from the
   network.
 
-There are no roles: every account can do everything. Nothing yet records
-*which* account made a correction or confirmed a date.
+There are no roles: every account can do everything. What each account *did*
+is recorded: a correction, a confirmed or dismissed date, a date added by
+hand, a cleared attention item, a document filed by hand, a comparison built,
+a materiality overridden — each of those rows names the account that made it,
+and the calendar and the document detail view show the name.
+
+Rows written before that change, and rows the pipeline wrote rather than a
+person, name nobody. They render blank rather than as "system" or "unknown":
+those are three different situations and the page does not know which it is
+looking at. Configuration — preferences, carrier aliases, the `.ics` token —
+is still not attributed.
 
 ## The daily summary
 

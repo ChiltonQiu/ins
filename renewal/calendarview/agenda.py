@@ -16,12 +16,16 @@ from dataclasses import dataclass
 from datetime import date
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from renewal.models import (
     Client, DateEvent, Document, DocumentClassification, DocumentDate,
-    DocumentLink, ManualDate, ManualDateEvent,
+    DocumentLink, ManualDate, ManualDateEvent, User,
 )
+
+# Aliased because Client is already joined for the client name: two different
+# rows from two different tables both called "display_name" in one select.
+_Decider = aliased(User, name="decider")
 
 ESCALATED_DATE_TYPES = ("cancellation_effective", "non_renewal_effective")
 ESCALATED_DOC_CLASSES = ("cancellation_notice", "non_renewal_notice")
@@ -50,6 +54,15 @@ class AgendaEntry:
     source_text: str | None
     source_page: int | None
     escalated: bool
+    # The display name of whoever confirmed or dismissed this, or None. Three
+    # different things mean None — written before attribution existed, written
+    # by the machine, written by an unauthenticated path — and nothing
+    # rendering it may claim to tell them apart, so it renders as nothing.
+    #
+    # Defaulted, and last, because it is the only optional thing on an entry:
+    # every other field is either the date itself or something the agenda
+    # cannot be read without.
+    decided_by: str | None = None
 
 
 def _latest_link_subquery():
@@ -82,17 +95,24 @@ def _latest_class_subquery():
 
 
 def _latest_event_subquery(model, fk_name: str):
+    """The newest judgment on each parent, and who made it.
+
+    user_id rides along with the action because the two answer one question —
+    what was decided and by whom — and a second subquery to fetch the second
+    half would rank the same rows twice.
+    """
     column = getattr(model, fk_name)
     ranked = select(
         column.label("parent_id"),
         model.action.label("action"),
+        model.user_id.label("user_id"),
         func.row_number()
         .over(partition_by=column, order_by=model.id.desc())
         .label("rn"),
     ).subquery()
-    return select(ranked.c.parent_id, ranked.c.action).where(
-        ranked.c.rn == 1
-    ).subquery()
+    return select(
+        ranked.c.parent_id, ranked.c.action, ranked.c.user_id
+    ).where(ranked.c.rn == 1).subquery()
 
 
 def agenda(
@@ -112,7 +132,7 @@ def agenda(
 
     query = (
         select(DocumentDate, links.c.client_id, Client.display_name,
-               classes.c.doc_class, events.c.action)
+               classes.c.doc_class, events.c.action, _Decider.display_name)
         # An extracted date belongs to the agency that holds its document.
         # agency_id is a boundary, not a label on the response.
         .join(Document, Document.id == DocumentDate.document_id)
@@ -120,6 +140,7 @@ def agenda(
         .outerjoin(Client, Client.id == links.c.client_id)
         .outerjoin(classes, classes.c.document_id == DocumentDate.document_id)
         .outerjoin(events, events.c.parent_id == DocumentDate.id)
+        .outerjoin(_Decider, _Decider.id == events.c.user_id)
         .where(Document.agency_id == agency_id)
     )
     if client_id is not None:
@@ -132,7 +153,9 @@ def agenda(
         query = query.where(DocumentDate.date_value <= end)
 
     entries: list[AgendaEntry] = []
-    for row, linked_client, client_name, doc_class, action in session.execute(query):
+    for (
+        row, linked_client, client_name, doc_class, action, decided_by
+    ) in session.execute(query):
         status = action or "unconfirmed"
         if status not in statuses:
             continue
@@ -153,6 +176,7 @@ def agenda(
                 anchor_source_text=row.anchor_source_text,
                 source_text=row.source_text,
                 source_page=row.source_page,
+                decided_by=decided_by,
                 escalated=(
                     row.date_type in ESCALATED_DATE_TYPES
                     or doc_class in ESCALATED_DOC_CLASSES
@@ -162,9 +186,17 @@ def agenda(
 
     manual_events = _latest_event_subquery(ManualDateEvent, "manual_date_id")
     manual_query = (
-        select(ManualDate, Client.display_name, manual_events.c.action)
+        select(ManualDate, Client.display_name, manual_events.c.action,
+               _Decider.display_name)
         .outerjoin(Client, Client.id == ManualDate.client_id)
         .outerjoin(manual_events, manual_events.c.parent_id == ManualDate.id)
+        # The dismissal names its author; a manual date nobody dismissed falls
+        # back to the account that typed it in.
+        .outerjoin(
+            _Decider,
+            _Decider.id == func.coalesce(manual_events.c.user_id,
+                                         ManualDate.user_id),
+        )
         .where(ManualDate.agency_id == agency_id)
     )
     if client_id is not None:
@@ -176,7 +208,7 @@ def agenda(
     if end is not None:
         manual_query = manual_query.where(ManualDate.date_value <= end)
 
-    for row, client_name, action in session.execute(manual_query):
+    for row, client_name, action, decided_by in session.execute(manual_query):
         # A date she typed in herself is confirmed by the act of typing it.
         status = action or "confirmed"
         if status not in statuses:
@@ -198,6 +230,7 @@ def agenda(
                 anchor_source_text=None,
                 source_text=None,
                 source_page=None,
+                decided_by=decided_by,
                 escalated=row.date_type in ESCALATED_DATE_TYPES,
             )
         )

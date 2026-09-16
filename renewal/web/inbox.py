@@ -21,7 +21,9 @@ from renewal.inbox import (
     anything_in_flight, bucketed, inbox_rows, stalled_after_from, state_of,
 )
 from renewal.ingest import ingest_pdf
-from renewal.models import Client, Document, ExtractedField, Extraction, Policy
+from renewal.models import (
+    Client, Correction, Document, ExtractedField, Extraction, Policy, User,
+)
 from renewal.promote import unresolved_field_paths
 from renewal.resolve.service import assign, candidates_for, latest_link
 from renewal.web.deps import Deps, acting_user_id
@@ -202,6 +204,7 @@ def register(app, deps: Deps) -> None:
                 .first()
             )
             fields, extra, blocked, rate = [], [], [], None
+            corrections = []
             if extraction is not None:
                 values = effective_values(session, extraction.id)
                 fields = (
@@ -221,6 +224,16 @@ def register(app, deps: Deps) -> None:
                 ]
                 blocked = unresolved_field_paths(session, extraction.id)
                 rate = verification_rate(fields)
+                # Newest first, each with whoever made it. A correction with
+                # no user is one made before attribution existed and renders
+                # with no name rather than a guess at one.
+                corrections = (
+                    session.query(Correction, User.display_name)
+                    .outerjoin(User, User.id == Correction.user_id)
+                    .filter(Correction.extraction_id == extraction.id)
+                    .order_by(Correction.id.desc())
+                    .all()
+                )
 
             return TEMPLATES.TemplateResponse(
                 request,
@@ -233,6 +246,7 @@ def register(app, deps: Deps) -> None:
                     "extra_fields": extra,
                     "blocked": blocked,
                     "rate": rate,
+                    "corrections": corrections,
                 },
             )
 

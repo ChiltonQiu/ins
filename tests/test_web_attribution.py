@@ -274,3 +274,41 @@ def test_a_comparison_the_pipeline_built_names_nobody(session, store, settings):
         rules=load_rules(Path("config/materiality.yaml")),
     )
     assert built.user_id is None
+
+
+def test_the_calendar_says_who_confirmed_a_date(signed, db):
+    row = _document_date(db)
+    signed.post(f"/dates/{row.id}/confirm")
+
+    page = signed.get("/calendar").text
+    # authhelp signs in as an account whose display_name is "Test".
+    assert "Test" in page
+
+
+def test_a_decision_with_no_user_renders_nothing_rather_than_a_guess(signed, db):
+    """Three different things mean NULL and the page must not claim to tell
+    them apart: written before this change, written by the machine, or written
+    by an unauthenticated path."""
+    from renewal.dates.service import confirm
+
+    row = _document_date(db)
+    confirm(db, row.id, actor="auto")
+    db.commit()
+
+    page = signed.get("/calendar").text
+    assert "unknown" not in page.lower()
+    assert ">by <" not in page
+
+
+def test_the_detail_view_lists_corrections_with_their_author(signed, db):
+    """The first place in the application the corrections table is visible to
+    the person filling it."""
+    from renewal.models import Extraction
+
+    field = _extracted_field(db)
+    signed.post(f"/fields/{field.id}/correct", data={"corrected_value": "P-2"})
+
+    document_id = db.get(Extraction, field.extraction_id).document_id
+    page = signed.get(f"/documents/{document_id}/review").text
+    assert "P-2" in page
+    assert "Test" in page

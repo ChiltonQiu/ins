@@ -96,6 +96,31 @@
   {% endif %}
 </section>
 
+{% if corrections %}
+<section class="panel corrections">
+  <h2>Corrections</h2>
+  <p class="meta">
+    What a person changed, newest first. This is the record extraction is
+    improved from.
+  </p>
+  <ul class="correctionlist">
+    {% for correction, who in corrections %}
+    <li>
+      <code>{{ correction.field_path }}</code>
+      {% if correction.kind == "omission" %}added as
+        {{ correction.corrected_value }}
+      {% elif correction.corrected_value %}→ {{ correction.corrected_value }}
+      {% else %}rejected — not on the document{% endif %}
+      {# No name when nobody is recorded: a correction made before attribution
+         existed is not the same as one nobody will own up to, and the page
+         must not suggest it knows which. #}
+      {% if who %}<span class="meta by">{{ who }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <section class="promote">
   <h2>File it</h2>
   {% if blocked %}

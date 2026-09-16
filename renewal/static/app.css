@@ -312,6 +312,27 @@ h2 {
   line-height: 1.55;
 }
 
+/* A byline, never a headline: who did a thing is worth recording and worth
+   reading, and worth less than the thing itself. */
+.by {
+  margin-left: 6px;
+}
+
+.correctionlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.correctionlist li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.correctionlist li:last-child {
+  border-bottom: 0;
+}
+
 .cols {
   display: grid;
   gap: 40px;

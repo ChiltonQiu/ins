@@ -89,6 +89,10 @@
   <span class="what">{{ entry.title }}</span>
   {% if entry.escalated %}<span class="flag escalated-flag">escalated</span>{% endif %}
   <span class="flag status-flag">{{ entry.status }}</span>
+  {# Nothing at all when nobody is named: a row written before attribution, by
+     the pipeline, or by an unauthenticated path are three different things and
+     a label here would be a guess at which. #}
+  {% if entry.decided_by %}<span class="meta by">by {{ entry.decided_by }}</span>{% endif %}
   {% if entry.is_derived %}
   <span class="flag derived">
     {% if entry.anchor_date %}
