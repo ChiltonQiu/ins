@@ -6,6 +6,13 @@ forwarded mail gets wrong anyway. Mail that matches nothing is stored with
 status 'quarantined' and produces no documents: dropping it silently would
 make a misconfigured forwarding rule invisible.
 
+A caller that already knows whose mail this is may say so instead. That is the
+poller: it logged into one account and read one folder, so the question was
+settled before the envelope was opened — and forwarded mail keeps the original
+To:, so matching by recipient would quarantine every message the agency filters
+into that folder. The webhook names no agency and keeps the rule above, because
+it is a public door and the envelope is the only evidence it has.
+
 The body becomes a document alongside the attachments. The carrier's
 explanation is frequently in the body while the attachment is a bare form, and
 deadlines are very often stated in prose. Its blob is the raw MIME it shares
@@ -57,9 +64,10 @@ def receive(
     client: ModelClient,
     settings: Settings,
     on_document=None,
+    agency: Agency | None = None,
 ) -> InboundMessage:
     raw_digest = store.put(email.raw_mime, ext="eml")
-    agency = agency_for(session, email.to_address)
+    agency = agency or agency_for(session, email.to_address)
 
     if agency is None:
         message = InboundMessage(

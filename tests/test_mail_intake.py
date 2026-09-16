@@ -156,3 +156,29 @@ def test_attachments_are_handed_off_rather_than_extracted_inline(
     assert session.query(Extraction).filter_by(
         document_id=attachment.id
     ).count() == 0
+
+
+def test_a_named_agency_overrides_the_recipient(session, store):
+    """A polled mailbox is its own routing: we logged into this account, so
+    whose mail it is was settled before the envelope was read. Forwarded mail
+    keeps the sender's original To:, which matches nothing here."""
+    agency = _agency(session)
+    email = _email(to="someone.else@elsewhere.example")
+
+    message = receive(session, store, email, client=StubClient('{"dates": []}'),
+                      settings=_settings(), agency=agency)
+
+    assert message.processing_status == "processed"
+    assert message.agency_id == agency.id
+
+
+def test_without_a_named_agency_the_recipient_still_decides(session, store):
+    """The webhook is unchanged: it is a public door, and the envelope is the
+    only evidence there of who the mail was meant for."""
+    _agency(session)
+    email = _email(to="someone.else@elsewhere.example")
+
+    message = receive(session, store, email, client=StubClient('{"dates": []}'),
+                      settings=_settings())
+
+    assert message.processing_status == "quarantined"
