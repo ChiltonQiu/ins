@@ -60,8 +60,12 @@ class ThreadRunner:
     def submit(self, fn, /, *args, **kwargs) -> None:
         self._pool.submit(fn, *args, **kwargs)
 
-    def shutdown(self) -> None:
-        self._pool.shutdown(wait=False, cancel_futures=True)
+    def shutdown(self, *, wait: bool = False) -> None:
+        """wait=True is for a one-shot command-line run, which would otherwise
+        exit while the documents it just queued are still being read. The
+        application's own shutdown does not wait: a request-serving process
+        going down should not be held open by a model call."""
+        self._pool.shutdown(wait=wait, cancel_futures=not wait)
 
 
 def _set_status(session, document: Document, status: str) -> None:

@@ -45,7 +45,7 @@ class PollResult:
     failed: int = 0
 
 
-def _open(settings: Settings) -> Mailbox:
+def open_mailbox(settings: Settings) -> Mailbox:
     return Mailbox(
         settings.imap_host, settings.imap_user, settings.imap_password,
         folder=settings.imap_folder, port=settings.imap_port,
@@ -72,7 +72,7 @@ def poll_once(
     settings: Settings,
     client=None,
     on_document=None,
-    opener=_open,
+    opener=open_mailbox,
 ) -> PollResult:
     """Read what is new and hand it to intake. Does not commit — the caller
     does, the way every other service here leaves the transaction alone."""

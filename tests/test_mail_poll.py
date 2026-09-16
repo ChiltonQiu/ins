@@ -38,6 +38,7 @@ def test_a_fresh_row_has_seen_nothing(session):
 import dataclasses
 import email.utils
 
+from renewal.mail.clock import MailClock
 from renewal.mail.poll import poll_once
 from renewal.models import Agency, Document, InboundMessage
 from tests.test_dates_llm import StubClient, _settings
@@ -204,3 +205,85 @@ def test_the_mailbox_decides_the_agency_not_the_envelope(session, store):
     message = session.query(InboundMessage).one()
     assert message.processing_status == "processed"
     assert message.agency_id == session.query(Agency).one().id
+
+
+# ---- the clock ----------------------------------------------------------
+
+class _Stop(Exception):
+    pass
+
+
+class _StoppingClock(MailClock):
+    """A clock whose loop ends when the injected sleep says so.
+
+    run() is an infinite loop in production and should stay one. Swallowing
+    the stop here keeps a test's needs out of the thing being tested, and keeps
+    the daemon test from dying of an unhandled exception — which pytest reports
+    as a warning that looks exactly like the failure being ruled out.
+    """
+
+    def run(self) -> None:
+        try:
+            super().run()
+        except _Stop:
+            pass
+
+
+def _clock(engine, store, box, cls=MailClock, **kwargs):
+    from sqlalchemy.orm import sessionmaker
+
+    return cls(sessionmaker(bind=engine), store, _imap_settings(),
+               client=StubClient('{"dates": []}'),
+               opener=lambda settings: box, **kwargs)
+
+
+def test_a_tick_commits(engine, clean_db, store):
+    """A message whose rows are rolled back is a message the next poll
+    ingests all over again."""
+    from sqlalchemy.orm import sessionmaker
+
+    box = FakeBox({4: _raw("Cancellation", "<commit@c.example>")})
+    _clock(engine, store, box).tick()
+
+    with sessionmaker(bind=engine)() as check:
+        assert check.query(InboundMessage).count() == 1
+
+
+def test_the_loop_keeps_going_after_a_tick_raises(engine, clean_db, store):
+    ticks = []
+
+    def boom():
+        ticks.append(1)
+        raise RuntimeError("the mailbox went away")
+
+    def sleeper(seconds):
+        if len(ticks) >= 3:
+            raise _Stop
+
+    # The plain clock, not the stopping one: this test wants _Stop to come
+    # out of run() as the way the loop ends.
+    clock = _clock(engine, store, FakeBox({}), tick_seconds=0, sleep=sleeper)
+    clock.tick = boom
+
+    with pytest.raises(_Stop):
+        clock.run()
+    assert len(ticks) == 3
+
+
+def test_the_thread_is_a_daemon(engine, clean_db, store):
+    import threading
+
+    started = threading.Event()
+
+    def sleeper(seconds):
+        started.set()
+        raise _Stop
+
+    clock = _clock(engine, store, FakeBox({}), cls=_StoppingClock,
+                   tick_seconds=0, sleep=sleeper)
+    thread = clock.start()
+
+    assert thread.daemon
+    assert started.wait(timeout=5)
+    thread.join(timeout=5)
+    assert not thread.is_alive()
