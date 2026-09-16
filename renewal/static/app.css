@@ -1094,14 +1094,15 @@ p.total-delta.up {
    the second panel rather than floating, so the reading order stays
    prior -> renewal -> decision. */
 
-/* The unmatched queue. One card per document: enough of the page to recognise
-   it, then the candidates as buttons, so filing is one click. */
+/* The unmatched queue. One block per document: enough of the page to
+   recognise it, then the candidates as buttons, so filing is one click. Ruled
+   off from the next one rather than boxed — the same shape every other list in
+   the application uses. */
 .unmatched {
-  border: 1px solid var(--rule);
-  border-radius: var(--r-panel);
-  background: var(--surface);
-  padding: 18px 20px;
-  margin-bottom: 16px;
+  border-top: 1px solid var(--rule-strong);
+  background: transparent;
+  padding: 14px 0 20px;
+  margin-bottom: 0;
 }
 
 .unmatched .pagehead {
@@ -1338,14 +1339,17 @@ p.total-delta.up {
 /* The client overview reuses the calendar's unconfirmed and escalated classes
    rather than inventing parallel ones, so the two screens cannot drift apart
    in what they mean. These are the two markers it adds. */
+/* Outlined rather than filled. A solid red block is what the calendar spends
+   on an escalation; these are warnings about a row, and reading as loud as an
+   escalation would flatten the difference between them. */
 .flag.mismatch,
 .flag.overdue {
   font-size: 11px;
   padding: 1px 5px;
   border-radius: 0;
-  border: 1px solid var(--danger-line);
-  background: var(--danger-wash);
-  color: var(--ink);
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
   font-weight: 600;
 }
 
