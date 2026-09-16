@@ -72,6 +72,16 @@ class Settings:
     # middle of the night rather than not at all.
     agency_tz: str = "UTC"
     digest_tick_seconds: int = 300
+    # Pulling mail out of a real mailbox. An empty host turns polling off,
+    # which is the default, exactly as an empty SMTP_HOST turns notifications
+    # off. Credentials are deployment configuration: they never reach the
+    # database and never reach a page.
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_user: str = ""
+    imap_password: str = ""
+    imap_folder: str = "INBOX"
+    imap_poll_seconds: int = 300
 
 
 def load_settings() -> Settings:
@@ -134,6 +144,12 @@ def load_settings() -> Settings:
         digest_quiet_days=int(os.environ.get("DIGEST_QUIET_DAYS", "7")),
         agency_tz=os.environ.get("AGENCY_TZ", "UTC"),
         digest_tick_seconds=int(os.environ.get("DIGEST_TICK_SECONDS", "300")),
+        imap_host=os.environ.get("IMAP_HOST", ""),
+        imap_port=int(os.environ.get("IMAP_PORT", "993")),
+        imap_user=os.environ.get("IMAP_USER", ""),
+        imap_password=os.environ.get("IMAP_PASSWORD", ""),
+        imap_folder=os.environ.get("IMAP_FOLDER", "INBOX"),
+        imap_poll_seconds=int(os.environ.get("IMAP_POLL_SECONDS", "300")),
         stalled_after_minutes=int(os.environ.get("STALLED_AFTER_MINUTES", "10")),
         inbox_poll_seconds=int(os.environ.get("INBOX_POLL_SECONDS", "4")),
         inbox_limit=int(os.environ.get("INBOX_LIMIT", "200")),
