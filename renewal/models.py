@@ -719,6 +719,37 @@ Index(
 )
 
 
+
+class MailPollState(Base):
+    """How far the poller has read, per mailbox folder.
+
+    An optimisation and nothing more. Correctness lives on
+    InboundMessage.message_id, unique per agency: losing this row means the
+    next poll re-reads the folder and dedupes, which is slow and right rather
+    than fast and wrong.
+    """
+
+    __tablename__ = "mail_poll_state"
+    __table_args__ = (
+        UniqueConstraint("host", "folder", name="uq_mail_poll_state_folder"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    host: Mapped[str] = mapped_column(Text)
+    folder: Mapped[str] = mapped_column(Text)
+    # NULL until the first successful poll. A UIDVALIDITY that no longer
+    # matches means the folder was rebuilt, and every UID remembered here is a
+    # number about a folder that no longer exists.
+    uid_validity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_uid: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_polled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # What the last attempt did, so a page can say so. An intake that has been
+    # broken since Thursday must not be invisible.
+    last_seen: Mapped[int] = mapped_column(Integer, server_default="0")
+    last_ingested: Mapped[int] = mapped_column(Integer, server_default="0")
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
 class AttentionItem(Base):
     """Not a task manager: a list of documents that appear to need a human
     response, with a suggested reason. Never auto-resolves, never auto-acts."""
