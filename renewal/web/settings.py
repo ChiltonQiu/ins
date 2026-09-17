@@ -23,8 +23,8 @@ from renewal.carriers import (
     unresolved_carrier_names,
 )
 from renewal.models import (
-    Agency, Carrier, CarrierAdmittedStatus, CarrierAlias, NotificationSend,
-    Policy, PolicyBillingType,
+    Agency, Carrier, CarrierAdmittedStatus, CarrierAlias, MailPollState,
+    NotificationSend, Policy, PolicyBillingType,
 )
 from renewal.settings_store import DEFINITIONS, Invalid, effective
 from renewal.settings_store import write as write_setting
@@ -114,6 +114,13 @@ def register(app, deps: Deps) -> None:
                     "definitions": DEFINITIONS,
                     "values": _current(session),
                     "mail_configured": bool(base_settings.smtp_host),
+                    "imap_configured": bool(base_settings.imap_host),
+                    "imap_folder": base_settings.imap_folder,
+                    "mail_poll": session.scalar(
+                        select(MailPollState)
+                        .order_by(MailPollState.last_polled_at.desc().nullslast())
+                        .limit(1)
+                    ),
                     "last_notification": session.scalar(
                         select(NotificationSend)
                         .order_by(NotificationSend.id.desc())

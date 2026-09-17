@@ -69,6 +69,49 @@
 </section>
 
 <section class="panel settings">
+  <h2>Mail intake</h2>
+  {% if imap_configured %}
+  <p>
+    Reading <code>{{ imap_folder }}</code>, and only reading: the folder is
+    opened read-only, so nothing here can mark, move or delete a message.
+    Everything in that folder is ingested.
+  </p>
+  {% else %}
+  <p>
+    Not turned on. Mail is pulled from a mailbox rather than pushed to this
+    application, and the credentials live in the environment
+    (<code>IMAP_HOST</code>, <code>IMAP_USER</code>, <code>IMAP_PASSWORD</code>,
+    <code>IMAP_FOLDER</code>) rather than here, because a password does not
+    belong on a settings page.
+  </p>
+  {% endif %}
+
+  {# Reported whether or not polling is currently configured. A failure that
+     stopped being visible the moment somebody cleared IMAP_HOST would be a
+     failure nobody ever fixes. #}
+  {% if mail_poll and mail_poll.last_error %}
+  <div class="notice bad">
+    <p>The last attempt failed: {{ mail_poll.last_error }}</p>
+    <p class="meta">
+      Nothing has been read since it started failing, so documents arriving by
+      email will not appear in the inbox until it is fixed.
+    </p>
+  </div>
+  {% endif %}
+
+  {% if mail_poll and mail_poll.last_polled_at %}
+  <p class="meta">
+    Last checked {{ mail_poll.last_polled_at.strftime("%Y-%m-%d %H:%M") }} in
+    <code>{{ mail_poll.folder }}</code> — saw {{ mail_poll.last_seen }}
+    message{{ "" if mail_poll.last_seen == 1 else "s" }}, took in
+    {{ mail_poll.last_ingested }}.
+  </p>
+  {% elif imap_configured %}
+  <p class="meta">It has not run yet.</p>
+  {% endif %}
+</section>
+
+<section class="panel settings">
   <h2>Calendar subscription</h2>
   <p>
     Subscribe to this address in Outlook, Apple Calendar, or Google Calendar.

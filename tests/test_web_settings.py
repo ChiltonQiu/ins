@@ -286,3 +286,29 @@ def test_the_refusal_reaches_the_page(client_app):
               "session_ttl_hours": "12"},
     )
     assert "not an email address" in response.text
+
+
+def test_the_settings_page_reports_the_last_mail_poll(client_app, db):
+    """Polling is invisible when it works, which is right. When it is not
+    working it must not be invisible."""
+    from datetime import datetime, timezone
+
+    from renewal.models import MailPollState
+
+    db.add(MailPollState(
+        host="imap.example.com", folder="Carriers", last_seen=3,
+        last_ingested=2, last_polled_at=datetime.now(timezone.utc),
+        last_error="OSError: connection refused",
+    ))
+    db.commit()
+
+    page = client_app.get("/settings").text
+    assert "Carriers" in page
+    assert "connection refused" in page
+
+
+def test_the_settings_page_says_when_polling_is_off(client_app):
+    """No IMAP_HOST in this fixture's Settings, so the page should say so
+    rather than leaving a blank where an intake ought to be."""
+    page = client_app.get("/settings").text
+    assert "IMAP_HOST" in page

@@ -119,6 +119,70 @@ those are three different situations and the page does not know which it is
 looking at. Configuration — preferences, carrier aliases, the `.ics` token —
 is still not attributed.
 
+## Pulling mail from a mailbox
+
+Email is the way documents actually arrive, so the application reads a mailbox
+directly rather than waiting to be handed anything.
+
+Point it at an account and a folder, and every few minutes it reads what is
+new: the attachments become documents, and so does the message body — the
+carrier's explanation is frequently in the body while the attachment is a bare
+form, and deadlines are very often stated in prose. Everything then goes
+through the same pipeline a manual upload does.
+
+```
+IMAP_HOST=imap.gmail.com
+IMAP_USER=you@youragency.com
+IMAP_PASSWORD=an-app-password
+IMAP_FOLDER=Carriers
+```
+
+Four things worth knowing before you point it at a real mailbox:
+
+**It only ever reads.** The folder is opened with `EXAMINE` rather than
+`SELECT`, so the server itself refuses any write. Nothing is marked read,
+moved, flagged or deleted, and a message you have already been sent stays
+exactly as your mail client left it. That is structural rather than a promise:
+there is no code path that could damage the mailbox even with a bug in it.
+
+**Everything in the folder is ingested**, so point `IMAP_FOLDER` at a folder or
+label you filter carrier mail into rather than at `INBOX`. Deciding which
+senders count is your mail client's job and it is already good at it; a second,
+worse rules engine in here would only disagree with it.
+
+**`IMAP_PASSWORD` must be an app password.** Gmail and Outlook both refuse an
+account password over IMAP once two-factor is on. Gmail issues one at
+`myaccount.google.com/apppasswords`. There is no OAuth: it would mean a
+registered application, a consent screen and a refresh-token store, which buys
+nothing for a single agency that can issue itself an app password in a minute.
+
+**Nothing is read twice.** Dedupe is by `Message-ID`, recorded in the database
+rather than in the mailbox — which is what lets the mailbox stay untouched. A
+UID high-water mark per folder keeps each poll cheap, and it is only an
+optimisation: losing it costs a re-read, never a duplicate. If the folder is
+rebuilt or renamed, `UIDVALIDITY` changes, the mark is discarded and the folder
+is read in full.
+
+One message that cannot be read never stops a poll. It is logged, counted, and
+the poll moves past it — each message runs in its own savepoint, because a
+failed statement leaves the transaction aborted and would otherwise take every
+message behind it in the same run.
+
+When the mailbox stops answering, `/settings` says so: the last attempt, what
+it found, and the error if it failed. An intake that has been broken since
+Thursday is exactly what the daily summary's "nothing has arrived in N days"
+line exists to catch.
+
+The webhook at `/inbound/mail` is unchanged and still there for an agency that
+later buys a domain and wants a hosted provider to push instead. Both routes
+end in the same intake, so nothing about processing differs between them.
+
+To run the poll from cron instead of in-process, set `IMAP_POLL_SECONDS=0` and:
+
+```bash
+*/5 * * * * cd /srv/renewal && .venv/bin/python -m scripts.poll_mail
+```
+
 ## The daily summary
 
 Everything else here happens because a document arrived. This is the one thing
