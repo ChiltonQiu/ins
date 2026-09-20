@@ -70,7 +70,7 @@ the two kinds live in one table without interfering — the same property
 - Produces: `NotificationSend.digest_date: Mapped[date | None]`, and the index
   `uq_notification_send_digest_date`, unique where `digest_date IS NOT NULL`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_digest_day.py`:
 
@@ -112,12 +112,12 @@ def test_the_event_email_is_unconstrained(session):
     assert session.query(NotificationSend).count() == 3
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_digest_day.py -q`
 Expected: FAIL — `TypeError: 'digest_date' is an invalid keyword argument`.
 
-- [ ] **Step 3: Add the column and the index**
+- [x] **Step 3: Add the column and the index**
 
 In `renewal/models.py`, replace the `NotificationSend` class body:
 
@@ -160,7 +160,7 @@ Index(
 
 `Date` and `Index` are already imported at `renewal/models.py:16-29`.
 
-- [ ] **Step 4: Write the migration**
+- [x] **Step 4: Write the migration**
 
 ```bash
 .venv/bin/alembic revision -m "digest date"
@@ -189,12 +189,12 @@ def downgrade() -> None:
     op.drop_column("notification_send", "digest_date")
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_digest_day.py tests/test_notify.py -q`
 Expected: PASS (3 new, 7 existing).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions tests/test_digest_day.py
@@ -225,7 +225,7 @@ four in the morning on the east coast.
   `Settings.digest_tick_seconds: int = 300`. The first four are read by Tasks 3–5;
   the last only by `renewal/app.py` in Task 5.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_config.py`:
 
@@ -277,13 +277,13 @@ def test_the_timezone_is_not_a_preference():
 `pytest` is already imported in `tests/test_settings_store.py`; confirm with
 `head -12 tests/test_settings_store.py` and add `import pytest` if it is not.
 
-- [ ] **Step 2: Run them to make sure they fail**
+- [x] **Step 2: Run them to make sure they fail**
 
 Run: `.venv/bin/pytest tests/test_config.py tests/test_settings_store.py -q`
 Expected: FAIL — `AttributeError: 'Settings' object has no attribute 'agency_tz'`,
 and `Invalid: no such setting: digest_hour`.
 
-- [ ] **Step 3: Add the fields**
+- [x] **Step 3: Add the fields**
 
 In `renewal/config.py`, after `notify_min_interval_minutes` (line 52):
 
@@ -317,7 +317,7 @@ In `load_settings()`, after the `unconfirmed_date_window_days` entry:
         digest_tick_seconds=int(os.environ.get("DIGEST_TICK_SECONDS", "300")),
 ```
 
-- [ ] **Step 4: Add the three definitions**
+- [x] **Step 4: Add the three definitions**
 
 In `renewal/settings_store.py`, inside `DEFINITIONS`, after the
 `notify_min_interval_minutes` entry:
@@ -366,7 +366,7 @@ The settings page is data-driven from `DEFINITIONS`
 (`renewal/templates/settings.html:32`), so these three appear on `/settings`
 with no template change.
 
-- [ ] **Step 5: Document the two environment variables**
+- [x] **Step 5: Document the two environment variables**
 
 In `.env.example`, after the notification block:
 
@@ -380,12 +380,12 @@ AGENCY_TZ=UTC
 DIGEST_TICK_SECONDS=300
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_config.py tests/test_settings_store.py tests/test_web_settings.py -q`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/config.py renewal/settings_store.py .env.example tests/test_config.py tests/test_settings_store.py
@@ -420,7 +420,7 @@ is worse than no email, because she stops believing both.
   - `subject_for(digest) -> str`
   - `render(digest, *, settings) -> tuple[str, str]` returning `(subject, body)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_digest_content.py`:
 
@@ -540,12 +540,12 @@ def test_a_zero_is_left_out_rather_than_written():
     assert subject_for(digest) == "2 documents need you"
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_digest_content.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.digest'`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 ```bash
 mkdir -p renewal/digest && touch renewal/digest/__init__.py
@@ -684,7 +684,7 @@ def render(digest: Digest, *, settings: Settings) -> tuple[str, str]:
     return subject_for(digest), body
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_digest_content.py -q`
 Expected: PASS (8 tests).
@@ -693,7 +693,7 @@ If `_dated`'s `DocumentDate(...)` keyword list does not match the model, read
 `renewal/models.py` around `class DocumentDate` and fix the fixture — `pass` is
 a reserved word there and must go through `**{"pass": "regex"}`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/digest tests/test_digest_content.py
@@ -726,7 +726,7 @@ the acceptable failure.
   send=None) -> bool`. Does not commit — the caller does, exactly as
   `maybe_notify` leaves the commit to `background.py:114`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_digest_send.py`:
 
@@ -895,12 +895,12 @@ def test_a_broken_timezone_still_sends(session, store):
     assert result
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_digest_send.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.digest.send'`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `renewal/digest/send.py`:
 
@@ -1005,12 +1005,12 @@ def send_due_digest(
     return True
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_digest_send.py -q`
 Expected: PASS (13 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/digest/send.py tests/test_digest_send.py
@@ -1046,7 +1046,7 @@ pure function of its arguments.
   sleep=time.sleep, send=None)` with `tick() -> bool`, `run() -> None`,
   `start() -> threading.Thread`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_digest_clock.py`:
 
@@ -1175,12 +1175,12 @@ def test_the_thread_is_a_daemon(engine, clean_db):
     assert not thread.is_alive()
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_digest_clock.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.digest.clock'`.
 
-- [ ] **Step 3: Write the clock**
+- [x] **Step 3: Write the clock**
 
 Create `renewal/digest/clock.py`:
 
@@ -1257,12 +1257,12 @@ class DigestClock:
         return thread
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_digest_clock.py -q`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Start it in the production wiring**
+- [x] **Step 5: Start it in the production wiring**
 
 Replace `renewal/app.py` entirely:
 
@@ -1301,7 +1301,7 @@ if _settings.digest_tick_seconds > 0:
     ).start()
 ```
 
-- [ ] **Step 6: Add the command-line tick**
+- [x] **Step 6: Add the command-line tick**
 
 Create `scripts/digest.py`:
 
@@ -1339,12 +1339,12 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-- [ ] **Step 7: Verify the application still imports and the suite is green**
+- [x] **Step 7: Verify the application still imports and the suite is green**
 
 Run: `.venv/bin/python -c "import renewal.app"` — expected: no output, exit 0.
 Run: `.venv/bin/pytest -q` — expected: PASS, 812 + the new tests.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/digest/clock.py renewal/app.py scripts/digest.py tests/test_digest_clock.py
@@ -1373,7 +1373,7 @@ NULL `digest_date`. Only the body changes.
 - Consumes: `lines` and `collect` from Task 3.
 - Produces: nothing new. `maybe_notify`'s signature is unchanged.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_notify.py`:
 
@@ -1414,13 +1414,13 @@ def _waiting_document(session, store, name="waiting.pdf"):
     return document
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_notify.py -q`
 Expected: FAIL — `assert "date" in sent[0]`, because the body is still the two
 lines `maybe_notify` writes itself.
 
-- [ ] **Step 3: Share the body**
+- [x] **Step 3: Share the body**
 
 In `renewal/notify.py`, replace the module docstring's last paragraph and the
 body-building block of `maybe_notify`.
@@ -1464,13 +1464,13 @@ notices it — this is the event-triggered half. The clock that speaks in a week
 when nothing arrives is renewal/digest/clock.py, and both send the same body.
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_notify.py tests/test_digest_content.py tests/test_background.py -q`
 Expected: PASS. If `test_the_email_carries_no_client_or_policy_detail` fails on
 `sent[0].count("http") == 1`, the body has gained a second URL — it must not.
 
-- [ ] **Step 5: Document it**
+- [x] **Step 5: Document it**
 
 In `README.md`, add a section after "Accounts":
 
@@ -1515,12 +1515,12 @@ The once-a-day record lives in the database, so a cron entry and a running
 application cannot between them send two.
 ```
 
-- [ ] **Step 6: Run the whole suite**
+- [x] **Step 6: Run the whole suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: PASS. 812 baseline + roughly 30 new.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/notify.py tests/test_notify.py README.md
@@ -1533,10 +1533,10 @@ git commit -m "feat(digest): one body for both emails"
 
 After Task 6, before calling this done:
 
-- [ ] `.venv/bin/pytest -q` — green, and the count is the baseline plus the new tests.
-- [ ] `.venv/bin/alembic upgrade head` against the dev database, then
+- [x] `.venv/bin/pytest -q` — green, and the count is the baseline plus the new tests.
+- [x] `.venv/bin/alembic upgrade head` against the dev database, then
       `.venv/bin/alembic downgrade -1` and `upgrade head` again — the migration
       is reversible.
-- [ ] `/settings` renders the three new preferences and saving them sticks.
-- [ ] With `SMTP_HOST` unset, a tick does nothing and logs nothing alarming:
+- [x] `/settings` renders the three new preferences and saving them sticks.
+- [x] With `SMTP_HOST` unset, a tick does nothing and logs nothing alarming:
       `.venv/bin/python -m scripts.digest` prints `nothing due`.

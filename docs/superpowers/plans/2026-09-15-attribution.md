@@ -72,7 +72,7 @@ every later task depends on it.
 - Produces: `request.state.user_id: int` on every authenticated request, and
   `renewal.web.deps.acting_user_id(request) -> int | None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_web_attribution.py`:
 
@@ -172,12 +172,12 @@ def test_an_unauthenticated_path_has_no_user(app):
     assert acting_user_id(_Bare()) is None
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py -q`
 Expected: FAIL — `ImportError: cannot import name 'acting_user_id'`.
 
-- [ ] **Step 3: Carry the id through the gate**
+- [x] **Step 3: Carry the id through the gate**
 
 In `renewal/web/security.py`, change the identity tuple to carry three fields.
 Replace the comment and the declaration:
@@ -210,7 +210,7 @@ and the assignment at the end:
         ) = identity
 ```
 
-- [ ] **Step 4: Add the accessor**
+- [x] **Step 4: Add the accessor**
 
 In `renewal/web/deps.py`, below the `Deps` dataclass:
 
@@ -226,12 +226,12 @@ def acting_user_id(request) -> int | None:
     return getattr(request.state, "user_id", None)
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py tests/test_web_auth.py -q`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/web/security.py renewal/web/deps.py tests/test_web_attribution.py
@@ -256,7 +256,7 @@ row and refuses to lose one.
   `ManualDate`, `ManualDateEvent`, `AttentionEvent`, `DocumentLink`,
   `Comparison`, `Reclassification`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_attribution.py`:
 
@@ -345,12 +345,12 @@ def test_a_user_who_decided_something_cannot_be_deleted(session, user, item):
         session.flush()
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_attribution.py -q`
 Expected: FAIL — `assert "user_id" in columns` for `correction`.
 
-- [ ] **Step 3: Add the columns to the models**
+- [x] **Step 3: Add the columns to the models**
 
 In `renewal/models.py`, add this helper below `_created_at()`:
 
@@ -377,7 +377,7 @@ of its column list), `Reclassification` (after `note`).
 
 `ForeignKey` is already imported at `renewal/models.py:16-29`.
 
-- [ ] **Step 4: Write the migration**
+- [x] **Step 4: Write the migration**
 
 ```bash
 .venv/bin/alembic revision -m "attribution"
@@ -412,12 +412,12 @@ def downgrade() -> None:
         op.drop_column(table, "user_id")
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_attribution.py -q`
 Expected: PASS (4 tests).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions tests/test_attribution.py
@@ -441,7 +441,7 @@ typo is not training data.
 - Consumes: `acting_user_id` from Task 1, `Correction.user_id` from Task 2.
 - Produces: `record_correction(session, *, ..., user_id: int | None = None)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_web_attribution.py`:
 
@@ -478,12 +478,12 @@ def test_a_correction_records_who_made_it(signed, db):
     assert correction.user_id == _me(db).id
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py -q`
 Expected: FAIL — `assert None == 1`.
 
-- [ ] **Step 3: Thread it through the service**
+- [x] **Step 3: Thread it through the service**
 
 In `renewal/corrections.py`, add the parameter to `record_correction`'s
 signature after `note`:
@@ -500,7 +500,7 @@ and the field to the constructed row after `note=note`:
         user_id=user_id,
 ```
 
-- [ ] **Step 4: Pass it from the three routes**
+- [x] **Step 4: Pass it from the three routes**
 
 In `renewal/web/corrections.py`, import what is needed:
 
@@ -545,13 +545,13 @@ For `reject_field`, the same `request: Request` first parameter and the same
 the third route on `/extractions/{extraction_id}/fields`, read the file and add
 the same parameter and keyword to every `record_correction` call inside it.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py tests/test_corrections.py tests/test_web_corrections.py -q`
 Expected: PASS. (If `tests/test_web_corrections.py` does not exist, run the
 first two.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/corrections.py renewal/web/corrections.py tests/test_web_attribution.py
@@ -574,7 +574,7 @@ that it is not. Both are decisions somebody should be able to be asked about.
 - Produces: `confirm(session, id, *, actor="human", user_id=None)`,
   `dismiss(session, id, *, actor="human", user_id=None)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_web_attribution.py`:
 
@@ -623,12 +623,12 @@ def test_adding_a_date_by_hand_records_who_added_it(signed, db):
     assert added.user_id == _me(db).id
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py -q`
 Expected: FAIL — `assert None == 1`.
 
-- [ ] **Step 3: Thread it through the service**
+- [x] **Step 3: Thread it through the service**
 
 In `renewal/dates/service.py`:
 
@@ -651,7 +651,7 @@ def dismiss(session: Session, document_date_id: int, *, actor: str = "human",
     return event
 ```
 
-- [ ] **Step 4: Pass it from the four routes**
+- [x] **Step 4: Pass it from the four routes**
 
 In `renewal/web/calendar.py`, add `acting_user_id` to the deps import:
 
@@ -684,12 +684,12 @@ In `add_manual_date`, add `user_id=acting_user_id(request)` to the `ManualDate(.
 constructor beside `created_by="human"`. In `dismiss_manual_date`, add it to
 the `ManualDateEvent(...)` constructor beside `actor="human"`.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py tests/test_dates_service.py tests/test_web_calendar.py -q`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/dates/service.py renewal/web/calendar.py tests/test_web_attribution.py
@@ -716,7 +716,7 @@ able to ask about.
 - Produces: `resolve(session, item_id, *, action, actor="human", user_id=None)`,
   `assign(session, document_id, *, client_id, policy_id, candidates, user_id=None)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_web_attribution.py`:
 
@@ -761,12 +761,12 @@ def test_filing_a_document_by_hand_records_who_filed_it(signed, db):
     assert link.user_id == _me(db).id
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py -q`
 Expected: FAIL — `assert None == 1`.
 
-- [ ] **Step 3: Thread it through the two services**
+- [x] **Step 3: Thread it through the two services**
 
 In `renewal/attention/rules.py`:
 
@@ -803,7 +803,7 @@ def assign(
 The auto-link path at `renewal/resolve/service.py:73` is left alone: it writes
 `method='auto'` and there is no person to name.
 
-- [ ] **Step 4: Pass it from the routes**
+- [x] **Step 4: Pass it from the routes**
 
 In `renewal/web/attention.py`, import `acting_user_id` alongside `Deps` and add
 `request: Request` to `mark_done` and `mark_dismissed`, passing
@@ -814,12 +814,12 @@ to any route that is missing it and pass `user_id=acting_user_id(request)` into
 every `assign(...)` call. Read each file first: `renewal/web/inbox.py`'s
 `set_policy` and `renewal/web/unmatched.py`'s two routes are the call sites.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py tests/test_web_attention.py tests/test_web_inbox.py -q`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/attention/rules.py renewal/resolve/service.py renewal/web/attention.py renewal/web/unmatched.py renewal/web/inbox.py tests/test_web_attribution.py
@@ -842,7 +842,7 @@ a comparison, and who reclassified a row.
 - Produces: `build_matrix(..., user_id=None)`, `build_comparison(..., user_id=None)`,
   `reclassify(session, difference, to_materiality, note=None, user_id=None)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_web_attribution.py`:
 
@@ -880,12 +880,12 @@ If `PolicyTerm` requires more columns than `policy_id` and `kind`, read
 /comparisons` takes different form field names, read
 `renewal/web/comparison.py` and use its names.
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py -q`
 Expected: FAIL — `assert None == 1`.
 
-- [ ] **Step 3: Thread it through the three functions**
+- [x] **Step 3: Thread it through the three functions**
 
 In `renewal/comparison.py`, add `user_id: int | None = None` to the keyword
 arguments of `build_matrix` and `build_comparison`, set `user_id=user_id` on
@@ -913,19 +913,19 @@ def reclassify(
 The pipeline's automatic call in `renewal/pipeline.py` passes no `user_id` and
 must not: nobody built that comparison.
 
-- [ ] **Step 4: Pass it from the routes**
+- [x] **Step 4: Pass it from the routes**
 
 In `renewal/web/comparison.py`, import `acting_user_id`, add `request: Request`
 to any of the three routes missing it, and pass
 `user_id=acting_user_id(request)` into every `build_matrix`, `build_comparison`
 and `reclassify` call.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py tests/test_web_comparison.py tests/test_comparison.py tests/test_auto_renewal.py -q`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/comparison.py renewal/web/comparison.py tests/test_web_attribution.py
@@ -952,7 +952,7 @@ is visible to the person filling it.
 - Consumes: every column from Tasks 2 to 6.
 - Produces: `AgendaEntry.decided_by: str | None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_web_attribution.py`:
 
@@ -993,12 +993,12 @@ Check the detail route's real URL in `renewal/web/inbox.py` before running —
 the plan's other tasks use `/documents/{id}/review`; use whatever that file
 registers.
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_web_attribution.py -q`
 Expected: FAIL — the page does not contain "Test".
 
-- [ ] **Step 3: Carry the name onto the agenda entry**
+- [x] **Step 3: Carry the name onto the agenda entry**
 
 In `renewal/calendarview/agenda.py`, add `decided_by: str | None` to
 `AgendaEntry`, join `app_user` through the latest-event subquery's `user_id`,
@@ -1009,7 +1009,7 @@ event row; extend its selected columns to include `user_id`, outerjoin
 constructed in that module — including the manual-date branch, which joins
 `ManualDateEvent` the same way.
 
-- [ ] **Step 4: Show it on the calendar row**
+- [x] **Step 4: Show it on the calendar row**
 
 In `renewal/templates/calendar.html`, beside the existing status flag at line
 91:
@@ -1023,7 +1023,7 @@ In `renewal/templates/calendar.html`, beside the existing status flag at line
 
 The `{% if %}` is the rule from the spec: a NULL renders as nothing at all.
 
-- [ ] **Step 5: List corrections on the detail view**
+- [x] **Step 5: List corrections on the detail view**
 
 In `renewal/web/inbox.py`'s detail route, after `rate = verification_rate(fields)`:
 
@@ -1060,7 +1060,7 @@ In `renewal/templates/inbox_detail.html`, add a section:
 {% endif %}
 ```
 
-- [ ] **Step 6: Say so in the README**
+- [x] **Step 6: Say so in the README**
 
 Replace `README.md:110-111`:
 
@@ -1073,12 +1073,12 @@ rows written by the pipeline rather than a person, name nobody and are shown
 blank rather than guessed at.
 ```
 
-- [ ] **Step 7: Run the whole suite**
+- [x] **Step 7: Run the whole suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: PASS, 850 baseline plus the new tests.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/calendarview/agenda.py renewal/templates renewal/web/inbox.py README.md tests/test_web_attribution.py
@@ -1089,7 +1089,7 @@ git commit -m "feat(attribution): it shows"
 
 ## Verification
 
-- [ ] `.venv/bin/pytest -q` — green.
-- [ ] `.venv/bin/alembic upgrade head`, then `downgrade -1`, then `upgrade head` — reversible.
-- [ ] Sign in, confirm a date on `/calendar`, and see your own name on the row.
-- [ ] `SELECT count(*) FROM correction WHERE user_id IS NULL` on the dev database returns the pre-change count, unchanged — nothing was backfilled.
+- [x] `.venv/bin/pytest -q` — green.
+- [x] `.venv/bin/alembic upgrade head`, then `downgrade -1`, then `upgrade head` — reversible.
+- [x] Sign in, confirm a date on `/calendar`, and see your own name on the row.
+- [x] `SELECT count(*) FROM correction WHERE user_id IS NULL` on the dev database returns the pre-change count, unchanged — nothing was backfilled.

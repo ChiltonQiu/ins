@@ -66,7 +66,7 @@ a preference nor hers.
   `last_uid: int | None`, `last_polled_at`, `last_error: str | None`,
   `last_seen: int`, `last_ingested: int`, and a unique `(host, folder)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_mail_poll.py`:
 
@@ -108,12 +108,12 @@ def test_a_fresh_row_has_seen_nothing(session):
     assert row.last_error is None
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_mail_poll.py -q`
 Expected: FAIL — `ImportError: cannot import name 'MailPollState'`.
 
-- [ ] **Step 3: Add the model**
+- [x] **Step 3: Add the model**
 
 In `renewal/models.py`, after `InboundMessage`:
 
@@ -149,7 +149,7 @@ class MailPollState(Base):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 ```
 
-- [ ] **Step 4: Write the migration**
+- [x] **Step 4: Write the migration**
 
 ```bash
 .venv/bin/alembic revision -m "mail poll state"
@@ -180,12 +180,12 @@ def downgrade() -> None:
 
 Add `mail_poll_state` to the `TABLES` string in `conftest.py`.
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_mail_poll.py -q`
 Expected: PASS (3 tests).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions conftest.py tests/test_mail_poll.py
@@ -208,7 +208,7 @@ recipient matching would quarantine every message.
 **Interfaces:**
 - Produces: `receive(session, store, email, *, client, settings, on_document=None, agency=None)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_mail_intake.py`:
 
@@ -245,12 +245,12 @@ helpers for building an `InboundEmail` and a `Settings`; the names above
 them. If it has no recipient-overriding helper, pass `to_address` through the
 one it has.
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_mail_intake.py -q`
 Expected: FAIL — `TypeError: receive() got an unexpected keyword argument 'agency'`.
 
-- [ ] **Step 3: Add the parameter**
+- [x] **Step 3: Add the parameter**
 
 In `renewal/mail/intake.py`, extend the signature:
 
@@ -282,12 +282,12 @@ and replace the routing line:
 Update the module docstring's first paragraph to say routing is by recipient
 *unless the caller names an agency*, and why.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_mail_intake.py tests/test_web_mail.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/mail/intake.py tests/test_mail_intake.py
@@ -310,7 +310,7 @@ testable against a fake without a TLS stack or a server.
   as a context manager, with `uid_validity() -> int`,
   `uids_since(uid: int | None) -> list[int]`, and `fetch(uid: int) -> bytes`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_imapbox.py`:
 
@@ -413,12 +413,12 @@ def test_fetch_returns_the_raw_message():
         assert box.fetch(7) == b"From: a@b\r\n\r\nhello"
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_imapbox.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.mail.imapbox'`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `renewal/mail/imapbox.py`:
 
@@ -522,12 +522,12 @@ class Mailbox:
         raise MailboxError(f"fetch {uid}: no message body in {data!r}")
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `.venv/bin/pytest tests/test_imapbox.py -q`
 Expected: PASS (5 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/mail/imapbox.py tests/test_imapbox.py
@@ -547,7 +547,7 @@ git commit -m "feat(mail): a read-only IMAP connection"
 - Produces: `PollResult(seen, ingested, duplicate, failed)` and
   `poll_once(session, store, *, settings, client=None, on_document=None, opener=None) -> PollResult`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_mail_poll.py`:
 
@@ -690,12 +690,12 @@ def test_no_imap_host_polls_nothing(session, store):
 The agency row is seeded by a migration, so `session.query(Agency).first()` is
 available without creating one.
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/bin/pytest tests/test_mail_poll.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.mail.poll'`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `renewal/mail/poll.py`:
 
@@ -845,12 +845,12 @@ def poll_once(
                       failed=failed)
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_mail_poll.py -q`
 Expected: PASS (10 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/mail/poll.py tests/test_mail_poll.py
@@ -871,7 +871,7 @@ git commit -m "feat(mail): one poll of the mailbox"
   with `tick()`, `run()`, `start()`; `Settings.imap_host`, `imap_port`,
   `imap_user`, `imap_password`, `imap_folder`, `imap_poll_seconds`.
 
-- [ ] **Step 1: Add the settings**
+- [x] **Step 1: Add the settings**
 
 In `renewal/config.py`, in the deployment block:
 
@@ -899,7 +899,7 @@ and in `load_settings()`:
         imap_poll_seconds=int(os.environ.get("IMAP_POLL_SECONDS", "300")),
 ```
 
-- [ ] **Step 2: Write the clock**
+- [x] **Step 2: Write the clock**
 
 Create `renewal/mail/clock.py`, modelled exactly on `renewal/digest/clock.py`
 — same injected `sleep`, same daemon thread, same "a tick that raises is
@@ -973,7 +973,7 @@ class MailClock:
 `renewal.background.process_document` with the arguments it needs, so the
 lambda closes over nothing that a thread could see change.
 
-- [ ] **Step 3: Wire it into production**
+- [x] **Step 3: Wire it into production**
 
 In `renewal/app.py`, after the digest clock:
 
@@ -989,13 +989,13 @@ if _settings.imap_host and _settings.imap_poll_seconds > 0:
 This needs `create_app`'s store, model client and runner to be named locals
 rather than built inline in the call; hoist them.
 
-- [ ] **Step 4: Add the command-line poll**
+- [x] **Step 4: Add the command-line poll**
 
 Create `scripts/poll_mail.py`, mirroring `scripts/digest.py`: builds settings,
 a session factory and a store, runs one `MailClock(...).tick()`, prints what it
 found, exits.
 
-- [ ] **Step 5: Document the variables**
+- [x] **Step 5: Document the variables**
 
 In `.env.example`, after the notification block:
 
@@ -1013,19 +1013,19 @@ IMAP_FOLDER=INBOX
 IMAP_POLL_SECONDS=300
 ```
 
-- [ ] **Step 6: Test the clock**
+- [x] **Step 6: Test the clock**
 
 Append to `tests/test_mail_poll.py` a test that `tick()` commits and one that
 `run()` survives a raising tick, both modelled on `tests/test_digest_clock.py`
 including its `_StoppingClock` subclass, so the daemon test does not leak an
 unhandled thread exception.
 
-- [ ] **Step 7: Run the suite**
+- [x] **Step 7: Run the suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/mail/clock.py renewal/config.py renewal/app.py scripts/poll_mail.py .env.example tests/test_mail_poll.py
@@ -1043,7 +1043,7 @@ must not be invisible.
 - Modify: `renewal/web/settings.py`, `renewal/templates/settings.html`, `README.md`
 - Test: `tests/test_web_settings.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 def test_the_settings_page_reports_the_last_mail_poll(client_app, db):
@@ -1063,7 +1063,7 @@ def test_the_settings_page_reports_the_last_mail_poll(client_app, db):
     assert "connection refused" in page
 ```
 
-- [ ] **Step 2: Add it to the route and the template**
+- [x] **Step 2: Add it to the route and the template**
 
 Read the newest `MailPollState` in the settings route, pass it as
 `mail_poll`, and render a panel in `settings.html` in the shape the other
@@ -1073,14 +1073,14 @@ When no row exists, say polling has never run, and when `IMAP_HOST` is unset
 say it is turned off and where that lives, mirroring the existing
 `mail_configured` notice for SMTP.
 
-- [ ] **Step 3: Document it in the README**
+- [x] **Step 3: Document it in the README**
 
 Add a "Pulling mail from a mailbox" section after "The daily summary": what it
 does, that it never writes to the mailbox, that `IMAP_FOLDER` should be a
 folder you filter into rather than `INBOX`, how to get an app password, and the
 cron alternative with `IMAP_POLL_SECONDS=0`.
 
-- [ ] **Step 4: Run the suite and commit**
+- [x] **Step 4: Run the suite and commit**
 
 ```bash
 .venv/bin/pytest -q
@@ -1092,7 +1092,8 @@ git commit -m "feat(mail): the settings page says when the mailbox stopped answe
 
 ## Verification
 
-- [ ] `.venv/bin/pytest -q` — green.
-- [ ] `alembic upgrade head`, `downgrade -1`, `upgrade head` — reversible.
-- [ ] With `IMAP_HOST` unset, `python -m scripts.poll_mail` reports nothing to do and writes no row.
+- [x] `.venv/bin/pytest -q` — green.
+- [x] `alembic upgrade head`, `downgrade -1`, `upgrade head` — reversible.
+- [x] With `IMAP_HOST` unset, `python -m scripts.poll_mail` reports nothing to do and writes no row.
 - [ ] Against a real mailbox: a message with a PDF appears in the inbox; polling twice ingests it once; the message is still unread in the mail client afterwards.
+  *Not run: this install has no `IMAP_*` credentials set. The first three ran on 2026-09-20 — 893 passed, 3 deselected; the migration round-tripped; the script with `IMAP_HOST` unset printed "IMAP_HOST is not set: polling is off" and wrote no row.*
