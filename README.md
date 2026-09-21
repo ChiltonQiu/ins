@@ -34,6 +34,29 @@ overwrites a `.env`, never regenerates a key that exists, and re-running after
 a `git pull` is how you upgrade. It does not install PostgreSQL or Tesseract —
 it tells you the command for your distribution and stops.
 
+On Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+```
+
+Same steps, same guarantees. The `ExecutionPolicy` flag applies to that one
+process rather than changing the machine's setting, and a downloaded script is
+blocked without it. It looks for Python, PostgreSQL and Tesseract where their
+Windows installers actually put them rather than only on PATH, and writes
+`TESSERACT_CMD` into `.env` when it finds a Tesseract that PATH would miss.
+
+**The application is portable Python and the tooling around it is not.** There
+are no Unix-only imports, no posix paths and no shelling out, so the server,
+the pipeline and the command-line scripts all run on Windows — but
+`install.sh` is bash and `deploy/` is systemd and nginx. The PowerShell
+installer closes that gap for setup; for running it on boot, use NSSM or a
+Scheduled Task with `.venv\Scripts\uvicorn.exe renewal.app:app --port 8000`.
+
+**Windows is untested.** The above is written from the code rather than from a
+machine: nothing in this project has ever been run on Windows. WSL2 is the
+path with no unknowns in it.
+
 By hand, if you would rather see each step:
 
 ```bash

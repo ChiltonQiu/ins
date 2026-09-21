@@ -35,3 +35,23 @@ def test_ocr_recovers_text_from_a_scanned_page():
 def test_ocr_of_a_blank_page_is_empty_not_an_error():
     data = make_scanned_pdf([[]])
     assert ocr_page(rasterize_page(data, 1)).strip() == ""
+
+
+def test_tesseract_cmd_names_the_binary_when_path_does_not(monkeypatch):
+    """Windows puts tesseract.exe somewhere PATH does not look, which in here
+    is indistinguishable from not having it."""
+    monkeypatch.setenv("TESSERACT_CMD", r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+    monkeypatch.setattr(tesseract.pytesseract, "tesseract_cmd", "tesseract")
+    from renewal.text.ocr import _configure
+
+    _configure(tesseract)
+    assert tesseract.pytesseract.tesseract_cmd.endswith("tesseract.exe")
+
+
+def test_an_unset_tesseract_cmd_leaves_the_default_alone(monkeypatch):
+    monkeypatch.delenv("TESSERACT_CMD", raising=False)
+    monkeypatch.setattr(tesseract.pytesseract, "tesseract_cmd", "tesseract")
+    from renewal.text.ocr import _configure
+
+    _configure(tesseract)
+    assert tesseract.pytesseract.tesseract_cmd == "tesseract"
