@@ -2,6 +2,8 @@
 
 Insurance renewal comparison and record layer.
 
+What it does and why it is built the way it is: [docs/how-it-works.md](docs/how-it-works.md). What follows is how to install and operate it.
+
 ## System dependencies
 
 Beyond the Python dependencies in `pyproject.toml`:
