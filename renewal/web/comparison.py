@@ -89,7 +89,8 @@ def register(app, deps: Deps) -> None:
 
         This can produce a matrix with a quoted column, and a note that sets
         carriers side by side is a recommendation however it is worded. The
-        renewal path in review.py is the one that drafts.
+        pipeline's renewal path is the one that drafts, where both columns are
+        terms of the same policy.
         """
         specs = [ColumnSpec(baseline, "baseline")] + [
             ColumnSpec(term_id, "comparand") for term_id in comparand

@@ -29,6 +29,120 @@ cp .env.example .env    # then fill in the values
 .venv/bin/alembic upgrade head
 ```
 
+`PROVIDER` and the matching API key are required to start. The application
+builds its model client at import, so an unset `ANTHROPIC_API_KEY` (with
+`PROVIDER=anthropic`) fails at boot rather than at the first document.
+
+## Running it
+
+```bash
+.venv/bin/uvicorn renewal.app:app --host 127.0.0.1 --port 8000
+```
+
+Then http://127.0.0.1:8000. Every page redirects to `/login` until you have an
+account, so make one first — see **Accounts** below.
+
+Two clocks start with the application: the mailbox poll and the daily summary.
+Either is turned off by setting its interval to 0 (`IMAP_POLL_SECONDS`,
+`DIGEST_TICK_SECONDS`), which is what an install driving them from cron wants.
+Intake runs on a thread pool inside this same process, so documents stop being
+processed when it stops.
+
+For a first look with no mail and no archive, sign in and drop a PDF on the
+inbox page. What the screens do and why they are arranged that way is
+[docs/how-it-works.md](docs/how-it-works.md).
+
+## Deploying it
+
+There is no container and no unit file in this repository; it is one ASGI
+application, a PostgreSQL database and a directory of blobs.
+
+Run it behind a reverse proxy that terminates TLS. `SESSION_COOKIE_SECURE`
+defaults to true, so forgetting to configure it fails toward security rather
+than away from it; the only reason to set it false is local development over
+plain HTTP, where a secure cookie would never be sent and nobody could log in.
+Check that value before deploying — the session cookie is the whole of
+authentication.
+
+Point the proxy at one uvicorn process. More than one is possible but not free:
+each process starts its own poll clock, its own digest clock and its own thread
+pool. Nothing breaks — the digest's day row and the mailbox's Message-ID
+dedupe both hold across processes — but the work is done more than once. If you
+want more than one, set both tick intervals to 0 and drive the two clocks from
+cron instead:
+
+```
+*/5 * * * * cd /srv/renewal && .venv/bin/python -m scripts.poll_mail
+*/15 * * * * cd /srv/renewal && .venv/bin/python -m scripts.digest
+```
+
+`INBOUND_PROVIDER=filedrop` verifies nothing and must never be configured on an
+install reachable from the network.
+
+## Backing it up
+
+Three things, and they are not interchangeable:
+
+| What | Where | If you lose it |
+|---|---|---|
+| The database | PostgreSQL | Everything. Documents survive as files nothing can find. |
+| The blobs | `BLOB_ROOT` | Every PDF. The database keeps the text and the extracted values, so the record survives; the documents themselves do not. |
+| `BLOB_ENCRYPTION_KEY` | The environment | Every blob, permanently. Nothing can decrypt them. |
+
+```bash
+pg_dump renewal > renewal-$(date +%F).sql
+tar czf blobs-$(date +%F).tar.gz blobs/
+```
+
+**Back the key up somewhere the blob backups are not.** A backup that travels
+with its key is a backup that is not encrypted. Losing the key is not
+recoverable by anyone, including whoever wrote this.
+
+Restoring is `createdb`, `psql < dump`, untar the blobs, and `alembic upgrade
+head`. Blobs are content-addressed, so restoring a newer blob directory over an
+older database is safe: extra files are ignored, and a missing one is reported
+by sha256 when something asks for it.
+
+Losing text or extracted fields is not a restore problem. Text is a pure
+function of (blob, extractor version) and extraction is re-runnable from the
+blob, so both can be rebuilt with `scripts/reextract.py` as long as the blobs
+and the key are intact.
+
+## What it costs to run
+
+Four model calls, on three different models, and they are not the same size:
+
+| Stage | Model | Sent |
+|---|---|---|
+| Classification | Haiku 4.5 | Page 1's text |
+| Dates | Sonnet 5 | The first `DATE_PAGES` pages (default 3) |
+| Field extraction | Opus 5 | The whole document's text — or **every page as an image** if the PDF has no text layer |
+| Draft | Sonnet 5 | Only on a renewal comparison, and only the two terms |
+
+At current API rates — Opus 5 at $5/$25 per million tokens in/out, Sonnet 5 at
+$2/$10, Haiku 4.5 at $1/$5 — a five-page declarations page with a text layer
+lands in the neighbourhood of one to three cents all-in, dominated by the Opus
+extraction. Classification and dates are rounding errors beside it.
+
+**A scan costs several times more.** With no text layer, extraction rasterizes
+every page at 200 dpi and sends images: roughly 2,500 tokens per page against
+perhaps 700 for the same page as text. A ten-page scanned policy is the
+expensive document in any archive.
+
+Treat those as order-of-magnitude figures rather than a quote — they are
+arithmetic over token estimates, not measurements. Every model call records its
+model id on the extraction row, so real numbers come from the provider's own
+usage reporting once a real archive has gone through.
+
+Two things follow, and both are already wired:
+
+- **`scripts/bulk_import.py` does not extract fields by default.** An archive
+  is thousands of documents and this is the stage that costs money. Import
+  first, extract later against whatever subset is worth it.
+- **Nothing re-extracts on its own.** Extraction is versioned and idempotent;
+  re-running it over the corpus is a decision somebody makes, with
+  `scripts/reextract.py`, not something a retry does by accident.
+
 ## Bulk import
 
 Point it at a directory tree and every PDF underneath is stored, text-extracted,
