@@ -24,6 +24,19 @@ extraction, whatever `PROVIDER` is set to.
 ## Setup
 
 ```bash
+./scripts/install.sh
+```
+
+Checks the machine, builds the virtualenv, writes a `.env` from the example,
+generates a blob encryption key if there is none, creates the database, runs
+the migrations, and offers to make the first account. Safe to re-run: it never
+overwrites a `.env`, never regenerates a key that exists, and re-running after
+a `git pull` is how you upgrade. It does not install PostgreSQL or Tesseract —
+it tells you the command for your distribution and stops.
+
+By hand, if you would rather see each step:
+
+```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cp .env.example .env    # then fill in the values
 .venv/bin/alembic upgrade head
@@ -54,8 +67,24 @@ inbox page. What the screens do and why they are arranged that way is
 
 ## Deploying it
 
-There is no container and no unit file in this repository; it is one ASGI
-application, a PostgreSQL database and a directory of blobs.
+It is one ASGI application, a PostgreSQL database and a directory of blobs.
+Two files in `deploy/` cover the usual shape of that:
+
+```bash
+sudo useradd --system --home-dir /srv/renewal --shell /usr/sbin/nologin renewal
+sudo cp deploy/renewal.service /etc/systemd/system/
+sudo systemctl enable --now renewal          # then check: systemctl status renewal
+
+sudo cp deploy/renewal.nginx /etc/nginx/sites-available/renewal
+sudo ln -s /etc/nginx/sites-available/renewal /etc/nginx/sites-enabled/
+sudo certbot --nginx -d renewal.example.com
+```
+
+Both assume `/srv/renewal` and a host of `renewal.example.com`; change those
+and, in the unit, `ReadWritePaths` if `BLOB_ROOT` is somewhere else —
+`ProtectSystem=strict` makes everything else read-only, and an upload into a
+directory that is not listed there fails with a permission error that nothing
+on the page explains.
 
 Run it behind a reverse proxy that terminates TLS. `SESSION_COOKIE_SECURE`
 defaults to true, so forgetting to configure it fails toward security rather

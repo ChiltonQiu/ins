@@ -1,0 +1,91 @@
+# The application, as a service that starts itself.
+#
+#   sudo cp deploy/renewal.service /etc/systemd/system/
+#   sudo systemctl edit renewal          # set User, Group and the paths
+#   sudo systemctl enable --now renewal
+#
+# Two clocks start inside this process: the mailbox poll and the daily summary.
+# That is why this is one unit and not three — and why running two copies of it
+# means both clocks run twice. If you ever need a second worker, set
+# IMAP_POLL_SECONDS=0 and DIGEST_TICK_SECONDS=0 and drive
+# `python -m scripts.poll_mail` and `python -m scripts.digest` from a timer
+# instead.
+
+[Unit]
+Description=Renewal — insurance renewal comparison and record layer
+Documentation=file:/srv/renewal/docs/how-it-works.md
+# The database is not optional: every stage of every request needs it. This
+# orders startup on a local PostgreSQL and is harmless when the database is on
+# another host.
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+
+# Not root, and not a login account. Create it with:
+#   sudo useradd --system --home-dir /srv/renewal --shell /usr/sbin/nologin renewal
+User=renewal
+Group=renewal
+
+WorkingDirectory=/srv/renewal
+# config.py calls load_dotenv(), which reads the .env in WorkingDirectory —
+# the same file every command-line script reads, so there is one place a
+# setting can be. To keep secrets out of the repository directory instead, move
+# them to /etc/renewal.env (root-owned, chmod 600) and uncomment:
+# EnvironmentFile=/etc/renewal.env
+ExecStart=/srv/renewal/.venv/bin/uvicorn renewal.app:app \
+    --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
+
+# Bind to localhost and let a proxy terminate TLS. The session cookie is the
+# whole of authentication and SESSION_COOKIE_SECURE defaults to true, so a
+# cookie will not be sent over plain HTTP anyway — an install that listens on
+# 0.0.0.0 without TLS is one where nobody can log in, which is the correct
+# failure but a confusing one to debug.
+
+Restart=on-failure
+RestartSec=5s
+# Intake runs on a thread pool inside this process, so a stop mid-document
+# leaves it in 'processing'. The inbox shows that as stalled with a Retry
+# button and every stage is idempotent, so the cost of a hard stop is one
+# button press — but give the pool a chance to finish first.
+TimeoutStopSec=30s
+KillSignal=SIGINT
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=renewal
+
+# --- hardening ---------------------------------------------------------------
+# It holds other people's insurance records. It reads a mailbox, writes blobs,
+# and talks to PostgreSQL and one model provider; it has no business anywhere
+# else on the filesystem.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# ProtectSystem=strict makes everything read-only, so name the one directory
+# that is not: the blob store. Point this at BLOB_ROOT from .env — if they
+# disagree, the first upload fails with a permission error and nothing says
+# why. A database on another host needs nothing here; a local one is reached
+# over the socket in /run, which is already writable.
+ReadWritePaths=/srv/renewal/blobs
+
+[Install]
+WantedBy=multi-user.target

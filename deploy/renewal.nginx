@@ -1,0 +1,56 @@
+# The proxy in front of it. TLS terminates here; the application listens on
+# 127.0.0.1 and never sees a plain-HTTP request.
+#
+#   sudo cp deploy/renewal.nginx /etc/nginx/sites-available/renewal
+#   sudo ln -s /etc/nginx/sites-available/renewal /etc/nginx/sites-enabled/
+#   sudo certbot --nginx -d renewal.example.com
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# certbot rewrites the TLS lines below and adds the :80 redirect itself.
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name renewal.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/renewal.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/renewal.example.com/privkey.pem;
+
+    # A declarations page is a scan and a scan is large. The default 1m
+    # rejects them with a 413 that looks, from the inbox, like nothing
+    # happened at all.
+    client_max_body_size 64m;
+
+    # Extraction of a long scanned policy is several model calls and can take
+    # minutes. The default 60s read timeout turns a slow upload into a 504
+    # while the work carries on behind it.
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+
+    # Tells the browser to refuse plain HTTP for this host for a year. Add
+    # this only once the certificate works — it is hard to take back.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    location /static/ {
+        alias /srv/renewal/renewal/static/;
+        # Hashed filenames are not in use here, so this is deliberately short:
+        # long enough to save the round trips on a working day, short enough
+        # that a CSS change lands without anyone being told to hard-refresh.
+        expires 1h;
+        access_log off;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        # uvicorn runs with --proxy-headers and trusts 127.0.0.1, so this is
+        # what tells the application its own requests are HTTPS. Without it a
+        # secure session cookie is set on a connection the application
+        # believes is plain, and nobody can stay logged in.
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
