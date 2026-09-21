@@ -1988,12 +1988,12 @@ Append to `renewal/static/app.css`:
 If `--muted` is not the existing token name for de-emphasised text, use
 whichever token `.muted` uses in `app.css`.
 
-- [ ] **Step 5: Run the gate tests**
+- [x] **Step 5: Run the gate tests**
 
 Run: `.venv/bin/pytest tests/test_web_gate.py -v`
 Expected: PASS.
 
-- [ ] **Step 6: Confirm the rest of the suite now fails, and see how**
+- [x] **Step 6: Confirm the rest of the suite now fails, and see how**
 
 Run: `.venv/bin/pytest`
 Expected: FAIL — a large number of failures across `tests/test_web_*.py`,
@@ -2081,7 +2081,7 @@ the request the app makes on its own connection. It is removed by the
 `clean_db` fixture's `TRUNCATE` between tests, which is why `sign_in` checks
 for the row before inserting rather than assuming.
 
-- [ ] **Step 9: Run the full suite**
+- [x] **Step 9: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: PASS — every test.
@@ -2139,12 +2139,12 @@ There are no roles: every account can do everything. Nothing yet records
 *which* account made a correction or confirmed a date.
 ```
 
-- [ ] **Step 11: Run the full suite one more time**
+- [x] **Step 11: Run the full suite one more time**
 
 Run: `.venv/bin/pytest`
 Expected: PASS.
 
-- [ ] **Step 12: Verify by hand that the application actually starts**
+- [x] **Step 12: Verify by hand that the application actually starts**
 
 ```bash
 .venv/bin/alembic upgrade head
@@ -2156,7 +2156,7 @@ Check in a browser: `/` redirects to `/login`; a wrong password says
 `Email or password is wrong.`; the right one lands on the runs page with the
 address in the topbar; Sign out returns to `/login` and `/` redirects again.
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add renewal/web/security.py renewal/web/__init__.py \

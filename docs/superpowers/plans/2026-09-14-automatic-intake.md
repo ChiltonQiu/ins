@@ -93,7 +93,7 @@ column that would be measured from `uploaded_at`, which a retry does not move.
 **Interfaces:**
 - Produces: `Document.status` (`'processing' | 'processed' | 'failed'`, server default `'processed'`), `Document.status_changed_at` (`datetime`, server default `now()`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_models.py`:
 
@@ -134,12 +134,12 @@ def test_an_unknown_document_status_is_rejected(session, store):
         session.flush()
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_models.py -k "document_status or document_is_processed" -v`
 Expected: FAIL — `AttributeError: 'Document' object has no attribute 'status'`
 
-- [ ] **Step 3: Add the columns to the model**
+- [x] **Step 3: Add the columns to the model**
 
 In `renewal/models.py`, replace the `Document` class body's opening (currently
 `__tablename__ = "document"` immediately followed by `id:`) so the class reads:
@@ -179,7 +179,7 @@ class Document(Base):
 `mapped_column`, `datetime` and `_created_at` are all already imported in this
 module.
 
-- [ ] **Step 4: Write the migration**
+- [x] **Step 4: Write the migration**
 
 Create `migrations/versions/c4a1f0b83d17_document_status.py`:
 
@@ -232,7 +232,7 @@ def downgrade() -> None:
     op.drop_column("document", "status")
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 The `engine` fixture drops the schema and runs `alembic upgrade head`, so the
 migration is exercised by every test run.
@@ -240,12 +240,12 @@ migration is exercised by every test run.
 Run: `.venv/bin/pytest tests/test_models.py -v`
 Expected: PASS
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 728 passed (726 baseline + 2)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/c4a1f0b83d17_document_status.py tests/test_models.py
@@ -272,7 +272,7 @@ Today those stages are welded to `ingest_pdf` inside one function.
 - Produces: `run_stages(session, store, document, *, extract_fields=True, model_client=None, settings=None) -> Document`
 - `ingest_document` keeps its exact signature and behaviour.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_pipeline.py`:
 
@@ -315,12 +315,12 @@ def test_run_stages_is_idempotent(session, store):
     ).count() == 1
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_pipeline.py -k run_stages -v`
 Expected: FAIL — `ImportError: cannot import name 'run_stages'`
 
-- [ ] **Step 3: Do the split**
+- [x] **Step 3: Do the split**
 
 In `renewal/pipeline.py`, replace the whole of `ingest_document` (lines 218-270)
 with:
@@ -409,18 +409,18 @@ def ingest_document(
     )
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_pipeline.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Run the full suite — this is the refactor's real test**
+- [x] **Step 5: Run the full suite — this is the refactor's real test**
 
 Run: `.venv/bin/pytest`
 Expected: 730 passed. Every existing pipeline, mail-intake and end-to-end test
 goes through `ingest_document` and must be unchanged.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/pipeline.py tests/test_pipeline.py
@@ -452,7 +452,7 @@ restart, never by an ordinary exception.
   - `class ThreadRunner` with `submit(fn, /, *args, **kwargs) -> None` and `shutdown() -> None`
   - `process_document(session_factory, store, document_id, *, model_client=None, settings=None) -> None`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/test_background.py`:
 
@@ -560,12 +560,12 @@ def test_status_changed_at_moves_with_the_status(engine, clean_db, store):
         session.close()
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_background.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.background'`
 
-- [ ] **Step 3: Write `renewal/background.py`**
+- [x] **Step 3: Write `renewal/background.py`**
 
 ```python
 """Intake off the request thread.
@@ -678,17 +678,17 @@ def process_document(
         session.close()
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_background.py -v`
 Expected: PASS (5 tests)
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 735 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/background.py tests/test_background.py
@@ -724,7 +724,7 @@ not stuck, and it must not appear in "needs you".
   - `state_of(session, document, *, stalled_after=STALLED_AFTER) -> DocumentState`
   - `STALLED_AFTER = timedelta(minutes=10)`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/test_inbox.py`:
 
@@ -966,12 +966,12 @@ def test_a_promoted_term_is_done_and_says_what_it_became(session, store):
     assert term.kind == "bound"
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_inbox.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.inbox'`
 
-- [ ] **Step 3: Write `renewal/inbox.py`**
+- [x] **Step 3: Write `renewal/inbox.py`**
 
 ```python
 """What became of a document.
@@ -1184,12 +1184,12 @@ def state_of(
     )
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_inbox.py -v`
 Expected: PASS (10 tests)
 
-- [ ] **Step 5: Check the import direction**
+- [x] **Step 5: Check the import direction**
 
 `renewal/inbox.py` imports from `renewal.pipeline`. Nothing in `renewal.pipeline`
 may import `renewal.inbox`, or the cycle closes.
@@ -1197,12 +1197,12 @@ may import `renewal.inbox`, or the cycle closes.
 Run: `.venv/bin/python -c "import renewal.inbox, renewal.pipeline; print('ok')"`
 Expected: `ok`
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 745 passed
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/inbox.py tests/test_inbox.py
@@ -1232,7 +1232,7 @@ Claude-Session: https://claude.ai/code/session_013jrgvohFTj9YuD916qDri9"
 same computation the page does, and two copies of "what counts as needing her"
 would disagree the first time either changed.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_inbox.py`:
 
@@ -1285,12 +1285,12 @@ def test_nothing_in_flight_when_nothing_is_processing(session, store):
     assert anything_in_flight(session)
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_inbox.py -k "newest_first or buckets_put or needs_you_count or in_flight" -v`
 Expected: FAIL — `ImportError: cannot import name 'inbox_rows'`
 
-- [ ] **Step 3: Append to `renewal/inbox.py`**
+- [x] **Step 3: Append to `renewal/inbox.py`**
 
 ```python
 def inbox_rows(
@@ -1350,17 +1350,17 @@ def anything_in_flight(session: Session) -> bool:
     ) is not None
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_inbox.py -v`
 Expected: PASS (14 tests)
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 749 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/inbox.py tests/test_inbox.py
@@ -1390,7 +1390,7 @@ retry is Task 8, and the inline fixes are Task 10.
 - Consumes: `inbox_rows`, `bucketed`, `anything_in_flight` (Task 5).
 - Produces: `renewal.web.inbox.register(app, deps)`; the template context `{"groups": dict[str, list[DocumentState]], "in_flight": bool}`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_web_inbox.py`:
 
@@ -1512,12 +1512,12 @@ def test_the_inbox_no_longer_lists_runs(signed):
     assert "Renewal runs" not in page.text
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -v`
 Expected: FAIL — the index still renders "Renewal runs" and no document rows.
 
-- [ ] **Step 3: Write `renewal/web/inbox.py`**
+- [x] **Step 3: Write `renewal/web/inbox.py`**
 
 ```python
 """The front door.
@@ -1554,7 +1554,7 @@ def register(app, deps: Deps) -> None:
     app.include_router(router)
 ```
 
-- [ ] **Step 4: Write `renewal/templates/inbox.html`**
+- [x] **Step 4: Write `renewal/templates/inbox.html`**
 
 ```jinja
 {% extends "base.html" %}
@@ -1631,7 +1631,7 @@ def register(app, deps: Deps) -> None:
 {% endblock %}
 ```
 
-- [ ] **Step 5: Mount it and delete the inline index**
+- [x] **Step 5: Mount it and delete the inline index**
 
 In `renewal/web/__init__.py`:
 
@@ -1662,7 +1662,7 @@ nothing in this module reads them once the inline index is gone.
 
 Then delete the whole `@app.get("/")` index function (lines 74-86).
 
-- [ ] **Step 6: Rename the nav entry**
+- [x] **Step 6: Rename the nav entry**
 
 In `renewal/templates/base.html`, replace line 29:
 
@@ -1679,7 +1679,7 @@ with:
 Leave the "New renewal" and "Unmatched" links alone — they are removed in Tasks
 7 and 10, once what replaces each of them exists.
 
-- [ ] **Step 7: Add the bucket styles**
+- [x] **Step 7: Add the bucket styles**
 
 Append to `renewal/static/app.css`:
 
@@ -1728,25 +1728,25 @@ If `--rule` or `--warn` are not defined in this stylesheet's custom-property
 block, use the nearest existing equivalents — check the `:root` block at the top
 of `app.css` and substitute rather than inventing new variables.
 
-- [ ] **Step 8: Delete the old index template**
+- [x] **Step 8: Delete the old index template**
 
 ```bash
 git rm renewal/templates/index.html
 ```
 
-- [ ] **Step 9: Run the tests to verify they pass**
+- [x] **Step 9: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -v`
 Expected: PASS (5 tests)
 
-- [ ] **Step 10: Run the full suite and fix what the index change broke**
+- [x] **Step 10: Run the full suite and fix what the index change broke**
 
 Run: `.venv/bin/pytest`
 Expected: 754 passed. Any test asserting on the old run list fails here; find
 them with `grep -rn "Renewal runs\|index.html" tests/` and update the assertion
 to the inbox's text rather than deleting the test.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add -A renewal/web/__init__.py renewal/web/inbox.py renewal/templates/ renewal/static/app.css tests/test_web_inbox.py
@@ -1779,7 +1779,7 @@ inbound mail currently runs OCR plus up to three model calls inside the webhook.
 - Consumes: `InlineRunner`, `ThreadRunner`, `process_document` (Task 3).
 - Produces: `Deps.runner`; `create_app(..., runner=None)`; `POST /documents` accepting one `UploadFile` named `document`, redirecting 303 to `/`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_web_inbox.py`:
 
@@ -1874,12 +1874,12 @@ def app(engine, clean_db, settings):
     )
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -k "dropping or dropped or stages_run or not_a_pdf" -v`
 Expected: FAIL — `TypeError: create_app() got an unexpected keyword argument 'runner'`
 
-- [ ] **Step 3: Carry the runner on `Deps`**
+- [x] **Step 3: Carry the runner on `Deps`**
 
 In `renewal/web/deps.py`, add one field:
 
@@ -1896,7 +1896,7 @@ class Deps:
     runner: Any = None
 ```
 
-- [ ] **Step 4: Build the runner in `create_app`**
+- [x] **Step 4: Build the runner in `create_app`**
 
 In `renewal/web/__init__.py`, change the signature and the `Deps` construction:
 
@@ -1925,7 +1925,7 @@ with the import at the top of the module:
 from renewal.background import ThreadRunner
 ```
 
-- [ ] **Step 5: Add the drop box route**
+- [x] **Step 5: Add the drop box route**
 
 In `renewal/web/inbox.py`, add the imports and the route:
 
@@ -1997,7 +1997,7 @@ def register(app, deps: Deps) -> None:
     router = APIRouter()
 ```
 
-- [ ] **Step 6: Put the drop box on the page**
+- [x] **Step 6: Put the drop box on the page**
 
 In `renewal/templates/inbox.html`, insert immediately after the `pagehead` div:
 
@@ -2025,7 +2025,7 @@ and append to `renewal/static/app.css`:
 }
 ```
 
-- [ ] **Step 7: Drop "New renewal" from the nav**
+- [x] **Step 7: Drop "New renewal" from the nav**
 
 In `renewal/templates/base.html`, delete line 30 entirely:
 
@@ -2033,7 +2033,7 @@ In `renewal/templates/base.html`, delete line 30 entirely:
       <a href="/runs/new" {% if path == "/runs/new" %}aria-current="page"{% endif %}>New renewal</a>
 ```
 
-- [ ] **Step 8: Poll while anything is in flight**
+- [x] **Step 8: Poll while anything is in flight**
 
 Append to `renewal/static/app.js`:
 
@@ -2057,17 +2057,17 @@ the `pagehead` div's opening tag to:
 <div class="pagehead" {% if in_flight %}data-poll="inbox"{% endif %}>
 ```
 
-- [ ] **Step 9: Run the tests to verify they pass**
+- [x] **Step 9: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -v`
 Expected: PASS (9 tests)
 
-- [ ] **Step 10: Run the full suite**
+- [x] **Step 10: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 758 passed
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add renewal/web/ renewal/templates/ renewal/static/ tests/test_web_inbox.py
@@ -2093,7 +2093,7 @@ extraction — which is what makes this button safe to offer on any row.
 **Interfaces:**
 - Produces: `POST /documents/{document_id}/retry`, redirecting 303 to `/`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_web_inbox.py`:
 
@@ -2164,12 +2164,12 @@ def test_a_stalled_row_offers_the_retry_button(signed, engine, settings):
     assert "/retry" in page.text
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -k retry -v`
 Expected: FAIL — 405 Method Not Allowed on the retry path
 
-- [ ] **Step 3: Add the route**
+- [x] **Step 3: Add the route**
 
 In `renewal/web/inbox.py`:
 
@@ -2211,7 +2211,7 @@ from datetime import datetime, timezone
 from renewal.models import Document
 ```
 
-- [ ] **Step 4: Put the button on the stalled and failed rows**
+- [x] **Step 4: Put the button on the stalled and failed rows**
 
 In `renewal/templates/inbox.html`, inside the working bucket's `<li>`, after the
 summary span:
@@ -2238,17 +2238,17 @@ The class is `inline-retry` rather than `inline`, deliberately: `form.inline` is
 bound in `app.js` to a fetch-and-reload handler built for the correction
 endpoints, which answer 204. This form redirects, so it posts normally.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -v`
 Expected: PASS (13 tests)
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 762 passed
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/web/inbox.py renewal/templates/inbox.html tests/test_web_inbox.py
@@ -2294,7 +2294,7 @@ dataset that exists to make extraction better.
   - `GET /documents/{document_id}/review` → `inbox_detail.html`
   - `POST /documents/{document_id}/retry` now accepts `acknowledged: list[str] = Form(default=[])`
 
-- [ ] **Step 1: Write the failing test for the gate**
+- [x] **Step 1: Write the failing test for the gate**
 
 Append to `tests/test_pipeline_promote.py`:
 
@@ -2330,12 +2330,12 @@ the top of this file, and `settings` is its existing fixture. Check which field
 path `_extraction(..., needs_review=True)` actually flags and acknowledge that
 one — it is `policy.total_premium` at the time of writing.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_pipeline_promote.py -k acknowledged -v`
 Expected: FAIL — `TypeError: run_promote_stage() got an unexpected keyword argument 'acknowledged'`
 
-- [ ] **Step 3: Thread `acknowledged` through**
+- [x] **Step 3: Thread `acknowledged` through**
 
 In `renewal/pipeline.py`, change `run_promote_stage`'s signature and its two
 uses of `unresolved_field_paths` / `promote`:
@@ -2391,7 +2391,7 @@ def run_stages(
         )
 ```
 
-- [ ] **Step 4: Thread it through `process_document`**
+- [x] **Step 4: Thread it through `process_document`**
 
 In `renewal/background.py`:
 
@@ -2418,12 +2418,12 @@ def process_document(
             )
 ```
 
-- [ ] **Step 5: Run the gate test**
+- [x] **Step 5: Run the gate test**
 
 Run: `.venv/bin/pytest tests/test_pipeline_promote.py -v`
 Expected: PASS
 
-- [ ] **Step 6: Write the failing tests for the screen**
+- [x] **Step 6: Write the failing tests for the screen**
 
 Append to `tests/test_web_inbox.py`:
 
@@ -2467,12 +2467,12 @@ def test_a_needs_you_row_links_to_the_detail_view(signed, engine, settings):
     assert "/review" in page.text
 ```
 
-- [ ] **Step 7: Run to verify they fail**
+- [x] **Step 7: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -k detail_view -v`
 Expected: FAIL — 404 on `/documents/{id}/review`
 
-- [ ] **Step 8: Add the detail route**
+- [x] **Step 8: Add the detail route**
 
 In `renewal/web/inbox.py`:
 
@@ -2555,7 +2555,7 @@ _FIELD_GROUP = case(
             )
 ```
 
-- [ ] **Step 9: Let retry carry the acknowledgements**
+- [x] **Step 9: Let retry carry the acknowledgements**
 
 In `renewal/web/inbox.py`, change the retry route's signature and its submit:
 
@@ -2580,7 +2580,7 @@ In `renewal/web/inbox.py`, change the retry route's signature and its submit:
 
 adding `Form` to the `fastapi` import line.
 
-- [ ] **Step 10: Write `renewal/templates/inbox_detail.html`**
+- [x] **Step 10: Write `renewal/templates/inbox_detail.html`**
 
 The field table is `run_review.html`'s, unchanged: the same `input.correctable`,
 `form.inline` and `form.add-missing` classes, so `app.js` drives it with no
@@ -2710,7 +2710,7 @@ edit at all.
 {% endblock %}
 ```
 
-- [ ] **Step 11: Link the needs-you rows to it**
+- [x] **Step 11: Link the needs-you rows to it**
 
 In `renewal/templates/inbox.html`, in the needs-you bucket's `<li>`, add after
 the summary span:
@@ -2721,17 +2721,17 @@ the summary span:
       {% endif %}
 ```
 
-- [ ] **Step 12: Run the tests to verify they pass**
+- [x] **Step 12: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py tests/test_pipeline_promote.py -v`
 Expected: PASS
 
-- [ ] **Step 13: Run the full suite**
+- [x] **Step 13: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 766 passed
 
-- [ ] **Step 14: Commit**
+- [x] **Step 14: Commit**
 
 ```bash
 git add renewal/pipeline.py renewal/background.py renewal/web/inbox.py renewal/templates/ tests/
@@ -2767,7 +2767,7 @@ she picks from that client's policies, or creates one from this document.
 - Consumes: `candidates_for`, `assign` from `renewal.resolve.service`.
 - Produces: `DocumentState`-keyed context `{"candidates": {document_id: [...]}, "policies": {document_id: [Policy, ...]}}`; `POST /documents/{document_id}/policy`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_web_inbox.py`:
 
@@ -2876,12 +2876,12 @@ def test_a_needs_policy_row_offers_that_clients_policies(
         session.close()
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -k "needs_client or assigning or unmatched_page or needs_policy" -v`
 Expected: FAIL — `/unmatched` still returns 200, and `/documents/{id}/policy` is a 405.
 
-- [ ] **Step 3: Strip `renewal/web/unmatched.py` to its two fixes**
+- [x] **Step 3: Strip `renewal/web/unmatched.py` to its two fixes**
 
 Delete the `GET /unmatched` route and the `TEMPLATES`, `page_text`, `Client`
 (kept — still used by the 404 check) and `SNIPPET_CHARS` imports it alone
@@ -2898,7 +2898,7 @@ matching better. It is why assignment writes a row rather than setting a field.
 """
 ```
 
-- [ ] **Step 4: Move `POST /clients` and `POST /policies` into `renewal/web/clients.py`**
+- [x] **Step 4: Move `POST /clients` and `POST /policies` into `renewal/web/clients.py`**
 
 Copy the two route functions verbatim out of `renewal/web/runs.py:42-66` into
 `renewal/web/clients.py`'s `register`, changing only the redirect target from
@@ -2907,7 +2907,7 @@ imports. They keep their URLs; creating a policy from a document is the
 `needs_policy` fix, and `POST /clients` is what the new-client form on a
 `needs_client` row posts to via `/unmatched/{id}/new-client`.
 
-- [ ] **Step 5: Add `POST /documents/{document_id}/policy`**
+- [x] **Step 5: Add `POST /documents/{document_id}/policy`**
 
 In `renewal/web/inbox.py`:
 
@@ -2953,7 +2953,7 @@ from renewal.models import Policy
 from renewal.resolve.service import assign, candidates_for, latest_link
 ```
 
-- [ ] **Step 6: Put the candidates and policies on the rows**
+- [x] **Step 6: Put the candidates and policies on the rows**
 
 In `renewal/web/inbox.py`'s `inbox` route, build the two lookups the needs-you
 rows need — only for the rows that need them, so an inbox of Done rows costs no
@@ -3011,7 +3011,7 @@ extra queries:
 
 with `from sqlalchemy import case, select` and `from renewal.models import Client, Document, ExtractedField, Extraction, Policy`.
 
-- [ ] **Step 7: Render the two fixes**
+- [x] **Step 7: Render the two fixes**
 
 In `renewal/templates/inbox.html`, inside the needs-you `<li>`, after the
 existing "Open it" block:
@@ -3075,7 +3075,7 @@ and append to `renewal/static/app.css`:
 `inline-fix` rather than `inline`: `form.inline` is bound in `app.js` to the
 fetch-and-reload handler for the 204 correction endpoints, and these redirect.
 
-- [ ] **Step 8: Drop "Unmatched" from the nav and delete its template**
+- [x] **Step 8: Drop "Unmatched" from the nav and delete its template**
 
 In `renewal/templates/base.html`, delete line 35 (the `/unmatched` link).
 
@@ -3083,12 +3083,12 @@ In `renewal/templates/base.html`, delete line 35 (the `/unmatched` link).
 git rm renewal/templates/unmatched.html
 ```
 
-- [ ] **Step 9: Run the tests to verify they pass**
+- [x] **Step 9: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -v`
 Expected: PASS
 
-- [ ] **Step 10: Run the full suite**
+- [x] **Step 10: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: `tests/test_web_unmatched.py` (if it exists) fails on the deleted
@@ -3096,7 +3096,7 @@ Expected: `tests/test_web_unmatched.py` (if it exists) fails on the deleted
 `tests/test_web_inbox.py` and delete the page-rendering ones — the page is gone,
 so a test asserting it renders is testing something that no longer exists.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add -A renewal/web/ renewal/templates/ renewal/static/app.css tests/
@@ -3128,7 +3128,7 @@ message row's transaction.
 **Interfaces:**
 - Produces: `receive(session, store, email, *, client, settings, on_document=None) -> InboundMessage` — `on_document` is called with each attachment's `document_id` after the message row is committed.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_mail_intake.py`:
 
@@ -3166,12 +3166,12 @@ def test_attachments_are_handed_off_rather_than_extracted_inline(
 defined at the top of this file. `_receive` is the file's own wrapper and does
 not take `on_document`, which is why this one test calls `receive` directly.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_mail_intake.py -k handed_off -v`
 Expected: FAIL — `TypeError: receive() got an unexpected keyword argument 'on_document'`
 
-- [ ] **Step 3: Change `receive` to store and hand off**
+- [x] **Step 3: Change `receive` to store and hand off**
 
 In `renewal/mail/intake.py`, change the signature:
 
@@ -3232,7 +3232,7 @@ from renewal.pipeline import (
 )
 ```
 
-- [ ] **Step 4: Dispatch from the webhook**
+- [x] **Step 4: Dispatch from the webhook**
 
 In `renewal/web/mail.py`, replace the `receive` call block:
 
@@ -3266,7 +3266,7 @@ from renewal.background import process_document
 
 and keep a reference to `deps` in `register` (it is already the parameter name).
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_mail_intake.py tests/test_web_mail.py -v`
 Expected: PASS with no edits to the existing tests. None of them asserts that
@@ -3275,12 +3275,12 @@ Expected: PASS with no edits to the existing tests. None of them asserts that
 that turns out to be wrong, move the assertion behind an `InlineRunner` rather
 than deleting it: the behaviour still happens, just one step later.
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 767 passed
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/mail/intake.py renewal/web/mail.py tests/
@@ -3323,7 +3323,7 @@ person — that is a recommendation however it is worded.
 - Consumes: `build_comparison`, `matrix_for` from `renewal.comparison`; `generate_draft` from `renewal.draft`; `load_rules` from `renewal.materiality`.
 - Produces: `run_compare_stage(session, term, *, settings, model_client=None) -> Comparison | None`
 
-- [ ] **Step 1: Write the headline test**
+- [x] **Step 1: Write the headline test**
 
 Create `tests/test_auto_renewal.py`:
 
@@ -3448,13 +3448,13 @@ def test_a_quote_is_never_auto_compared(session, store):
     assert session.query(Comparison).count() == 0
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_auto_renewal.py -v`
 Expected: FAIL — `assert 0 == 1`, no `Comparison` rows. This is the circularity,
 reproduced.
 
-- [ ] **Step 3: Let `build_comparison` be built without a run**
+- [x] **Step 3: Let `build_comparison` be built without a run**
 
 In `renewal/comparison.py`, change `build_comparison`'s signature — `run_id`
 becomes optional, matching `build_matrix`, which has always accepted `None`:
@@ -3480,7 +3480,7 @@ def build_comparison(
 
 Note `run_id` moves after `rules` so the keyword-only call sites are unaffected.
 
-- [ ] **Step 4: Add the compare stage**
+- [x] **Step 4: Add the compare stage**
 
 In `renewal/pipeline.py`:
 
@@ -3562,7 +3562,7 @@ from renewal.models import (
 )
 ```
 
-- [ ] **Step 5: Call it from `run_stages`**
+- [x] **Step 5: Call it from `run_stages`**
 
 In `renewal/pipeline.py`'s `run_stages`, change the promote block:
 
@@ -3583,7 +3583,7 @@ In `renewal/pipeline.py`'s `run_stages`, change the promote block:
             )
 ```
 
-- [ ] **Step 6: Check for an import cycle**
+- [x] **Step 6: Check for an import cycle**
 
 `renewal/pipeline.py` now imports `renewal.comparison`, which imports
 `renewal.attention.rules`. Nothing in either may import `renewal.pipeline`.
@@ -3596,12 +3596,12 @@ If it fails, the cycle is `renewal.inbox` importing `should_extract_fields` from
 beside `FIELD_EXTRACTION_CLASSES`, where it always belonged, and import it from
 there in both places.
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [x] **Step 7: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_auto_renewal.py -v`
 Expected: PASS (6 tests)
 
-- [ ] **Step 8: Fix the test this deliberately invalidates**
+- [x] **Step 8: Fix the test this deliberately invalidates**
 
 `tests/test_renewal_arrives.py::test_nothing_is_compared_until_she_clicks`
 asserts the old behaviour and is now wrong on purpose. Replace it:
@@ -3622,12 +3622,12 @@ def test_a_renewal_compares_itself(session, store):
     assert session.query(Draft).count() == 1
 ```
 
-- [ ] **Step 9: Run the full suite**
+- [x] **Step 9: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 773 passed
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add renewal/pipeline.py renewal/comparison.py tests/
@@ -3679,7 +3679,7 @@ import that strands twenty documents therefore sends one email, not twenty.
   - `send_email(subject, body, *, settings) -> None`
   - `renewal.web.navbadge.install(app, deps)`
 
-- [ ] **Step 1: Add the model and its migration**
+- [x] **Step 1: Add the model and its migration**
 
 In `renewal/models.py`:
 
@@ -3739,7 +3739,7 @@ def downgrade() -> None:
 Add `notification_send` to the `TABLES` tuple in `conftest.py:48-56` so the
 `clean_db` fixture truncates it.
 
-- [ ] **Step 2: Add the settings**
+- [x] **Step 2: Add the settings**
 
 In `renewal/config.py`, add to the `Settings` dataclass:
 
@@ -3785,7 +3785,7 @@ NOTIFY_MIN_INTERVAL_MINUTES=60
 BASE_URL=http://127.0.0.1:8000
 ```
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 Create `tests/test_notify.py`:
 
@@ -3902,12 +3902,12 @@ def test_an_smtp_failure_is_swallowed_and_logged(session, store):
     assert session.query(NotificationSend).count() == 0
 ```
 
-- [ ] **Step 4: Run to verify they fail**
+- [x] **Step 4: Run to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_notify.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.notify'`
 
-- [ ] **Step 5: Write `renewal/notify.py`**
+- [x] **Step 5: Write `renewal/notify.py`**
 
 ```python
 """Telling the operator that something is waiting.
@@ -4005,7 +4005,7 @@ def maybe_notify(session: Session, *, settings: Settings, send=None) -> bool:
     return True
 ```
 
-- [ ] **Step 6: Call it at the end of a background run**
+- [x] **Step 6: Call it at the end of a background run**
 
 In `renewal/background.py`, inside `process_document`, after the successful
 `_set_status(session, document, "processed")`:
@@ -4024,12 +4024,12 @@ In `renewal/background.py`, inside `process_document`, after the successful
 
 with `from renewal.notify import maybe_notify`.
 
-- [ ] **Step 7: Run the notify tests**
+- [x] **Step 7: Run the notify tests**
 
 Run: `.venv/bin/pytest tests/test_notify.py tests/test_background.py -v`
 Expected: PASS
 
-- [ ] **Step 8: Add the nav badge**
+- [x] **Step 8: Add the nav badge**
 
 Create `renewal/web/navbadge.py`:
 
@@ -4135,7 +4135,7 @@ and append to `renewal/static/app.css`:
 }
 ```
 
-- [ ] **Step 9: Test the badge**
+- [x] **Step 9: Test the badge**
 
 Append to `tests/test_web_inbox.py`:
 
@@ -4154,12 +4154,12 @@ def test_an_empty_queue_shows_no_badge(signed):
     assert 'class="badge"' not in page.text
 ```
 
-- [ ] **Step 10: Run the full suite**
+- [x] **Step 10: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: 783 passed
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add -A renewal/ migrations/ conftest.py tests/ .env.example
@@ -4191,7 +4191,7 @@ things*. This deletion is a gain in capability, not a trade.
 **Interfaces:**
 - The three correction endpoints keep their URLs exactly: `POST /fields/{id}/correct`, `POST /fields/{id}/reject`, `POST /extractions/{id}/fields`. `app.js` posts to them by literal path and must not need an edit.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_web_inbox.py`:
 
@@ -4241,12 +4241,12 @@ def test_the_correction_endpoints_kept_their_urls(signed, engine, settings):
     assert response.status_code == 204
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_web_inbox.py -k "run_pages or run_posts" -v`
 Expected: FAIL — `/runs/new` returns 200
 
-- [ ] **Step 3: Rename the review module and strip it**
+- [x] **Step 3: Rename the review module and strip it**
 
 ```bash
 git mv renewal/web/review.py renewal/web/corrections.py
@@ -4290,7 +4290,7 @@ from renewal.web.deps import Deps
 
 and `register` keeps only `session_factory = deps.session_factory`.
 
-- [ ] **Step 4: Delete the run module and its templates**
+- [x] **Step 4: Delete the run module and its templates**
 
 ```bash
 git rm renewal/web/runs.py renewal/templates/run_new.html renewal/templates/run_review.html tests/test_web_review.py
@@ -4301,7 +4301,7 @@ both of which are gone. Before deleting it, read it once and confirm every
 assertion it makes about the *correction endpoints* has an equivalent in
 `tests/test_web_inbox.py`; move over anything that does not.
 
-- [ ] **Step 5: Unmount them**
+- [x] **Step 5: Unmount them**
 
 In `renewal/web/__init__.py`, update the import and `ROUTER_MODULES`:
 
@@ -4320,21 +4320,21 @@ ROUTER_MODULES = (
 )
 ```
 
-- [ ] **Step 6: Drop the run crumb from the comparison page**
+- [x] **Step 6: Drop the run crumb from the comparison page**
 
 In `renewal/templates/comparison.html`, find the conditional block that links
 back to `/runs/{{ ... }}/review` and delete it. Leave any other use of
 `matrix.comparison.renewal_run_id` alone if it only *displays* a number — the
 column is still the only record of what pre-matrix comparisons meant.
 
-- [ ] **Step 7: Run the full suite**
+- [x] **Step 7: Run the full suite**
 
 Run: `.venv/bin/pytest`
 Expected: PASS. `tests/test_web_gate.py` lists `/runs/new` among the paths it
 checks the gate on — replace that entry with `/documents/1/review`, which is the
 protected route that took its place, rather than dropping the case.
 
-- [ ] **Step 8: Check nothing still points at a deleted route**
+- [x] **Step 8: Check nothing still points at a deleted route**
 
 ```bash
 grep -rn "runs/new\|/runs/\|run_review\|run_new\|RenewalRun" \
@@ -4345,7 +4345,7 @@ Expected: only `renewal/models.py` (the table), `renewal/comparison.py`
 (`renewal_run_id` on the `Comparison` row), and the migration that created it.
 Anything else is a dangling reference.
 
-- [ ] **Step 9: Run the app and drive it**
+- [x] **Step 9: Run the app and drive it**
 
 ```bash
 .venv/bin/uvicorn renewal.web:app --host 127.0.0.1 --port 8000
@@ -4358,7 +4358,7 @@ Then, signed in at `http://127.0.0.1:8000/`:
 4. Open a Done row's comparison link.
 5. Confirm `/runs/new` is a 404 page, not a stack trace.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add -A
@@ -4380,13 +4380,13 @@ Claude-Session: https://claude.ai/code/session_013jrgvohFTj9YuD916qDri9"
 
 Run these after Task 14. Each maps to a line in the spec's Testing section.
 
-- [ ] **Each bucket renders, with the right fix on each needs-you row** — `.venv/bin/pytest tests/test_web_inbox.py tests/test_inbox.py -v`
-- [ ] **A background task flips a document from processing to its final status** — `.venv/bin/pytest tests/test_background.py -v`
-- [ ] **A stalled document is listed and recovers on retry** — `tests/test_web_inbox.py::test_retry_reruns_a_stalled_document`
-- [ ] **Auto-build fires for a renewal pair, never for a quoted column** — `tests/test_auto_renewal.py::test_a_quote_is_never_auto_compared`
-- [ ] **The deleted routes 404** — `tests/test_web_inbox.py::test_the_run_pages_are_gone`
-- [ ] **The notification sends once inside the hour, and an SMTP failure leaves the document processed** — `.venv/bin/pytest tests/test_notify.py -v`
-- [ ] **The regression that matters most** — `tests/test_auto_renewal.py::test_the_premium_change_item_is_raised_without_a_click`
-- [ ] **Full suite green** — `.venv/bin/pytest`
+- [x] **Each bucket renders, with the right fix on each needs-you row** — `.venv/bin/pytest tests/test_web_inbox.py tests/test_inbox.py -v`
+- [x] **A background task flips a document from processing to its final status** — `.venv/bin/pytest tests/test_background.py -v`
+- [x] **A stalled document is listed and recovers on retry** — `tests/test_web_inbox.py::test_retry_reruns_a_stalled_document`
+- [x] **Auto-build fires for a renewal pair, never for a quoted column** — `tests/test_auto_renewal.py::test_a_quote_is_never_auto_compared`
+- [x] **The deleted routes 404** — `tests/test_web_inbox.py::test_the_run_pages_are_gone`
+- [x] **The notification sends once inside the hour, and an SMTP failure leaves the document processed** — `.venv/bin/pytest tests/test_notify.py -v`
+- [x] **The regression that matters most** — `tests/test_auto_renewal.py::test_the_premium_change_item_is_raised_without_a_click`
+- [x] **Full suite green** — `.venv/bin/pytest`
 
 Then use `superpowers:finishing-a-development-branch`.
