@@ -55,7 +55,7 @@
 - Consumes: nothing.
 - Produces: `text_block(text: str) -> dict`, `image_block(png: bytes) -> dict`, `to_anthropic(content: list[dict]) -> list[dict]`, `to_openai(content: list[dict]) -> list[dict]`. IR block shapes: `{"type": "text", "text": str}` and `{"type": "image_png", "data": bytes}`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/test_providers.py`:
 
@@ -113,12 +113,12 @@ def test_an_unknown_block_type_raises_rather_than_being_dropped(translate):
         translate([{"type": "audio", "data": b""}])
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_providers.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'renewal.providers'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `renewal/providers.py`:
 
@@ -182,12 +182,12 @@ def to_openai(content: list[dict]) -> list[dict]:
     return out
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_providers.py -v`
 Expected: 6 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/providers.py tests/test_providers.py
@@ -208,7 +208,7 @@ git commit -m "feat: neutral content IR with per-provider translation"
 
 `AnthropicClient` is moved here from `renewal/extract/runner.py`; it is not a new class. It keeps its behaviour and gains only the `to_anthropic` call.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_providers.py`:
 
@@ -310,12 +310,12 @@ def test_a_trailing_slash_on_the_base_url_does_not_double_up():
     assert str(handler.request.url) == "http://x/v1/chat/completions"
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_providers.py -v`
 Expected: FAIL — `ImportError: cannot import name 'OpenAICompatClient'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add to the imports at the top of `renewal/providers.py`:
 
@@ -395,12 +395,12 @@ class OpenAICompatClient:
             return response.json()["choices"][0]["message"]["content"]
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_providers.py -v`
 Expected: 13 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/providers.py tests/test_providers.py
@@ -421,7 +421,7 @@ git commit -m "feat: Anthropic and OpenAI-compatible model clients"
 
 `PROVIDER_KEY_ENV` lives in `config.py`, not `providers.py`, so that `providers` can import `config` without a cycle.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_providers.py`:
 
@@ -504,12 +504,12 @@ def test_an_unknown_provider_names_the_ones_that_exist():
         build_client(_settings(provider="not-a-provider"))
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_providers.py -v`
 Expected: FAIL — `TypeError: Settings.__init__() got an unexpected keyword argument 'provider'`
 
-- [ ] **Step 3: Extend the settings**
+- [x] **Step 3: Extend the settings**
 
 In `renewal/config.py`, add above the `Settings` class:
 
@@ -548,7 +548,7 @@ and add these three arguments to the `Settings(...)` call:
         llm_api_key=os.environ.get(key_env, "") if key_env else "",
 ```
 
-- [ ] **Step 4: Write the registry**
+- [x] **Step 4: Write the registry**
 
 Add to the imports at the top of `renewal/providers.py`:
 
@@ -602,12 +602,12 @@ def build_client(settings: Settings) -> ModelClient:
     return OpenAICompatClient(base_url, settings.llm_api_key)
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_providers.py -v`
 Expected: 25 passed
 
-- [ ] **Step 6: Promote httpx to a runtime dependency**
+- [x] **Step 6: Promote httpx to a runtime dependency**
 
 `httpx` is currently installed only as a transitive dependency of the
 `anthropic` SDK and declared only under `dev`. `providers.py` imports it at
@@ -622,7 +622,7 @@ dev = ["pytest>=8.0"]
 
 Then: `.venv/bin/pip install -q -e ".[dev]"`
 
-- [ ] **Step 7: Document the providers**
+- [x] **Step 7: Document the providers**
 
 Replace `.env.example` with:
 
@@ -660,12 +660,12 @@ LLM_BASE_URL=
 #   DRAFT_MODEL=qwen2.5:7b
 ```
 
-- [ ] **Step 8: Run the whole suite**
+- [x] **Step 8: Run the whole suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: all passing. Nothing else consumes the new settings yet.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add renewal/providers.py renewal/config.py tests/test_providers.py \
@@ -694,7 +694,7 @@ discovered mid-task, because a changed test is a changed guarantee:
 2. `tests/test_extract_runner.py:87` asserts `model_id == "claude-opus-5"` and
    becomes `"anthropic:claude-opus-5"`.
 
-- [ ] **Step 1: Update the two existing tests**
+- [x] **Step 1: Update the two existing tests**
 
 In `tests/test_extract_runner.py`, change the assertion on line 87 to:
 
@@ -725,12 +725,12 @@ def test_scanned_document_is_sent_as_page_images(session, store, settings):
 
 The `import base64` at the top of that file becomes unused; remove it.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_extract_scanned.py tests/test_extract_runner.py -v`
 Expected: FAIL — the scanned test finds no `image_png` blocks (`assert 0 == 2`), and the runner test sees `"claude-opus-5"` where it wants `"anthropic:claude-opus-5"`.
 
-- [ ] **Step 3: Rewrite the runner's content builder**
+- [x] **Step 3: Rewrite the runner's content builder**
 
 In `renewal/extract/runner.py`, delete the `import base64` line, delete the
 `from typing import Protocol` line, delete the whole `ModelClient` Protocol
@@ -754,7 +754,7 @@ def _build_content(prompt, data: bytes, pdf: PdfInfo, has_text_layer: bool) -> l
     return blocks
 ```
 
-- [ ] **Step 4: Record the provider on the extraction**
+- [x] **Step 4: Record the provider on the extraction**
 
 In `renewal/extract/runner.py`, inside `_record`, change:
 
@@ -768,7 +768,7 @@ to:
             model_id=f"{settings.provider}:{settings.extraction_model}",
 ```
 
-- [ ] **Step 5: Update the four modules that imported AnthropicClient**
+- [x] **Step 5: Update the four modules that imported AnthropicClient**
 
 In `renewal/app.py`, replace the whole file with:
 
@@ -878,12 +878,12 @@ grep -rn 'AnthropicClient' --include=*.py . | grep -v '/.venv/'
 The only hits left should be in `renewal/providers.py` and
 `tests/test_providers.py`.
 
-- [ ] **Step 6: Run the whole suite**
+- [x] **Step 6: Run the whole suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: all passing.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/extract/runner.py renewal/app.py evals/test_extraction.py \
@@ -907,7 +907,7 @@ git commit -m "refactor: runner emits neutral content IR and records the provide
 This is the only thing added to `validate.py`. The gate itself — `_check`,
 `_normalize`, `validate_fields` — is not edited.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_extract_validate.py`:
 
@@ -940,12 +940,12 @@ def test_rate_is_none_rather_than_a_division_by_zero_for_an_empty_extraction():
     assert verification_rate([]) is None
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_extract_validate.py -v`
 Expected: FAIL — `ImportError: cannot import name 'verification_rate'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Append to `renewal/extract/validate.py`:
 
@@ -967,12 +967,12 @@ def verification_rate(fields) -> float | None:
     return verified / len(fields)
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_extract_validate.py -v`
 Expected: all passing.
 
-- [ ] **Step 5: Write the failing web test**
+- [x] **Step 5: Write the failing web test**
 
 Append to `tests/test_web_review.py`:
 
@@ -993,12 +993,12 @@ def test_review_screen_shows_the_verification_rate(app, seeded):
 Do not change `FakeClient` or `_response` to make both sides verify — the
 asymmetry is what makes this test worth having.
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `.venv/bin/pytest tests/test_web_review.py -v`
 Expected: FAIL — `assert 'verified' in ...`
 
-- [ ] **Step 7: Put the rate into the review context**
+- [x] **Step 7: Put the rate into the review context**
 
 In `renewal/web.py`, add to the imports:
 
@@ -1030,7 +1030,7 @@ and add to the template context dict:
                     "rates": rates,
 ```
 
-- [ ] **Step 8: Show it in the template**
+- [x] **Step 8: Show it in the template**
 
 In `renewal/templates/run_review.html`, replace the extraction header paragraph:
 
@@ -1061,12 +1061,12 @@ A model that cannot quote the document shows a red low percentage on its first
 run and disqualifies itself, which is what makes leaving the gate alone
 workable.
 
-- [ ] **Step 9: Run the whole suite**
+- [x] **Step 9: Run the whole suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: all passing.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add renewal/extract/validate.py renewal/web.py \
@@ -1091,7 +1091,7 @@ git commit -m "feat: verification rate exposes models that cannot quote the docu
 
 `evals/baseline.json` currently holds `{}`, so there is nothing to migrate.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_accuracy.py`:
 
@@ -1147,12 +1147,12 @@ def test_two_different_models_never_share_a_baseline_file():
     assert a != b
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `.venv/bin/pytest tests/test_accuracy.py -v`
 Expected: FAIL — `ImportError: cannot import name 'baseline_path'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add `import hashlib` and `import re` to the imports in `evals/accuracy.py`,
 then append:
@@ -1178,12 +1178,12 @@ def baseline_path(directory: Path, provider: str, model: str, version: str) -> P
     return Path(directory) / f"{slug}-{digest}.json"
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `.venv/bin/pytest tests/test_accuracy.py -v`
 Expected: all passing.
 
-- [ ] **Step 5: Point the harness at the per-model baseline**
+- [x] **Step 5: Point the harness at the per-model baseline**
 
 In `evals/test_extraction.py`, replace:
 
@@ -1260,7 +1260,7 @@ Replace the baseline block at the end with:
     baseline.with_suffix(".latest.json").write_text(json.dumps(results, indent=2))
 ```
 
-- [ ] **Step 6: Turn compare_versions into a baseline diff**
+- [x] **Step 6: Turn compare_versions into a baseline diff**
 
 `scripts/compare_versions.py` currently re-runs the extractor twice and makes
 real API calls. Comparing two recorded baselines instead means the comparison
@@ -1320,7 +1320,7 @@ if __name__ == "__main__":
     main(sys.argv[1], sys.argv[2])
 ```
 
-- [ ] **Step 7: Remove the old baseline and keep the directory**
+- [x] **Step 7: Remove the old baseline and keep the directory**
 
 ```bash
 git rm evals/baseline.json
@@ -1328,13 +1328,13 @@ mkdir -p evals/baselines
 touch evals/baselines/.gitkeep
 ```
 
-- [ ] **Step 8: Run the whole suite**
+- [x] **Step 8: Run the whole suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: all passing. `evals/test_extraction.py` must still import cleanly at
 collection time even though it is deselected.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add evals scripts/compare_versions.py tests/test_accuracy.py
@@ -1352,7 +1352,7 @@ git commit -m "feat: eval baselines keyed by provider, model, and version"
 - Consumes: everything above.
 - Produces: nothing consumed by later tasks.
 
-- [ ] **Step 1: Rewrite the privacy note**
+- [x] **Step 1: Rewrite the privacy note**
 
 `PRIVACY.md` currently states flatly that documents are sent to Anthropic. Under
 `PROVIDER=ollama` that is false, and a privacy note that is false in one of its
@@ -1395,25 +1395,25 @@ extraction also records the provider and model it used in
 document already processed.
 ```
 
-- [ ] **Step 2: Check the rest of the file still reads true**
+- [x] **Step 2: Check the rest of the file still reads true**
 
 Read `PRIVACY.md` start to finish. The sections on storage, retention, logging,
 and version control are unaffected by this work and must not be edited. Confirm
 no other sentence in the file asserts that documents go to Anthropic.
 
-- [ ] **Step 3: Run the whole suite**
+- [x] **Step 3: Run the whole suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: all passing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add PRIVACY.md
 git commit -m "docs: privacy note covers local and third-party providers"
 ```
 
-- [ ] **Step 5: Prove it end to end against a local model**
+- [x] **Step 5: Prove it end to end against a local model**
 
 This step needs a real dec page and cannot be done from the test suite.
 

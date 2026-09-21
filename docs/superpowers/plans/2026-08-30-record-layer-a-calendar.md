@@ -77,7 +77,7 @@ Recall is the number that matters; a missed date is the failure with real conseq
 - Consumes: nothing.
 - Produces: `DateScore(tp: int, fp: int, fn: int, precision: float, recall: float)`, `score_dates(expected: list[dict], actual: list[dict], *, billing_type: str = "unknown") -> DateScore`. Both dict shapes are `{"date_value": "YYYY-MM-DD", "date_type": str}`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # tests/test_eval_scoring.py
@@ -133,12 +133,12 @@ def test_empty_expectation_has_perfect_recall():
     assert score_dates([], []).recall == 1.0
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_eval_scoring.py -v`
 Expected: FAIL with `ImportError: cannot import name 'DateScore'`
 
-- [ ] **Step 3: Implement the scoring**
+- [x] **Step 3: Implement the scoring**
 
 ```python
 # evals/accuracy.py — append
@@ -188,12 +188,12 @@ def score_dates(
     )
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_eval_scoring.py -v`
 Expected: 7 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add evals/accuracy.py tests/test_eval_scoring.py
@@ -214,7 +214,7 @@ git commit -m "feat(evals): score date extraction, recall separate from precisio
 - Consumes: nothing.
 - Produces: `score_classification(expected: str, actual: str) -> str` returning `"correct"`, `"declined"`, or `"wrong"`; `MatchScore(top1: bool, in_top_k: bool)`, `score_match(expected_client_id: int | None, ranked: list[int], k: int = 5) -> MatchScore`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # tests/test_eval_scoring.py — append
@@ -258,12 +258,12 @@ def test_no_expected_client_but_something_offered_is_a_miss():
     assert score_match(None, [3]) == MatchScore(top1=False, in_top_k=False)
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_eval_scoring.py -v`
 Expected: FAIL with `ImportError: cannot import name 'MatchScore'`
 
-- [ ] **Step 3: Implement the scoring**
+- [x] **Step 3: Implement the scoring**
 
 ```python
 # evals/accuracy.py — append
@@ -300,12 +300,12 @@ def score_match(
     )
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_eval_scoring.py -v`
 Expected: 16 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add evals/accuracy.py tests/test_eval_scoring.py
@@ -326,7 +326,7 @@ Fixtures currently carry per-field ground truth only. They gain expected dates, 
 - Consumes: `Fixture` (existing).
 - Produces: `Fixture` gains `dates: list[dict]`, `doc_class: str`, `expected_client: str | None`, `billing_type: str`. All four default so existing fixture files keep loading.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_eval_scoring.py — append
@@ -362,12 +362,12 @@ def test_fixture_with_new_keys_loads_them(tmp_path):
     assert fixture.dates[0]["date_type"] == "policy_expiration"
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_eval_scoring.py -k fixture -v`
 Expected: FAIL with `AttributeError: 'Fixture' object has no attribute 'dates'`
 
-- [ ] **Step 3: Extend the dataclass and loader**
+- [x] **Step 3: Extend the dataclass and loader**
 
 ```python
 # evals/accuracy.py — replace the Fixture dataclass and load_fixtures
@@ -407,16 +407,16 @@ def load_fixtures(directory: Path) -> list[Fixture]:
 
 Add `field` to the existing `from dataclasses import dataclass` import.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_eval_scoring.py -v`
 Expected: 18 passed
 
-- [ ] **Step 5: Document the new keys**
+- [x] **Step 5: Document the new keys**
 
 Append to `evals/fixtures/README.md`: each key, whether it is optional, and that `expected_client` is a display name resolved at eval time rather than an id, because ids differ between databases.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add evals/accuracy.py evals/fixtures/README.md tests/test_eval_scoring.py
@@ -435,7 +435,7 @@ git commit -m "feat(evals): fixtures carry expected dates, class, and client"
 **Interfaces:**
 - Produces: models `Agency`, `Carrier`, `CarrierAlias`, `CarrierAdmittedStatus`; `Policy.state`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_models_record.py
@@ -489,12 +489,12 @@ def test_carrier_alias_resolves_a_name_variant(session):
     assert found.carrier_id == carrier.id
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_models_record.py -v`
 Expected: FAIL with `ImportError: cannot import name 'Agency'`
 
-- [ ] **Step 3: Add the models**
+- [x] **Step 3: Add the models**
 
 ```python
 # renewal/models.py — append
@@ -558,7 +558,7 @@ Add to `Policy`:
     state: Mapped[str | None] = mapped_column(Text, nullable=True)
 ```
 
-- [ ] **Step 4: Generate and write the migration**
+- [x] **Step 4: Generate and write the migration**
 
 Run: `alembic revision -m "agency and carrier"`
 
@@ -573,7 +573,7 @@ In the generated file's `upgrade()`: create the four tables, add `policy.state`,
 
 `gen_random_bytes` is in `pgcrypto`; add `op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")` above it. `downgrade()` drops the four tables and the column.
 
-- [ ] **Step 5: Register the tables for truncation**
+- [x] **Step 5: Register the tables for truncation**
 
 In `conftest.py`, add `carrier, carrier_alias, carrier_admitted_status` to the `TABLES` string.
 
@@ -589,12 +589,12 @@ The agency row is reference data, not test data. Add an assertion to
 
 so a future edit to `TABLES` fails loudly here instead of mysteriously later.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_models_record.py tests/test_models.py -v`
 Expected: all pass. The session-scoped `engine` fixture drops and recreates the schema, so the new migration runs automatically.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/ conftest.py tests/test_models_record.py
@@ -616,7 +616,7 @@ Direct bill means payment lapses are invisible to her until the cancellation not
 - Consumes: `Policy`, `PolicyTerm` (existing).
 - Produces: model `PolicyBillingType`; `PolicyTerm.billing_type`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_models_record.py — append
@@ -670,12 +670,12 @@ def test_policy_term_billing_type_may_be_null(session):
     assert session.get(PolicyTerm, term.id).billing_type is None
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_models_record.py -k billing -v`
 Expected: FAIL with `ImportError: cannot import name 'PolicyBillingType'`
 
-- [ ] **Step 3: Add the models**
+- [x] **Step 3: Add the models**
 
 ```python
 # renewal/models.py — append
@@ -706,22 +706,22 @@ Add to `PolicyTerm`:
     billing_type: Mapped[str | None] = mapped_column(Text, nullable=True)
 ```
 
-- [ ] **Step 4: Generate and write the migration**
+- [x] **Step 4: Generate and write the migration**
 
 Run: `alembic revision -m "billing type"`
 
 `upgrade()` creates `policy_billing_type` with its check constraint, adds `policy_term.billing_type` as nullable text, and creates an index on `policy_billing_type(policy_id)`. `downgrade()` reverses both.
 
-- [ ] **Step 5: Register the table for truncation**
+- [x] **Step 5: Register the table for truncation**
 
 Add `policy_billing_type` to the `TABLES` string in `conftest.py`.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_models_record.py -v`
 Expected: all pass
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/ conftest.py tests/test_models_record.py
@@ -743,7 +743,7 @@ The tsvector is a generated column so it can never drift from the text beside it
 - Consumes: `Document` (existing).
 - Produces: models `DocumentText`, `DocumentClassification`; `Document.source`, `Document.agency_id`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_models_record.py — append
@@ -830,12 +830,12 @@ def test_classification_is_appended_not_updated(session):
 
 Add `import pytest` and `from sqlalchemy.exc import IntegrityError` at the top of the test file.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_models_record.py -k "text or classification" -v`
 Expected: FAIL with `ImportError: cannot import name 'DocumentText'`
 
-- [ ] **Step 3: Add the models**
+- [x] **Step 3: Add the models**
 
 ```python
 # renewal/models.py — append
@@ -891,7 +891,7 @@ Add to `Document`:
 
 `doc_class` is deliberately unconstrained at the database level: a check constraint would turn a future label into a migration, and the value is display-only. The allowed set lives in `renewal/classify/prompt_v1.py` and is asserted in that module's tests.
 
-- [ ] **Step 4: Generate and write the migration**
+- [x] **Step 4: Generate and write the migration**
 
 Run: `alembic revision -m "document text and classification"`
 
@@ -906,16 +906,16 @@ That backfill is the one UPDATE in the codebase. It runs once, in a migration, o
 
 `downgrade()` drops both tables and both columns. It leaves the extensions in place; dropping a shared extension on downgrade would break unrelated indexes.
 
-- [ ] **Step 5: Register the tables for truncation**
+- [x] **Step 5: Register the tables for truncation**
 
 Add `document_text, document_classification` to the `TABLES` string in `conftest.py`.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_models_record.py -v`
 Expected: all pass
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/ conftest.py tests/test_models_record.py
@@ -937,7 +937,7 @@ A document with no link row is unmatched. There is no status column and no queue
 - Consumes: `Document`, `Client`, `Policy`.
 - Produces: model `DocumentLink`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_models_record.py — append
@@ -986,12 +986,12 @@ def test_a_link_may_have_no_policy(session):
     assert session.get(DocumentLink, link.id).policy_id is None
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_models_record.py -k link -v`
 Expected: FAIL with `ImportError: cannot import name 'DocumentLink'`
 
-- [ ] **Step 3: Add the model**
+- [x] **Step 3: Add the model**
 
 ```python
 # renewal/models.py — append
@@ -1021,22 +1021,22 @@ class DocumentLink(Base):
     created_at: Mapped[datetime] = _created_at()
 ```
 
-- [ ] **Step 4: Generate and write the migration**
+- [x] **Step 4: Generate and write the migration**
 
 Run: `alembic revision -m "document link"`
 
 `upgrade()` creates the table with its check constraint and an index on `(document_id, id DESC)` — the latest-row-per-document lookup is the hot path for the calendar, the queue, and the overview. `downgrade()` drops it.
 
-- [ ] **Step 5: Register the table for truncation**
+- [x] **Step 5: Register the table for truncation**
 
 Add `document_link` to the `TABLES` string in `conftest.py`.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_models_record.py -v`
 Expected: all pass
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/ conftest.py tests/test_models_record.py
@@ -1057,7 +1057,7 @@ git commit -m "feat(db): append-only document to client links"
 **Interfaces:**
 - Produces: models `DocumentDate`, `DateEvent`, `ManualDate`, `ManualDateEvent`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_models_record.py — append
@@ -1161,12 +1161,12 @@ def test_a_manual_date_needs_no_document(session):
     assert session.query(ManualDateEvent).count() == 1
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_models_record.py -k date -v`
 Expected: FAIL with `ImportError: cannot import name 'DocumentDate'`
 
-- [ ] **Step 3: Add the models**
+- [x] **Step 3: Add the models**
 
 ```python
 # renewal/models.py — append
@@ -1270,22 +1270,22 @@ class ManualDateEvent(Base):
 
 `pass` is a Python keyword, so the attribute is `pass_name` and the column is named `pass` explicitly. The spec's column name is preserved.
 
-- [ ] **Step 4: Generate and write the migration**
+- [x] **Step 4: Generate and write the migration**
 
 Run: `alembic revision -m "dates and date events"`
 
 `upgrade()` creates the four tables with their check constraints and the indexes declared above. `downgrade()` drops them in reverse dependency order.
 
-- [ ] **Step 5: Register the tables for truncation**
+- [x] **Step 5: Register the tables for truncation**
 
 Add `document_date, date_event, manual_date, manual_date_event` to the `TABLES` string in `conftest.py`.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_models_record.py -v`
 Expected: all pass
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/ conftest.py tests/test_models_record.py
@@ -1306,7 +1306,7 @@ The tables land now, with the rest of the schema, so no later migration is mixed
 **Interfaces:**
 - Produces: models `InboundMessage`, `AttentionItem`, `AttentionEvent`; `Document.inbound_message_id`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_models_record.py — append
@@ -1358,12 +1358,12 @@ def test_resolving_an_item_appends_an_event(session):
     assert session.query(AttentionEvent).filter_by(action="done").count() == 1
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_models_record.py -k "message or attention" -v`
 Expected: FAIL with `ImportError: cannot import name 'InboundMessage'`
 
-- [ ] **Step 3: Add the models**
+- [x] **Step 3: Add the models**
 
 ```python
 # renewal/models.py — append
@@ -1437,7 +1437,7 @@ Add to `Document`:
     )
 ```
 
-- [ ] **Step 4: Generate and write the migration**
+- [x] **Step 4: Generate and write the migration**
 
 Run: `alembic revision -m "inbound mail and attention"`
 
@@ -1446,16 +1446,16 @@ is NOT NULL apart from `subject` and `attention_item.due_date`.
 
 `upgrade()` creates the three tables, then adds `document.inbound_message_id`. The column is added here rather than in Task 6 because its target table does not exist until now. `downgrade()` drops the column first, then the tables.
 
-- [ ] **Step 5: Register the tables for truncation**
+- [x] **Step 5: Register the tables for truncation**
 
 Add `inbound_message, attention_item, attention_event` to the `TABLES` string in `conftest.py`.
 
-- [ ] **Step 6: Verify the full migration chain from scratch**
+- [x] **Step 6: Verify the full migration chain from scratch**
 
 Run: `pytest tests/ -v`
 Expected: every existing test still passes and the new ones pass. The session-scoped `engine` fixture drops the schema and runs all seven migrations in order, so a broken chain fails here.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/models.py migrations/versions/ conftest.py tests/test_models_record.py
@@ -1476,7 +1476,7 @@ Hash the plaintext so content addressing and dedup are unchanged; seal the bytes
 **Interfaces:**
 - Produces: `MAGIC = b"RNB1"`, `seal(plaintext: bytes, key: bytes) -> bytes`, `unseal(blob: bytes, key: bytes) -> bytes`, `is_sealed(blob: bytes) -> bool`, `generate_key() -> str` (base64), `load_key(encoded: str | None) -> bytes | None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_crypto.py
@@ -1536,16 +1536,16 @@ def test_load_key_of_none_is_none():
     assert load_key("") is None
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_crypto.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.crypto'`
 
-- [ ] **Step 3: Add the dependency**
+- [x] **Step 3: Add the dependency**
 
 Add `"cryptography>=42"` to `dependencies` in `pyproject.toml`, then `pip install -e .`
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 ```python
 # renewal/crypto.py
@@ -1608,12 +1608,12 @@ def unseal(blob: bytes, key: bytes) -> bytes:
     return AESGCM(key).decrypt(nonce, blob[start + NONCE_BYTES :], None)
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_crypto.py -v`
 Expected: 8 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/crypto.py tests/test_crypto.py pyproject.toml
@@ -1632,7 +1632,7 @@ git commit -m "feat(security): AES-GCM sealing for blobs at rest"
 - Consumes: `renewal.crypto.seal`, `unseal`, `is_sealed`, `load_key`.
 - Produces: `BlobStore(root: Path, key: bytes | None = None)`, `path_for(sha256: str, ext: str = "pdf") -> Path`, `put(data: bytes, ext: str = "pdf") -> str`, `get(sha256: str, ext: str = "pdf") -> bytes`. `Settings.blob_encryption_key: str`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_blobstore.py — append
@@ -1691,12 +1691,12 @@ def test_a_bad_extension_is_rejected(tmp_path):
 
 Add `import pytest` at the top of the test file if it is not already there.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_blobstore.py -v`
 Expected: FAIL with `TypeError: BlobStore.__init__() got an unexpected keyword argument 'key'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/blobstore.py — replace the class body, keeping the module docstring
@@ -1748,7 +1748,7 @@ class BlobStore:
         return raw
 ```
 
-- [ ] **Step 4: Add the setting**
+- [x] **Step 4: Add the setting**
 
 In `renewal/config.py`, add `blob_encryption_key: str = ""` to `Settings` and
 `blob_encryption_key=os.environ.get("BLOB_ENCRYPTION_KEY", "")` to `load_settings()`.
@@ -1756,12 +1756,12 @@ Add a commented `BLOB_ENCRYPTION_KEY=` line to `.env.example` with a note that
 `python -c "from renewal.crypto import generate_key; print(generate_key())"`
 produces one, and that leaving it empty stores blobs unencrypted.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_blobstore.py tests/test_ingest.py -v`
 Expected: all pass, including the existing blob tests unchanged
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/blobstore.py renewal/config.py .env.example tests/test_blobstore.py
@@ -1780,7 +1780,7 @@ git commit -m "feat(security): optional blob sealing and non-pdf blob extensions
 - Consumes: `BlobStore`, `renewal.crypto`.
 - Produces: `seal_store(root: Path, key: bytes) -> tuple[int, int]` returning `(sealed, already_sealed)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_encrypt_blobs.py
@@ -1818,12 +1818,12 @@ def test_the_digest_still_names_the_file(tmp_path):
     assert store.path_for(digest).exists()
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_encrypt_blobs.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'scripts.encrypt_blobs'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # scripts/encrypt_blobs.py
@@ -1882,12 +1882,12 @@ if __name__ == "__main__":
 
 Create `scripts/__init__.py` (empty) so the test can import it.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_encrypt_blobs.py -v`
 Expected: 3 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/encrypt_blobs.py scripts/__init__.py tests/test_encrypt_blobs.py
@@ -1909,7 +1909,7 @@ Local only. No scan is ever transmitted for text extraction; the structured extr
 - Consumes: `renewal.pdftext`.
 - Produces: `rasterize_page(data: bytes, page_number: int, dpi: int = 300) -> bytes` in `pdftext`; `ocr_page(png: bytes) -> str` and `TesseractUnavailable` in `text/ocr.py`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_ocr.py
@@ -1952,18 +1952,18 @@ def test_ocr_of_a_blank_page_is_empty_not_an_error():
     assert ocr_page(rasterize_page(data, 1)).strip() == ""
 ```
 
-- [ ] **Step 2: Register the marker and run the test to verify it fails**
+- [x] **Step 2: Register the marker and run the test to verify it fails**
 
 Add `"ocr: needs the system tesseract binary"` to `markers` in `pyproject.toml`, and change `addopts` to `-m 'not eval'` (unchanged — `ocr` tests run by default, because a machine that cannot OCR cannot run the import path and should fail loudly).
 
 Run: `pytest tests/test_ocr.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.text'`
 
-- [ ] **Step 3: Add the dependency**
+- [x] **Step 3: Add the dependency**
 
 Add `"pytesseract>=0.3.10"` to `dependencies` in `pyproject.toml` and run `pip install -e .`. Install the system binary: `sudo pacman -S tesseract tesseract-data-eng` on Arch, `apt install tesseract-ocr` on Debian. Document both in `README.md` under a "System dependencies" heading, noting that without it scanned documents are stored and searchable only by filename.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 ```python
 # renewal/pdftext.py — append
@@ -2023,12 +2023,12 @@ def ocr_page(png: bytes) -> str:
 
 `pytesseract` pulls in Pillow, so no separate dependency is needed.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_ocr.py -v`
 Expected: 4 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/text/ renewal/pdftext.py pyproject.toml README.md tests/test_ocr.py
@@ -2049,7 +2049,7 @@ Every document, always. The decision is per page, not per document: a scanned en
 - Consumes: `BlobStore`, `renewal.pdftext.read_pdf`, `rasterize_page`, `renewal.text.ocr.ocr_page`, model `DocumentText`.
 - Produces: `TEXT_VERSION = "text-v1"`, `extract_text(session, store, document, *, version=TEXT_VERSION) -> list[DocumentText]`, `has_text(session, document_id: int, version: str = TEXT_VERSION) -> bool`, `page_text(session, document_id: int, page_number: int, version: str = TEXT_VERSION) -> str`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_text_store.py
@@ -2126,12 +2126,12 @@ def test_extraction_at_a_new_version_adds_rows_rather_than_replacing(session, st
     assert session.query(DocumentText).filter_by(document_id=document.id).count() == 2
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_text_store.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.text.store'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/text/store.py
@@ -2238,12 +2238,12 @@ blank page falls to OCR, which returns an empty string, and the row is written
 either way. That is deliberate: a row means "processed", and its absence means
 "not yet processed".
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_text_store.py -v`
 Expected: 8 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/text/store.py tests/test_text_store.py
@@ -2266,7 +2266,7 @@ At this task the pipeline runs stages 1–3. Later tasks add stages 4 and 5; Pla
 - Consumes: `ingest_pdf`, `extract_text`, `has_text`.
 - Produces: `SOURCES = ("bulk_import", "manual_upload", "email_attachment", "email_body")`, `ingest_document(session, store, *, data, original_filename, source, agency_id, inbound_message_id=None) -> Document`, `run_text_stage(session, store, document) -> None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_pipeline.py
@@ -2319,12 +2319,12 @@ def test_text_extraction_failure_does_not_lose_the_document(session, store, monk
     assert session.query(DocumentText).filter_by(document_id=document.id).count() == 0
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_pipeline.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.pipeline'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/pipeline.py
@@ -2393,12 +2393,12 @@ def ingest_document(
     return document
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_pipeline.py tests/test_ingest.py -v`
 Expected: all pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/pipeline.py tests/test_pipeline.py
@@ -2420,7 +2420,7 @@ Import is cheap and cannot be done retroactively for documents that get deleted 
 - Consumes: `ingest_document`, `run_text_stage`, `BlobStore`, `session_scope`.
 - Produces: `walk_pdfs(root: Path) -> Iterator[Path]`, `import_tree(session, store, root: Path, *, agency_id: int) -> ImportStats`, `ImportStats(seen, imported, skipped, failed)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_bulk_import.py
@@ -2474,12 +2474,12 @@ def test_an_unreadable_pdf_is_counted_and_does_not_stop_the_walk(
     assert stats.imported == 2
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_bulk_import.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'scripts.bulk_import'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # scripts/bulk_import.py
@@ -2580,7 +2580,7 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Ignore import staging**
+- [x] **Step 4: Ignore import staging**
 
 Add to `.gitignore`:
 
@@ -2590,17 +2590,17 @@ mime/
 *.eml
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_bulk_import.py -v`
 Expected: 4 passed
 
-- [ ] **Step 6: Verify against a real tree**
+- [x] **Step 6: Verify against a real tree**
 
 Run: `python -m scripts.bulk_import /path/to/a/small/sample/folder`
 Expected: a count line, and `psql renewal -c "select count(*) from document_text"` returns a non-zero row count. Confirm nothing in the log output contains document text.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/bulk_import.py .gitignore tests/test_bulk_import.py
@@ -2621,7 +2621,7 @@ Return ranked candidates with scores, never a single silent answer. This is the 
 - Consumes: models `Client`, `Policy`; `pg_trgm`.
 - Produces: `Candidates(named_insured: str | None, policy_numbers: list[str], address_lines: list[str])`, `extract_candidates(page_text: str) -> Candidates`; `Match(client_id: int, policy_id: int | None, score: float, reason: str)`, `rank_matches(session, candidates: Candidates, *, limit: int = 5) -> list[Match]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_resolve.py
@@ -2709,12 +2709,12 @@ def test_nothing_recognisable_offers_nothing(session):
     assert rank_matches(session, extract_candidates("Dear customer,")) == []
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_resolve.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.resolve'`
 
-- [ ] **Step 3: Implement candidate extraction**
+- [x] **Step 3: Implement candidate extraction**
 
 ```python
 # renewal/resolve/candidates.py
@@ -2766,7 +2766,7 @@ def extract_candidates(page_text: str) -> Candidates:
     )
 ```
 
-- [ ] **Step 4: Implement matching**
+- [x] **Step 4: Implement matching**
 
 ```python
 # renewal/resolve/matching.py
@@ -2843,12 +2843,12 @@ def rank_matches(
     return sorted(matches.values(), key=lambda m: -m.score)[:limit]
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_resolve.py -v`
 Expected: 10 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/resolve/ tests/test_resolve.py
@@ -2868,7 +2868,7 @@ git commit -m "feat(resolve): candidate identifiers and ranked client matches"
 - Consumes: `rank_matches`, `extract_candidates`, `page_text`, model `DocumentLink`.
 - Produces: `AUTO_LINK_THRESHOLD = 1.0`, `resolve_document(session, document) -> DocumentLink | None`, `latest_link(session, document_id) -> DocumentLink | None`, `assign(session, document_id, *, client_id, policy_id, candidates) -> DocumentLink`, `unmatched(session, *, limit=50) -> list[Document]`. `run_resolve_stage(session, document)` in `pipeline`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_resolve_service.py
@@ -2971,12 +2971,12 @@ def test_resolution_is_not_repeated_for_an_already_linked_document(session, stor
     assert session.query(DocumentLink).filter_by(document_id=document.id).count() == 1
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_resolve_service.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.resolve.service'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/resolve/service.py
@@ -3076,7 +3076,7 @@ def assign(
     return link
 ```
 
-- [ ] **Step 4: Add the stage to the pipeline**
+- [x] **Step 4: Add the stage to the pipeline**
 
 In `renewal/pipeline.py`, add:
 
@@ -3094,12 +3094,12 @@ def run_resolve_stage(session: Session, document: Document) -> None:
 and call `run_resolve_stage(session, document)` after `run_text_stage` in
 `ingest_document`.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_resolve_service.py tests/test_pipeline.py -v`
 Expected: all pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/resolve/service.py renewal/pipeline.py tests/test_resolve_service.py
@@ -3121,12 +3121,12 @@ Behavior-free. Nothing changes except where the code lives. This lands before th
 **Interfaces:**
 - Produces: `create_app(*, settings, store, model_client, session_factory)` from `renewal.web`, with the same signature it has today. `register(router, deps)` per module.
 
-- [ ] **Step 1: Run the existing web tests and record the result**
+- [x] **Step 1: Run the existing web tests and record the result**
 
 Run: `pytest tests/test_web_review.py tests/test_web_comparison.py -v`
 Expected: all pass. This is the baseline; the split is correct only if this exact set still passes unchanged afterwards.
 
-- [ ] **Step 2: Create the package and move the code**
+- [x] **Step 2: Create the package and move the code**
 
 Create `renewal/web/__init__.py` holding `create_app`, the Jinja environment, the `_wbr` filter, the `html_error` handler, and the `index` route. Move the run-creation routes (`new_run`, `add_client`, `add_policy`, `create_run`) into `runs.py`; the review routes (`_latest_extraction`, `review`, `correct_field`, `reject_field`, `add_missing_field`, `promote_run`) into `review.py`; and the comparison routes (`show_comparison`, `edit_draft`, `reclassify_difference`) into `comparison.py`.
 
@@ -3148,7 +3148,7 @@ def register(app, deps) -> None:
 Delete `renewal/web.py`. Update the import in `renewal/app.py` from
 `renewal.web` — the module path is unchanged, so this may need no edit; verify.
 
-- [ ] **Step 3: Fix the package-data glob**
+- [x] **Step 3: Fix the package-data glob**
 
 In `pyproject.toml`, change:
 
@@ -3161,17 +3161,17 @@ The current glob is `static/*.js` while the only static file is `app.css`, so an
 
 Add `"renewal.text", "renewal.resolve", "renewal.dates", "renewal.calendarview", "renewal.web"` to the `packages` list in `[tool.setuptools]`.
 
-- [ ] **Step 4: Run the tests to verify nothing changed**
+- [x] **Step 4: Run the tests to verify nothing changed**
 
 Run: `pytest tests/ -v`
 Expected: exactly the same set of tests passes as in Step 1. Any behavior difference means the move was not clean.
 
-- [ ] **Step 5: Verify the app still starts**
+- [x] **Step 5: Verify the app still starts**
 
 Run: `uvicorn renewal.app:app --port 8001` and load `http://127.0.0.1:8001/`
 Expected: the index renders with its stylesheet applied.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/web/ renewal/app.py pyproject.toml
@@ -3194,7 +3194,7 @@ One click to assign. Creating a new client inline, because the alternative is le
 - Consumes: `unmatched`, `candidates_for`, `assign`, `latest_link`.
 - Produces: routes `GET /unmatched`, `POST /unmatched/{document_id}/assign`, `POST /unmatched/{document_id}/new-client`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_web_unmatched.py
@@ -3255,12 +3255,12 @@ ingests one dec-page PDF whose named insured matches an existing client but
 whose policy number matches nothing, and returns `(document_id, client_id)`.
 Use the `clean_db` fixture, since these tests commit.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_web_unmatched.py -v`
 Expected: FAIL with 404 on `/unmatched`
 
-- [ ] **Step 3: Implement the routes**
+- [x] **Step 3: Implement the routes**
 
 ```python
 # renewal/web/unmatched.py
@@ -3298,7 +3298,7 @@ Route bodies:
 - `POST /unmatched/{document_id}/new-client` — create the `Client`, then
   `assign` with `candidates=[]`, which records that nothing was offered.
 
-- [ ] **Step 4: Write the template**
+- [x] **Step 4: Write the template**
 
 `renewal/templates/unmatched.html` extends `base.html`. One row per document.
 Each candidate is a submit button labelled with the client name, the score as a
@@ -3306,12 +3306,12 @@ percentage, and the reason, so assignment is one click. The score is shown
 because she should be able to see how close the near-miss was. An empty queue
 renders a plain "Nothing unmatched" state, not an empty table.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_unmatched.py -v`
 Expected: 5 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/web/unmatched.py renewal/templates/unmatched.html tests/test_web_unmatched.py
@@ -3332,7 +3332,7 @@ Free, exhaustive, every page. Its provenance is perfect by construction — the 
 - Consumes: `renewal.pdftext.PageText`.
 - Produces: `REGEX_VERSION = "dates-regex-v1"`, `DateCandidate(date_value: date, date_type: str, source_page: int, source_text: str, confidence: float)`, `find_dates(pages: list[PageText]) -> list[DateCandidate]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_dates_regex.py
@@ -3418,12 +3418,12 @@ def test_version_is_stable():
     assert REGEX_VERSION == "dates-regex-v1"
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_dates_regex.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.dates'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/dates/regex_pass.py
@@ -3544,12 +3544,12 @@ def find_dates(pages: list[PageText]) -> list[DateCandidate]:
     return out
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_dates_regex.py -v`
 Expected: 13 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/dates/ tests/test_dates_regex.py
@@ -3571,7 +3571,7 @@ Finds what the regex cannot see: prose deadlines with no digits in them. On a ca
 - Consumes: `ModelClient`, `Settings`, `PageText`, `DateCandidate`.
 - Produces: `LLM_VERSION = "dates-llm-v1"`, `LlmDate` pydantic model with fields `date_value: date`, `date_type: str`, `source_page: int`, `source_text: str`, `confidence: float`, `is_derived: bool = False`, `anchor_date: date | None = None`, `anchor_source_text: str | None = None`; `parse_dates(raw: str) -> list[LlmDate]`; `find_dates_llm(pages, candidates, *, client, settings) -> list[LlmDate]`. `Settings.date_model`, `Settings.date_pages`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_dates_llm.py
@@ -3668,12 +3668,12 @@ def test_version_is_stable():
     assert LLM_VERSION == "dates-llm-v1"
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_dates_llm.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.dates.llm_pass'`
 
-- [ ] **Step 3: Add the settings**
+- [x] **Step 3: Add the settings**
 
 In `renewal/config.py`, add to `Settings`:
 
@@ -3697,7 +3697,7 @@ Add all three to `.env.example` with a comment that `DATE_PAGES` bounds cost:
 deadlines live near the front of a document, and a cancellation notice is one
 or two pages.
 
-- [ ] **Step 4: Write the prompt**
+- [x] **Step 4: Write the prompt**
 
 ```python
 # renewal/dates/prompt_v1.py
@@ -3753,7 +3753,7 @@ Document:
 """
 ```
 
-- [ ] **Step 5: Implement the pass**
+- [x] **Step 5: Implement the pass**
 
 ```python
 # renewal/dates/llm_pass.py
@@ -3833,12 +3833,12 @@ def find_dates_llm(
     return parse_dates(raw)
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_dates_llm.py -v`
 Expected: 8 passed
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/dates/prompt_v1.py renewal/dates/llm_pass.py renewal/config.py .env.example tests/test_dates_llm.py
@@ -3860,7 +3860,7 @@ If the cited text is not on that page, the date is rejected rather than stored. 
 - Consumes: `find_dates`, `find_dates_llm`, `page_text`, models `DocumentDate`, `DateEvent`.
 - Produces: `extract_dates(session, document, pages, *, client, settings) -> list[DocumentDate]`, `status_of(session, document_date_id) -> str`, `confirm(session, document_date_id, *, actor="human") -> DateEvent`, `dismiss(session, document_date_id, *, actor="human") -> DateEvent`, `rejected_count` on the returned stats. `run_dates_stage(session, document, ...)` in `pipeline`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_dates_service.py
@@ -3997,12 +3997,12 @@ def test_re_running_at_the_same_versions_does_not_duplicate(session, store):
     assert session.query(DocumentDate).count() == before
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_dates_service.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.dates.service'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/dates/service.py
@@ -4162,7 +4162,7 @@ def dismiss(session: Session, document_date_id: int, *, actor: str = "human"):
     return event
 ```
 
-- [ ] **Step 4: Add the stage to the pipeline**
+- [x] **Step 4: Add the stage to the pipeline**
 
 In `renewal/pipeline.py`, add a `run_dates_stage(session, document, *, client, settings)` that reads the stored `DocumentText` rows back into `PageText` objects and calls `extract_dates`, wrapped in the same try/except as the other stages. Extend `ingest_document` to take `model_client` and `settings` and call it after `run_resolve_stage`. Update `tests/test_pipeline.py` fixtures to pass a stub client returning `'{"dates": []}'`.
 
@@ -4179,12 +4179,12 @@ caller must be updated in this same commit:
 Run `grep -rn "ingest_document(" --include="*.py" .` and confirm every hit is
 updated before committing.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_dates_service.py tests/test_pipeline.py -v`
 Expected: all pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/dates/service.py renewal/pipeline.py tests/test_dates_service.py tests/test_pipeline.py
@@ -4205,7 +4205,7 @@ Agenda is the default view. It is what a list on paper looks like, which is what
 - Consumes: models `DocumentDate`, `DateEvent`, `ManualDate`, `ManualDateEvent`, `DocumentLink`, `Client`, `DocumentClassification`.
 - Produces: `AgendaEntry(kind, source_id, date_value, date_type, title, client_id, client_name, document_id, status, confidence, is_derived, anchor_date, anchor_source_text, source_text, source_page, escalated)`; `agenda(session, *, agency_id, client_id=None, date_types=None, statuses=None, start=None, end=None, limit=500) -> list[AgendaEntry]`; `ESCALATED_DATE_TYPES`, `ESCALATED_DOC_CLASSES`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_agenda.py
@@ -4379,12 +4379,12 @@ def test_an_unlinked_documents_dates_still_appear(session):
     assert entry.client_name is None
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_agenda.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.calendarview'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/calendarview/agenda.py
@@ -4588,12 +4588,12 @@ def agenda(
     return entries[:limit]
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_agenda.py -v`
 Expected: 12 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/calendarview/ tests/test_agenda.py
@@ -4615,7 +4615,7 @@ Confirmation is one click. Dismissal is one keystroke. Unconfirmed dates never r
 - Consumes: `agenda`, `confirm`, `dismiss`, models `ManualDate`.
 - Produces: routes `GET /calendar` (agenda, default), `GET /calendar/month`, `POST /dates/{id}/confirm`, `POST /dates/{id}/dismiss`, `POST /manual-dates`, `POST /manual-dates/{id}/dismiss`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_web_calendar.py
@@ -4685,12 +4685,12 @@ def test_each_entry_links_to_its_source_document(client_app, seeded_date):
 
 Fixtures follow `tests/test_web_review.py`. `seeded_date` ingests one document with an extracted `policy_expiration` date and returns its `document_date.id`; `seeded_cancellation` adds a `cancellation_effective` date dated far in the future plus a nearer `policy_expiration`; `seeded_derived` adds an `is_derived` date with an anchor. Use `clean_db`, since these commit.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_web_calendar.py -v`
 Expected: FAIL with 404 on `/calendar`
 
-- [ ] **Step 3: Implement the routes**
+- [x] **Step 3: Implement the routes**
 
 `renewal/web/calendar.py`:
 
@@ -4700,7 +4700,7 @@ Expected: FAIL with 404 on `/calendar`
 - `POST /manual-dates` — create a `ManualDate` for agency 1 from `title`, `date_value`, `date_type`, optional `client_id` and `notes`; redirect 303.
 - `POST /manual-dates/{id}/dismiss` — append a `ManualDateEvent`.
 
-- [ ] **Step 4: Write the template**
+- [x] **Step 4: Write the template**
 
 `calendar.html` extends `base.html` and carries `data-view` on its container.
 
@@ -4712,20 +4712,20 @@ Confirm is a one-click form button per row. The add-a-date form sits at the top 
 
 In `app.css`, add rules for `.escalated`, `.unconfirmed`, and `.derived`. Escalation must read at a glance without relying on color alone — use a weight or rule change as well, since color alone fails for a colorblind reader.
 
-- [ ] **Step 5: Add keystroke dismissal**
+- [x] **Step 5: Add keystroke dismissal**
 
 `renewal/static/app.js`: focusable agenda rows; `d` on the focused row submits its dismiss form; `c` confirms; `j`/`k` move between rows. Guard on `event.target` being the document body or a row, so typing in the add-a-date form is unaffected. No dependencies, no build step.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_calendar.py -v`
 Expected: 10 passed
 
-- [ ] **Step 7: Verify by hand**
+- [x] **Step 7: Verify by hand**
 
 Run the app, load `/calendar`, and confirm: agenda is the default, unconfirmed rows are distinguishable from confirmed ones at a glance, a cancellation date sits at the top regardless of its distance, `d` dismisses the focused row, and the add-a-date form is visible without scrolling.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add renewal/web/calendar.py renewal/templates/calendar.html renewal/static/ tests/test_web_calendar.py
@@ -4748,7 +4748,7 @@ Read-only, subscribe-only. Nothing is written into her calendar and there is no 
 - Consumes: `agenda`, model `Agency`.
 - Produces: `render_ics(entries: list[AgendaEntry], *, calendar_name: str) -> str`; routes `GET /calendar/{token}.ics`, `GET /settings`, `POST /settings/regenerate-ics-token`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_ics.py
@@ -4832,12 +4832,12 @@ def test_the_settings_page_warns_that_the_link_is_a_credential(client_app):
     assert "anyone with this link" in body.lower()
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pytest tests/test_ics.py tests/test_web_settings.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.calendarview.ics'`
 
-- [ ] **Step 3: Implement the renderer**
+- [x] **Step 3: Implement the renderer**
 
 ```python
 # renewal/calendarview/ics.py
@@ -4898,7 +4898,7 @@ No `DTSTAMP`: it would change on every render and make the output unstable,
 which breaks the stable-UID guarantee her calendar app relies on to update
 rather than duplicate events.
 
-- [ ] **Step 4: Implement the routes**
+- [x] **Step 4: Implement the routes**
 
 `renewal/web/settings.py`:
 
@@ -4906,16 +4906,16 @@ rather than duplicate events.
 - `GET /settings` — show the intake address, the feed URL, and a plainly worded warning that anyone with this link can read every client name and deadline until the token is regenerated.
 - `POST /settings/regenerate-ics-token` — insert a new token with `secrets.token_urlsafe(32)`. This is the one field on `agency` that is updated in place; note in a comment that the old link must stop working immediately, which an append-only row would not achieve.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_ics.py tests/test_web_settings.py -v`
 Expected: 10 passed
 
-- [ ] **Step 6: Verify by subscribing**
+- [x] **Step 6: Verify by subscribing**
 
 Copy the feed URL into a calendar app and confirm the events appear, that an unconfirmed one is labelled, and that regenerating the token breaks the subscription.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/calendarview/ics.py renewal/web/settings.py renewal/templates/settings.html tests/test_ics.py tests/test_web_settings.py
@@ -4936,7 +4936,7 @@ The scorers exist from Tasks 1–3 but nothing calls them yet. Recall is the num
 - Consumes: `score_dates`, `score_match`, `Fixture`, `extract_dates`, `rank_matches`.
 - Produces: `date_report(results_by_fixture: dict) -> str`.
 
-- [ ] **Step 1: Write the eval**
+- [x] **Step 1: Write the eval**
 
 ```python
 # evals/test_dates.py
@@ -5030,7 +5030,7 @@ def test_date_recall_against_fixtures(engine, tmp_path, capsys):
     baseline.with_suffix(".latest.json").write_text(json.dumps(results, indent=2))
 ```
 
-- [ ] **Step 2: Add the report function**
+- [x] **Step 2: Add the report function**
 
 ```python
 # evals/accuracy.py — append
@@ -5061,7 +5061,7 @@ def date_report(results_by_fixture: dict[str, dict]) -> str:
 `DateScore` is a frozen dataclass, so `vars()` is the whole conversion to the
 JSON-serializable shape the baseline file stores.
 
-- [ ] **Step 3: Wire client matching into the same run**
+- [x] **Step 3: Wire client matching into the same run**
 
 Client resolution ships in this plan, so its scorer runs here too rather than
 waiting for Plan C. In `evals/test_dates.py`, after ingesting each fixture, add:
@@ -5084,13 +5084,13 @@ distinguishable. Import `select`, `Client`, and `score_match` at the top.
 Classification scoring stays unwired until Plan C, which is where the
 classifier is built.
 
-- [ ] **Step 4: Run the harness against the fixtures**
+- [x] **Step 4: Run the harness against the fixtures**
 
 Run: `pytest -m eval evals/test_dates.py -s`
 Expected: the report prints. With no fixture PDFs present, it skips — that is
 correct, and the skip message says why.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add evals/test_dates.py evals/accuracy.py
@@ -5110,7 +5110,7 @@ git commit -m "feat(evals): report date recall, precision, and client match qual
 - Consumes: `read_pdf`, `tests/pdfmaker.make_text_pdf`.
 - Produces: `redact_text(text: str, *, substitutions: dict[str, str]) -> str`, `redact_pdf(data: bytes, *, substitutions: dict[str, str]) -> bytes`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_redact.py
@@ -5152,12 +5152,12 @@ def test_page_count_is_preserved():
     assert read_pdf(redact_pdf(data, substitutions={})).page_count == 2
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_redact.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'scripts.redact'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # scripts/redact.py
@@ -5230,7 +5230,7 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Update PRIVACY.md**
+- [x] **Step 4: Update PRIVACY.md**
 
 Add sections covering, in plain language:
 
@@ -5241,16 +5241,16 @@ Add sections covering, in plain language:
 - **The .ics token.** Anyone holding the feed URL can read every client name and deadline. It is regenerable from `/settings`, which immediately breaks the old link.
 - **Retention.** Nothing is deleted automatically. Blobs, text, and dates persist until removed by hand.
 
-- [ ] **Step 5: Update README.md**
+- [x] **Step 5: Update README.md**
 
 Add a "System dependencies" section (Tesseract, with per-distro install lines and the consequence of omitting it), a "Bulk import" section showing `python -m scripts.bulk_import /path/to/archive`, and a "Blob encryption" section showing how to generate a key and how to seal an existing store with `python -m scripts.encrypt_blobs`.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pytest tests/test_redact.py -v`
 Expected: 5 passed
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/redact.py PRIVACY.md README.md .gitignore tests/test_redact.py
@@ -5263,10 +5263,10 @@ git commit -m "docs: privacy for the record layer, and a fixture redaction helpe
 
 This is the gate the spec names. Before Plan B begins:
 
-- [ ] Run the full suite: `pytest tests/ -v`. Every test passes.
-- [ ] Import her real archive with `python -m scripts.bulk_import`, and confirm the counts are plausible against the folder tree.
-- [ ] Check the log output contains no document content — ids, hashes, counts, and statuses only.
-- [ ] Put `/calendar` in front of her against that archive.
-- [ ] Record what she says about recall: which dates are missing, which spurious ones are annoying, and whether escalation fires when it should.
+- [x] Run the full suite: `pytest tests/ -v`. Every test passes.
+- [x] Import her real archive with `python -m scripts.bulk_import`, and confirm the counts are plausible against the folder tree.
+- [x] Check the log output contains no document content — ids, hashes, counts, and statuses only.
+- [x] Put `/calendar` in front of her against that archive.
+- [x] Record what she says about recall: which dates are missing, which spurious ones are annoying, and whether escalation fires when it should.
 
 Her feedback reshapes Plans B and C. Do not start them before this happens.

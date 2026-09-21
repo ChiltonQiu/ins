@@ -60,7 +60,7 @@ A coarse, low-stakes label. It decides routing and display and nothing else.
 - Consumes: `ModelClient`, `Settings`, `page_text`, model `DocumentClassification`.
 - Produces: `DOC_CLASSES: tuple[str, ...]`, `CLASSIFIER_VERSION = "classify-v1"`, `FIELD_EXTRACTION_CLASSES = ("declarations", "endorsement")`, `parse_classification(raw: str) -> tuple[str, float]`, `classify(session, document, *, client, settings) -> DocumentClassification`, `latest_class(session, document_id) -> str | None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_classify.py
@@ -173,12 +173,12 @@ def test_a_document_with_no_text_is_unknown_without_a_model_call(session, store)
 Extend `_settings()` in `tests/test_dates_llm.py` to include
 `classification_model="classification-model"`.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_classify.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.classify'`
 
-- [ ] **Step 3: Write the prompt**
+- [x] **Step 3: Write the prompt**
 
 ```python
 # renewal/classify/prompt_v1.py
@@ -212,7 +212,7 @@ USER_TEMPLATE = """First page of the document:
 """
 ```
 
-- [ ] **Step 4: Implement the runner**
+- [x] **Step 4: Implement the runner**
 
 ```python
 # renewal/classify/runner.py
@@ -308,12 +308,12 @@ def classify(
     return row
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_classify.py -v`
 Expected: 10 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/classify/ tests/test_classify.py tests/test_dates_llm.py
@@ -332,7 +332,7 @@ git commit -m "feat(classify): coarse document label that gates nothing"
 - Consumes: `classify`, `latest_class`, `FIELD_EXTRACTION_CLASSES`, `score_classification`.
 - Produces: `run_classify_stage(session, document, *, client, settings) -> None`, `should_extract_fields(session, document_id) -> bool`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_pipeline.py — append
@@ -383,12 +383,12 @@ def test_a_failed_classification_does_not_stop_text_or_dates(session, store):
     assert session.query(DocumentDate).filter_by(document_id=document.id).count() > 0
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_pipeline.py -k classif -v`
 Expected: FAIL with `ImportError: cannot import name 'should_extract_fields'`
 
-- [ ] **Step 3: Add the stage**
+- [x] **Step 3: Add the stage**
 
 In `renewal/pipeline.py`:
 
@@ -418,7 +418,7 @@ def should_extract_fields(session: Session, document_id: int) -> bool:
 Call `run_classify_stage` from `ingest_document` after `run_dates_stage`. Date
 extraction runs first on purpose: it must not be able to depend on a label.
 
-- [ ] **Step 4: Wire classification into the eval run**
+- [x] **Step 4: Wire classification into the eval run**
 
 In `evals/test_dates.py`, after ingesting each fixture, add:
 
@@ -433,12 +433,12 @@ and add a `classification_report` to `evals/accuracy.py` that counts
 Declined is reported beside correct, never folded into wrong — a harness that
 punishes `unknown` would train exactly the behavior the spec forbids.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_pipeline.py -v`
 Expected: all pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/pipeline.py evals/ tests/test_pipeline.py
@@ -459,7 +459,7 @@ The hosted provider is not chosen yet. The interface and a local file-drop imple
 - Consumes: the standard-library `email` package.
 - Produces: `Attachment(filename: str, content_type: str, data: bytes)`; `InboundEmail(message_id, from_address, to_address, subject, received_at, body_text, attachments, raw_mime)`; `InboundProvider` protocol with `verify(headers: dict, body: bytes) -> bool` and `parse(headers: dict, body: bytes) -> InboundEmail`; `FileDropProvider`; `parse_mime(raw: bytes) -> InboundEmail`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_mail_parse.py
@@ -557,12 +557,12 @@ def test_the_filedrop_provider_verifies_nothing_and_says_so(tmp_path):
     assert FileDropProvider(tmp_path).verify({}, b"") is True
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_mail_parse.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.mail'`
 
-- [ ] **Step 3: Implement the interface**
+- [x] **Step 3: Implement the interface**
 
 ```python
 # renewal/mail/provider.py
@@ -612,7 +612,7 @@ class InboundProvider(Protocol):
     def parse(self, headers: dict, body: bytes) -> InboundEmail: ...
 ```
 
-- [ ] **Step 4: Implement parsing and the file-drop provider**
+- [x] **Step 4: Implement parsing and the file-drop provider**
 
 ```python
 # renewal/mail/parse.py
@@ -721,12 +721,12 @@ class FileDropProvider:
         ]
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_mail_parse.py -v`
 Expected: 10 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/mail/ tests/test_mail_parse.py
@@ -747,7 +747,7 @@ git commit -m "feat(mail): inbound provider interface, MIME parsing, file drop"
 - Consumes: `InboundEmail`, `ingest_document`, `BlobStore`, models `Agency`, `InboundMessage`.
 - Produces: `receive(session, store, email, *, client, settings) -> InboundMessage`, `agency_for(session, to_address: str) -> Agency | None`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_mail_intake.py
@@ -869,12 +869,12 @@ def test_a_non_pdf_attachment_is_skipped_without_failing_the_message(session, st
     assert session.query(Document).filter_by(source="email_attachment").count() == 1
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_mail_intake.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.mail.intake'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/mail/intake.py
@@ -1027,12 +1027,12 @@ The body document sets `doc_type="email_body"`, distinct from the `dec_page`
 marker the existing structured extractor looks for, so an email body can never
 be picked up by that path.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_mail_intake.py -v`
 Expected: 10 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/mail/intake.py tests/test_mail_intake.py
@@ -1052,7 +1052,7 @@ git commit -m "feat(mail): route by recipient, quarantine strangers, store the b
 - Consumes: `InboundProvider`, `receive`.
 - Produces: route `POST /inbound/mail`. `Settings.inbound_provider: str`, `Settings.inbound_drop_dir: str`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_web_mail.py
@@ -1093,12 +1093,12 @@ def test_unparseable_mime_returns_200_and_records_the_failure(
     assert db.query(InboundMessage).one().processing_status in ("failed", "quarantined")
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_web_mail.py -v`
 Expected: FAIL with 404 on `/inbound/mail`
 
-- [ ] **Step 3: Add the settings**
+- [x] **Step 3: Add the settings**
 
 In `renewal/config.py`, add `inbound_provider: str = "filedrop"` and
 `inbound_drop_dir: str = "mail"`, read from `INBOUND_PROVIDER` and
@@ -1106,7 +1106,7 @@ In `renewal/config.py`, add `inbound_provider: str = "filedrop"` and
 development only and must never be the configured provider on a
 network-reachable install, because it verifies nothing.
 
-- [ ] **Step 4: Implement the route**
+- [x] **Step 4: Implement the route**
 
 `renewal/web/mail.py`:
 
@@ -1125,12 +1125,12 @@ network-reachable install, because it verifies nothing.
 
 Log the message row id and status. Never the body, never the subject.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_mail.py -v`
 Expected: 5 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/web/mail.py renewal/config.py .env.example tests/test_web_mail.py
@@ -1152,7 +1152,7 @@ Not a task manager. A list of documents that appear to need a human response, wi
 - Consumes: `latest_class`, `latest_link`, models `AttentionItem`, `AttentionEvent`, `DocumentDate`, `DateEvent`, `PolicyTerm`.
 - Produces: `REASONS: tuple[str, ...]`, `UNCONFIRMED_DATE_WINDOW_DAYS = 14`, `evaluate(session, document, *, settings) -> list[AttentionItem]`, `open_items(session, *, today=None) -> list[QueueRow]`, `resolve(session, item_id, *, action, actor="human") -> AttentionEvent`. `run_attention_stage(session, document, *, settings)` in `pipeline`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_attention.py
@@ -1293,12 +1293,12 @@ def test_nothing_resolves_itself(session, store):
     assert item.id in {r.item_id for r in open_items(session, today=TODAY)}
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_attention.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.attention'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/attention/rules.py
@@ -1472,12 +1472,12 @@ Add `run_attention_stage(session, document, *, settings)` to
 `renewal/pipeline.py`, wrapped like the other stages, called last in
 `ingest_document`.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_attention.py -v`
 Expected: 11 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/attention/ renewal/pipeline.py tests/test_attention.py
@@ -1497,7 +1497,7 @@ git commit -m "feat(attention): flag documents that appear to need a response"
 - Consumes: `open_items`, `resolve`, `dismiss` from `renewal.dates.service`.
 - Produces: routes `GET /attention`, `POST /attention/{id}/done`, `POST /attention/{id}/dismiss`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_web_attention.py
@@ -1550,12 +1550,12 @@ def test_the_client_overview_shows_that_clients_items(
     assert "cancellation notice" in body.lower()
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_web_attention.py -v`
 Expected: FAIL with 404 on `/attention`
 
-- [ ] **Step 3: Implement the routes**
+- [x] **Step 3: Implement the routes**
 
 `renewal/web/attention.py`:
 
@@ -1568,7 +1568,7 @@ Expected: FAIL with 404 on `/attention`
   the existing `/dates/{id}/dismiss` route instead, so a live row is cleared by
   acting on the date it came from.
 
-- [ ] **Step 4: Write the template and extend the overview**
+- [x] **Step 4: Write the template and extend the overview**
 
 `attention.html` extends `base.html`: one dense row per item — client name (or
 "unmatched"), reason, due date if any, a link to the document, and done and
@@ -1583,12 +1583,12 @@ Extend `renewal/static/app.js` so the queue takes the same `j`/`k`/`d`
 keystrokes the agenda does, reusing the existing handler rather than adding a
 second one.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_attention.py tests/test_web_clients.py -v`
 Expected: all pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/web/attention.py renewal/templates/ renewal/static/app.js tests/test_web_attention.py
@@ -1599,11 +1599,11 @@ git commit -m "feat(web): the attention queue, cleared only by hand"
 
 ## Done when
 
-- [ ] `pytest tests/ -v` passes.
-- [ ] A `.eml` dropped through the file-drop provider produces a body document and an attachment document, both searchable, both date-extracted.
-- [ ] Mail to an unknown intake address is visible as quarantined and produced no documents.
-- [ ] Classification accuracy and the `unknown` rate are on screen from `pytest -m eval evals/test_dates.py -s`.
-- [ ] Nothing in the log output contains a message body, a subject, or document text.
+- [x] `pytest tests/ -v` passes.
+- [x] A `.eml` dropped through the file-drop provider produces a body document and an attachment document, both searchable, both date-extracted.
+- [x] Mail to an unknown intake address is visible as quarantined and produced no documents.
+- [x] Classification accuracy and the `unknown` rate are on screen from `pytest -m eval evals/test_dates.py -s`.
+- [x] Nothing in the log output contains a message body, a subject, or document text.
 
 ## Deferred, deliberately
 

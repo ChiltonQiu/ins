@@ -56,7 +56,7 @@ The overview needs a carrier's admitted status for the policy's state, and `carr
 - Consumes: models `Carrier`, `CarrierAlias`, `CarrierAdmittedStatus`, `Policy`.
 - Produces: `normalize_name(value: str) -> str`, `resolve_carrier(session, name: str) -> Carrier | None`, `admitted_status(session, carrier_id: int, state: str | None) -> str`, `unresolved_carrier_names(session) -> list[str]`, `add_alias(session, carrier_id: int, name: str) -> CarrierAlias`, `set_admitted(session, carrier_id: int, state: str, status: str, *, set_by: str = "human") -> CarrierAdmittedStatus`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_carriers.py
@@ -148,12 +148,12 @@ def test_a_resolved_name_is_not_listed(session):
     assert unresolved_carrier_names(session) == []
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_carriers.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.carriers'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/carriers.py
@@ -235,12 +235,12 @@ def unresolved_carrier_names(session: Session) -> list[str]:
 book has tens of carriers, not thousands — and keeps normalization identical
 between the display name and the alias. Revisit only if that stops being true.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_carriers.py -v`
 Expected: 10 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/carriers.py tests/test_carriers.py
@@ -259,7 +259,7 @@ git commit -m "feat(carriers): exact-match resolution and per-state admitted sta
 - Consumes: `unresolved_carrier_names`, `resolve_carrier`, `add_alias`, `set_admitted`, model `PolicyBillingType`.
 - Produces: routes `POST /settings/carriers`, `POST /settings/carriers/{id}/alias`, `POST /settings/carriers/{id}/admitted`, `POST /settings/policies/{id}/billing-type`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_web_settings.py — append
@@ -310,12 +310,12 @@ def test_setting_billing_type_appends(client_app, db, policy_id):
     assert [r.billing_type for r in rows] == ["direct_bill", "agency_bill"]
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_web_settings.py -v`
 Expected: FAIL with 404 on `/settings/carriers`
 
-- [ ] **Step 3: Implement the routes**
+- [x] **Step 3: Implement the routes**
 
 In `renewal/web/settings.py`:
 
@@ -327,16 +327,16 @@ In `renewal/web/settings.py`:
 
 Every one of these is a human decision recorded as a row. None of them infers anything from a document.
 
-- [ ] **Step 4: Update the template**
+- [x] **Step 4: Update the template**
 
 Add the carriers section to `settings.html`. Each unresolved name shows a select of existing carriers plus a "create as new carrier" button, so aliasing is one interaction. The admitted-status control is a state field and a three-way select whose default is `unknown`.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_settings.py -v`
 Expected: all pass
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add renewal/web/settings.py renewal/templates/settings.html tests/test_web_settings.py
@@ -356,7 +356,7 @@ Indexes only. No tables, no columns.
 **Interfaces:**
 - Produces: `ix_client_display_name_trgm`, `ix_carrier_display_name_trgm`, `ix_policy_policy_number`, `ix_document_uploaded_at_desc`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_search_indexes.py
@@ -387,12 +387,12 @@ def test_the_text_index_is_gin(session):
     assert "gin" in definition.lower()
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_search_indexes.py -v`
 Expected: FAIL — the four new index names are absent
 
-- [ ] **Step 3: Generate and write the migration**
+- [x] **Step 3: Generate and write the migration**
 
 Run: `alembic revision -m "search indexes"`
 
@@ -423,12 +423,12 @@ def downgrade() -> None:
 `pg_trgm` is already installed by the Plan A migration that created
 `document_text`, so nothing here creates an extension.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_search_indexes.py -v`
 Expected: 2 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add migrations/versions/ tests/test_search_indexes.py
@@ -449,7 +449,7 @@ Across document text, client names, policy numbers, and carrier names. Newest fi
 - Consumes: models `DocumentText`, `Document`, `DocumentLink`, `DocumentClassification`, `Client`, `Policy`, `Carrier`.
 - Produces: `SearchResult(document_id, client_id, client_name, doc_class, uploaded_at, carrier_name, snippet, matched_on)`; `search(session, q: str, *, client_id=None, doc_class=None, start=None, end=None, limit=50, offset=0) -> list[SearchResult]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_search.py
@@ -585,12 +585,12 @@ def test_a_deduplicated_document_matching_on_text_records_why(session, store):
     assert "text" in search(session, "cancellation")[0].matched_on
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_search.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.search'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/search/query.py
@@ -753,12 +753,12 @@ def search(
 and bare operator characters without raising, so a query she types with a stray
 `&` returns results instead of a 500.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_search.py -v`
 Expected: 14 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/search/ tests/test_search.py
@@ -778,7 +778,7 @@ git commit -m "feat(search): full-text and name search across the record"
 - Consumes: `search`.
 - Produces: route `GET /search`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # tests/test_web_search.py
@@ -863,7 +863,7 @@ def test_search_stays_under_the_budget_at_ten_thousand_documents(session, capsys
     assert elapsed < BUDGET_SECONDS
 ```
 
-- [ ] **Step 2: Register the marker and run the tests to verify they fail**
+- [x] **Step 2: Register the marker and run the tests to verify they fail**
 
 Add `"perf: seeds a large dataset; excluded from the default run"` to `markers`
 in `pyproject.toml` and change `addopts` to `-m 'not eval and not perf'`.
@@ -871,14 +871,14 @@ in `pyproject.toml` and change `addopts` to `-m 'not eval and not perf'`.
 Run: `pytest tests/test_web_search.py -v`
 Expected: FAIL with 404 on `/search`
 
-- [ ] **Step 3: Implement the route**
+- [x] **Step 3: Implement the route**
 
 `renewal/web/search.py`: `GET /search` reads `q`, `client_id`, `doc_class`,
 `start`, `end` from the query string, calls `search`, and renders
 `search.html`. An empty `q` renders the form with no results section rather
 than every document.
 
-- [ ] **Step 4: Write the template**
+- [x] **Step 4: Write the template**
 
 One box, autofocused, at the top. Each result is one dense line: client name (or
 "unmatched"), document class (or "unclassified"), upload date, carrier, and the
@@ -892,19 +892,19 @@ document text, and document text is not ours.
 Filters sit beside the box and their current values are reflected back into the
 form so a refinement does not lose the query.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_search.py -v`
 Expected: 5 passed
 
-- [ ] **Step 6: Run the performance test**
+- [x] **Step 6: Run the performance test**
 
 Run: `pytest -m perf tests/test_search_perf.py -s`
 Expected: the elapsed line prints and the assertion passes. If it does not,
 `EXPLAIN ANALYZE` the query before adding indexes — the likely culprit is the
 `ts_headline` correlated subquery running per row rather than per result.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/web/search.py renewal/templates/search.html tests/test_web_search.py tests/test_search_perf.py pyproject.toml
@@ -925,7 +925,7 @@ Everything about one client, assembled in one place, optimized for scanning unde
 - Consumes: `agenda`, `admitted_status`, `resolve_carrier`, models `Policy`, `PolicyTerm`, `PolicyBillingType`, `Document`, `DocumentLink`, `DocumentClassification`, `InboundMessage`, `AttentionItem`, `AttentionEvent`.
 - Produces: `PolicyRow(policy_id, carrier_name, policy_number, line_of_business, state, effective_date, expiration_date, total_premium, admitted, billing_type, billing_type_from_term, billing_mismatch, days_to_renewal)`; `DocumentRow(document_id, original_filename, uploaded_at, doc_class, source)`; `ClientOverview(client, policies, upcoming_dates, documents, messages, attention)`; `overview(session, client_id: int, *, agency_id: int, today: date | None = None) -> ClientOverview`; `RENEWAL_WINDOW_DAYS = 60`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_client_overview.py
@@ -1095,12 +1095,12 @@ def test_an_unknown_client_raises(session):
         overview(session, 999999, agency_id=1, today=TODAY)
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_client_overview.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'renewal.clients'`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # renewal/clients/overview.py
@@ -1289,12 +1289,12 @@ def overview(
 `attention` and `messages` are empty until Plan C fills those tables. The
 queries are written now so the screen does not need reworking then.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pytest tests/test_client_overview.py -v`
 Expected: 13 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add renewal/clients/ tests/test_client_overview.py
@@ -1316,7 +1316,7 @@ Dense, no pagination above the fold, no clicking to reveal basics.
 - Consumes: `overview`.
 - Produces: routes `GET /clients`, `GET /clients/{id}`, `GET /documents/{id}`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_web_clients.py
@@ -1363,12 +1363,12 @@ def test_a_client_with_nothing_renders(client_app, empty_client):
     assert client_app.get(f"/clients/{empty_client}").status_code == 200
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pytest tests/test_web_clients.py -v`
 Expected: FAIL with 404 on `/clients`
 
-- [ ] **Step 3: Implement the routes**
+- [x] **Step 3: Implement the routes**
 
 `renewal/web/clients.py`:
 
@@ -1382,7 +1382,7 @@ Expected: FAIL with 404 on `/clients`
   the document or its blob is missing. This is the route every "one click to
   the PDF" link in the app points at.
 
-- [ ] **Step 4: Write the template**
+- [x] **Step 4: Write the template**
 
 `client.html`, top to bottom, everything visible without interaction:
 
@@ -1405,18 +1405,18 @@ Add the styles for the mismatch marker and the overdue countdown to `app.css`,
 reusing the `unconfirmed` and `escalated` classes from the calendar rather than
 inventing parallel ones.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pytest tests/test_web_clients.py -v`
 Expected: 9 passed
 
-- [ ] **Step 6: Verify by hand against her archive**
+- [x] **Step 6: Verify by hand against her archive**
 
 Load a real client's overview. Confirm you can answer, without scrolling or
 clicking: which policies they have, when the next one renews, whether each
 carrier is admitted, and whether anything is unconfirmed.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add renewal/web/clients.py renewal/templates/client.html renewal/static/app.css tests/test_web_clients.py
@@ -1427,9 +1427,9 @@ git commit -m "feat(web): the client overview screen"
 
 ## Done when
 
-- [ ] `pytest tests/ -v` passes.
-- [ ] `pytest -m perf tests/test_search_perf.py -s` reports under 300ms.
-- [ ] Search finds a known document from her archive by a word in its body, by client name, and by policy number.
-- [ ] A client overview answers the phone-call questions without a click.
+- [x] `pytest tests/ -v` passes.
+- [x] `pytest -m perf tests/test_search_perf.py -s` reports under 300ms.
+- [x] Search finds a known document from her archive by a word in its body, by client name, and by policy number.
+- [x] A client overview answers the phone-call questions without a click.
 
 Plan C is next: inbound email intake, classification, and the attention queue.
