@@ -1,5 +1,9 @@
-"""The calendar. Agenda is the default, because a list on paper is what this
-replaces.
+"""The calendar, as a month grid and as an agenda.
+
+The month is what the header links to, because "how bad is the week of the
+14th" is a question about shape and a list cannot answer it. The agenda is
+still here and still the place where a date is actually judged: it has room
+for the source, the status and the two buttons, which a grid cell does not.
 
 Confirmation is one click and dismissal is one keystroke, because the value of
 over-extraction depends entirely on clearing a wrong date being cheaper than
@@ -11,7 +15,7 @@ from __future__ import annotations
 
 import calendar as stdcalendar
 from datetime import date
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -52,7 +56,7 @@ def register(app, deps: Deps) -> None:
 
     router = APIRouter()
 
-    def _entries(session, client_id, date_type, status):
+    def _entries(session, client_id, date_type, status, start=None, end=None):
         # No status filter means the agenda's own default, which hides
         # dismissed dates. Asking for one narrows to exactly that status.
         extra = {"statuses": (status,)} if status else {}
@@ -61,11 +65,16 @@ def register(app, deps: Deps) -> None:
             agency_id=AGENCY_ID,
             client_id=client_id,
             date_types=(date_type,) if date_type else None,
+            start=start,
+            end=end,
             **extra,
         )
 
-    def _context(session, request, view, client_id, date_type, status):
-        entries = _entries(session, client_id, date_type, status)
+    def _context(
+        session, request, view, client_id, date_type, status,
+        start=None, end=None,
+    ):
+        entries = _entries(session, client_id, date_type, status, start, end)
         clients = session.query(Client).order_by(Client.display_name).all()
         return {
             "entries": entries,
@@ -102,24 +111,61 @@ def register(app, deps: Deps) -> None:
         today = date.today()
         year = year or today.year
         month = month or today.month
+        if not 1 <= month <= 12:
+            raise HTTPException(status_code=404, detail="no such month")
+        weeks = stdcalendar.Calendar(firstweekday=6).monthdatescalendar(
+            year, month
+        )
         with session_factory() as session:
+            # Windowed to the weeks actually on screen. Without it the query
+            # is the agenda's — every date the agency has, capped at 500 — and
+            # the month you navigated to is whichever 500 came back first.
             context = _context(
-                session, request, "month", client_id, date_type, status
+                session, request, "month", client_id, date_type, status,
+                start=weeks[0][0], end=weeks[-1][-1],
             )
             # Grouped by day so the template renders a grid rather than
             # re-scanning the whole list for every cell.
             by_day: dict[date, list] = {}
             for entry in context["entries"]:
                 by_day.setdefault(entry.date_value, []).append(entry)
+
+            def month_url(y: int, m: int) -> str:
+                # Navigation carries the filters. Landing on an unfiltered
+                # December because you pressed an arrow in a filtered November
+                # is how a filter silently stops being true.
+                query = {"year": y, "month": m}
+                if client_id is not None:
+                    query["client_id"] = client_id
+                if date_type:
+                    query["date_type"] = date_type
+                if status:
+                    query["status"] = status
+                return "/calendar/month?" + urlencode(query)
+
             context.update(
                 year=year,
                 month=month,
                 month_name=stdcalendar.month_name[month],
-                weeks=stdcalendar.Calendar(firstweekday=6).monthdatescalendar(
-                    year, month
-                ),
+                day_names=[
+                    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday",
+                    "Friday", "Saturday",
+                ],
+                weeks=weeks,
                 by_day=by_day,
                 today=today,
+                month_url=month_url,
+                prev_year=year - 1 if month == 1 else year,
+                prev_month=12 if month == 1 else month - 1,
+                next_year=year + 1 if month == 12 else year,
+                next_month=1 if month == 12 else month + 1,
+                # The grid drops to marks on a phone, so the same entries are
+                # listed underneath it in date order.
+                month_entries=sorted(
+                    (e for e in context["entries"] if e.date_value.month == month
+                     and e.date_value.year == year),
+                    key=lambda e: (e.date_value, e.client_name or ""),
+                ),
             )
             return TEMPLATES.TemplateResponse(request, "calendar.html", context)
 

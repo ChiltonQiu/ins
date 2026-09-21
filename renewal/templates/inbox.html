@@ -42,7 +42,7 @@
          fetch-and-reload handler built for the 204 correction endpoints, and
          this one redirects. #}
       <form class="inline-retry" method="post" action="/documents/{{ state.document.id }}/retry">
-        <button class="btn quiet" type="submit">Try again</button>
+        <button class="btn" type="submit">Try again</button>
       </form>
       {% endif %}
     </li>
@@ -61,14 +61,15 @@
       <span>{{ state.summary }}</span>
       {% if state.reason == "failed" %}
       <form class="inline-retry" method="post" action="/documents/{{ state.document.id }}/retry">
-        <button class="btn quiet" type="submit">Try again</button>
+        <button class="btn" type="submit">Try again</button>
       </form>
       {% endif %}
       {% if state.reason in ("needs_review", "nothing_extracted") %}
-      <a class="btn quiet" href="/documents/{{ state.document.id }}/review">Open it</a>
+      <a class="btn" href="/documents/{{ state.document.id }}/review">Open it</a>
       {% endif %}
       {% if state.reason == "needs_client" %}
       <span class="fix">
+        <span class="fixlabel">File it under</span>
         {# The score is shown on purpose: she should be able to see how close
            the near-miss was before picking the one above it. #}
         {% for candidate in candidates.get(state.document.id, []) %}
@@ -77,8 +78,10 @@
           {% if candidate.policy_id %}
           <input type="hidden" name="policy_id" value="{{ candidate.policy_id }}">
           {% endif %}
-          <button class="btn quiet" type="submit">{{ candidate.name }}</button>
-          <span class="num">{{ "%.0f"|format(candidate.score * 100) }}%</span>
+          <button class="choice" type="submit">
+            <span class="name">{{ candidate.name }}</span>
+            <span class="score num">{{ "%.0f"|format(candidate.score * 100) }}%</span>
+          </button>
         </form>
         {% else %}
         <span class="muted">Nothing matched.</span>
@@ -86,18 +89,19 @@
         <form class="inline-fix" method="post" action="/unmatched/{{ state.document.id }}/new-client">
           <input name="display_name" required aria-label="New client name"
                  placeholder="New client name">
-          <button class="btn quiet" type="submit">Create</button>
+          <button class="btn" type="submit">Create</button>
         </form>
       </span>
       {% elif state.reason == "needs_policy" %}
       <span class="fix">
+        <span class="fixlabel">Which policy</span>
         <form class="inline-fix" method="post" action="/documents/{{ state.document.id }}/policy">
           <select name="policy_id" aria-label="Policy" required>
             {% for policy in policies.get(state.document.id, []) %}
             <option value="{{ policy.id }}">{{ policy.carrier_name }} {{ policy.policy_number }}</option>
             {% endfor %}
           </select>
-          <button class="btn quiet" type="submit">File it here</button>
+          <button class="btn" type="submit">File it here</button>
         </form>
         <a class="btn quiet" href="/clients/{{ state.client_id }}">New policy</a>
       </span>

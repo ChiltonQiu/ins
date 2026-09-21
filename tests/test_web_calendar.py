@@ -238,3 +238,66 @@ def test_a_hostile_filename_cannot_forge_a_header(client_app, db, engine, tmp_pa
     disposition = response.headers["content-disposition"]
     assert '"' not in disposition.split("filename=", 1)[1].strip('"')
     assert "\n" not in disposition and "\r" not in disposition
+
+
+def test_the_month_can_be_walked_forwards_and_back(client_app):
+    """A calendar you cannot leave the current month of is a picture of one.
+
+    The links are checked rather than the heading, because the heading is what
+    the next request renders and these are what make that request possible.
+    """
+    response = client_app.get("/calendar/month?year=2026&month=1")
+    assert response.status_code == 200
+    # January's neighbours are in different years, which is the case a naive
+    # month +/- 1 gets wrong.
+    assert "/calendar/month?year=2025&amp;month=12" in response.text
+    assert "/calendar/month?year=2026&amp;month=2" in response.text
+
+
+def test_walking_the_month_keeps_the_filters(client_app):
+    """Landing on an unfiltered December because you pressed an arrow in a
+    filtered November is how a filter silently stops being true."""
+    response = client_app.get(
+        "/calendar/month?year=2026&month=6&date_type=audit_date"
+    )
+    assert "year=2026&amp;month=7&amp;date_type=audit_date" in response.text
+
+
+def test_a_month_query_is_windowed_to_the_month(client_app, db, engine):
+    """The agenda's query is every date the agency has, capped. A month that
+    asked for that would show whichever dates came back first."""
+    sess = sessionmaker(bind=engine)()
+    sess.add(ManualDate(
+        agency_id=1, title="far future thing", date_value=date(2030, 3, 4),
+        date_type="other", created_by="human"))
+    sess.commit()
+    sess.close()
+
+    assert "far future thing" not in client_app.get(
+        "/calendar/month?year=2026&month=6").text
+    assert "far future thing" in client_app.get(
+        "/calendar/month?year=2030&month=3").text
+
+
+def test_a_crowded_day_counts_what_it_cannot_show(client_app, db, engine):
+    """A cell that grows to fit its busiest day stops being comparable to the
+    cell beside it, which is the whole point of a grid."""
+    sess = sessionmaker(bind=engine)()
+    for i in range(5):
+        sess.add(ManualDate(
+            agency_id=1, title=f"thing {i}", date_value=date(2026, 6, 10),
+            date_type="other", created_by="human"))
+    sess.commit()
+    sess.close()
+
+    body = client_app.get("/calendar/month?year=2026&month=6").text
+    # The grid only; the list underneath it is the narrow-screen view and
+    # carries every entry on purpose.
+    grid = body.split('class="monthlist"')[0]
+    assert "+2 more" in grid
+    assert "thing 4" not in grid
+    assert "thing 4" in body
+
+
+def test_a_month_outside_the_calendar_is_not_a_month(client_app):
+    assert client_app.get("/calendar/month?month=13").status_code == 404

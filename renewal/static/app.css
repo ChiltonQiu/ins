@@ -162,6 +162,20 @@ a:hover {
   border-radius: 0;
 }
 
+/* Present for a screen reader, absent for everything else. The month grid's
+   caption and the weekday names it abbreviates both need it. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .skip {
   position: absolute;
   left: -9999px;
@@ -761,21 +775,76 @@ textarea {
   border-color: var(--ink);
 }
 
-/* Low-frequency, and it sits next to every single value: it must not compete
-   with the input beside it. */
+/* Low-frequency: it sits beside a value or inside a row and must not compete
+   with what it is acting on. Quieter than .btn — smaller, lighter, a hairline
+   instead of a full rule — but never invisible.
+
+   It used to draw no border at all, which meant a control and a label were the
+   same object until you hovered one. The hairline is the whole fix: it says
+   'this is a thing you press' at rest, which is when the question is actually
+   being asked. */
 .btn.quiet {
-  border-color: transparent;
+  border-color: var(--rule);
   background: transparent;
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-size: 12.5px;
-  padding: 7px 6px;
+  padding: 6px 10px;
   white-space: nowrap;
 }
 
 .btn.quiet:hover {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* The exception, and the reason the red hover was written in the first place:
+   a quiet button that throws something away says so on approach. Rejecting a
+   value and filing a document are not the same act and must not answer the
+   pointer the same way. */
+.btn.quiet.reject:hover {
   color: var(--danger);
   background: var(--danger-wash);
-  border-color: transparent;
+  border-color: var(--danger-line);
+}
+
+/* One of several answers to the same question — pick this client, not that
+   one. A chip rather than a bare name: the row offers three of them and the
+   score beside each, and none of that reads as a choice unless it has an edge.
+   The score lives inside the control because it is part of what is being
+   chosen, not an annotation beside it. */
+.choice {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.choice .score {
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.choice:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.choice:hover .score {
+  color: var(--on-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1260,61 +1329,251 @@ p.total-delta.up {
   font-style: italic;
 }
 
+/* The month. A grid of days, not a list with dates on it: the question this
+   view answers is "how bad is the week of the 14th", and that question is
+   answered by shape — three marks in one cell and none in the next — before
+   any of the text is read.
+
+   Cells are fixed-height and equal-width on purpose. A calendar whose rows
+   grow to fit their busiest day stops being a calendar the moment one day has
+   six things on it: the grid shifts, and the shape that was the whole point
+   goes with it. What does not fit is counted instead. */
+.monthnav {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.monthnav h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.monthnav .spacer {
+  flex: 1 1 auto;
+}
+
+.monthnav .step {
+  font-variant-numeric: tabular-nums;
+  padding: 6px 11px;
+}
+
 .monthgrid {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.monthgrid th,
+.monthgrid th {
+  padding: 0 6px 6px;
+  border: 0;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
 .monthgrid td {
   border: 1px solid var(--rule);
   vertical-align: top;
-  padding: 4px 6px;
+  padding: 3px 4px 4px;
+  height: 7.5em;
+  overflow: hidden;
 }
 
-.monthgrid td {
-  height: 6.5em;
-}
-
+/* Outside the month: present, so the weeks are whole, and visibly not the
+   subject. Sunk rather than greyed — the dates in it are still real dates. */
 .monthgrid td.othermonth {
   background: var(--surface-sunk);
-  color: var(--ink-2);
 }
 
-.monthgrid td.today {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+.monthgrid td.othermonth .daynum {
+  color: var(--ink-3);
+}
+
+/* Today is the one cell that gets ink. Not an outline around the cell, which
+   competed with the grid's own rules, but a filled number: the eye lands on
+   the date itself, which is what it was looking for. */
+.monthgrid td.today .daynum {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
 }
 
 .daynum {
-  font-size: 12px;
+  display: inline-block;
+  min-width: 1.45em;
+  padding: 2px 4px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
   color: var(--ink-2);
+  text-align: center;
 }
 
 .daylist {
   list-style: none;
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   padding: 0;
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .daylist li {
+  min-width: 0;
+}
+
+/* An entry is a link and has to look like one at a glance, in a cell with no
+   room to explain itself. A left-aligned block that fills the cell width,
+   inverting on hover the way every other control here does. */
+.daylist .ev {
+  display: block;
+  width: 100%;
+  padding: 2px 4px;
+  color: var(--ink);
+  background: var(--accent-wash);
+  text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-/* In a month cell there is no room for a label, so the colour is the type
-   itself rather than a bar beside it. */
-.daylist li.escalated {
-  font-weight: 700;
+.daylist .ev:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* In a month cell there is no room for a label, so the colour is the entry
+   itself rather than a flag beside it. */
+.daylist .ev.escalated {
+  font-weight: 600;
+  color: var(--danger);
+  background: var(--danger-wash);
+}
+
+.daylist .ev.escalated:hover {
+  background: var(--danger);
+  color: var(--on-accent);
+}
+
+/* Unconfirmed is a guess and may never render as a fact. In the agenda it
+   says so in words; here there is no room, so it is hollow — no fill, a
+   dotted edge — which reads as provisional beside its filled neighbours. */
+.daylist .ev.unconfirmed {
+  background: transparent;
+  border: 1px dotted var(--accent-line);
+  padding: 1px 3px;
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.daylist .more {
+  padding: 1px 4px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* The narrow case. Seven columns of readable text do not fit on a phone, and
+   a horizontally scrolling month is not a month. The grid keeps its shape and
+   loses its words: each day shows its number and a mark per entry, which is
+   still the answer to "how bad is that week". The detail is underneath, where
+   there is room for a full line per entry. */
+.monthlist {
+  margin: 1.25rem 0 0;
+}
+
+.monthlist h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.monthlist ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.monthlist li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.7rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.monthlist li:first-child {
+  border-top: 0;
+}
+
+.monthlist .when {
+  flex: 0 0 5.5rem;
+  color: var(--ink-2);
+  font-size: 0.86rem;
+}
+
+.monthlist .escalated .what {
+  font-weight: 600;
   color: var(--danger);
 }
 
-.daylist li.unconfirmed {
-  font-style: italic;
-  color: var(--ink-2);
+@media (max-width: 720px) {
+  .monthgrid td {
+    height: 4.25em;
+    padding: 2px;
+  }
+
+  .monthgrid th {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Marks, not controls. A 4px link is not a tap target, and it does not
+     need to be one: the same entries are listed underneath with room for a
+     finger. The text stays in the DOM for a screen reader, which is not
+     reading the grid geometrically anyway. */
+  .daylist .ev {
+    height: 4px;
+    padding: 0;
+    text-indent: -9999px;
+    background: var(--accent);
+    pointer-events: none;
+  }
+
+  .daylist .ev.escalated {
+    background: var(--danger);
+  }
+
+  .daylist .ev.unconfirmed {
+    height: 4px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--accent-line);
+  }
+
+  .daylist .more {
+    font-size: 10px;
+    padding: 0 2px;
+  }
+}
+
+/* The mark-only grid above is a summary of the list below, so on a wide
+   screen — where the grid says everything — the list is redundant. */
+@media (min-width: 721px) {
+  .monthlist {
+    display: none;
+  }
 }
 
 
@@ -1661,6 +1920,31 @@ ul.inbox > li[data-state="stalled"] > .path::before {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+}
+
+/* The controls on a fix row answer a question, and without the question they
+   are a row of orphaned words. Set as a label so it reads as the prompt it is
+   rather than as another thing to press. */
+.fixlabel {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* A needs-you row is the only row on this page that is asking for something.
+   The hover is not decoration: the buckets are three lists of the same shape,
+   and this is what says the pointer is on a row that will do something. */
+ul.inbox > li[data-reason]:hover {
+  background: var(--surface-sunk);
+}
+
+/* Actions sit at the end of the row rather than inline with the sentence, so
+   the eye finds them in the same place on every row. */
+ul.inbox > li > .inline-retry,
+ul.inbox > li > .btn {
+  margin-left: auto;
 }
 
 /* A count, set solid so it reads as a quantity rather than as an alarm. It is

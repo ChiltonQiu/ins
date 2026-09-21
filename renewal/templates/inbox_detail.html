@@ -47,7 +47,7 @@
                    data-original="{{ field.value or '' }}"
                    class="correctable">
             <form class="inline" method="post" action="/fields/{{ field.id }}/reject">
-              <button class="btn quiet" type="submit"
+              <button class="btn quiet reject" type="submit"
                       title="This value is not on the document">not present</button>
             </form>
             <span class="saved" data-saved-for="{{ field.id }}" aria-live="polite"></span>

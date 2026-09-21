@@ -4,7 +4,8 @@
 <div class="pagehead">
   <h1>Calendar</h1>
   <span class="sub">
-    {{ entries|length }} date{{ "" if entries|length == 1 else "s" }}
+    {% set n = month_entries|length if view == "month" else entries|length %}
+    {{ n }} date{{ "" if n == 1 else "s" }}{{ " this month" if view == "month" }}
   </span>
   <span class="actions">
     <a class="btn {{ 'primary' if view == 'agenda' else '' }}" href="/calendar">Agenda</a>
@@ -123,33 +124,86 @@
 
 <div class="calendar" data-view="{{ view }}">
 {% if view == "month" %}
-  <div class="pagehead">
+{# Three entries is what fits in a cell at the height the grid is fixed at.
+   The fourth is counted rather than shown: a cell that grows to fit its day
+   breaks the one thing a month grid is for, which is comparing one day
+   against another by shape. #}
+{% set shown = 3 %}
+  <div class="monthnav">
     <h2>{{ month_name }} {{ year }}</h2>
+    <span class="spacer"></span>
+    <a class="btn quiet step" href="{{ month_url(prev_year, prev_month) }}"
+       aria-label="Previous month" rel="prev">&larr;</a>
+    <a class="btn quiet step" href="{{ month_url(today.year, today.month) }}">Today</a>
+    <a class="btn quiet step" href="{{ month_url(next_year, next_month) }}"
+       aria-label="Next month" rel="next">&rarr;</a>
   </div>
   <table class="monthgrid">
+    <caption class="visually-hidden">{{ month_name }} {{ year }}</caption>
     <thead>
       <tr>{% for day in ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] %}
-        <th>{{ day }}</th>{% endfor %}</tr>
+        <th scope="col"><abbr title="{{ day_names[loop.index0] }}">{{ day }}</abbr></th>{% endfor %}</tr>
     </thead>
     <tbody>
       {% for week in weeks %}
       <tr>
         {% for day in week %}
+        {% set on_day = by_day.get(day, []) %}
         <td class="{{ 'othermonth' if day.month != month }} {{ 'today' if day == today }}">
           <span class="num daynum">{{ day.day }}</span>
+          {% if on_day %}
           <ul class="daylist">
-            {% for entry in by_day.get(day, []) %}
-            <li class="{{ 'escalated' if entry.escalated }} {{ entry.status }}">
-              {{ entry.client_name or "unmatched" }} — {{ entry.title }}
+            {% for entry in on_day[:shown] %}
+            <li>
+              {# The document is where the date came from and where it can be
+                 judged, so that is where the entry goes. A date somebody typed
+                 in has no document behind it and is not a link. #}
+              {% if entry.document_id %}
+              <a class="ev {{ 'escalated' if entry.escalated }} {{ entry.status }}"
+                 href="/documents/{{ entry.document_id }}"
+                 title="{{ entry.client_name or 'unmatched' }} — {{ entry.title }} ({{ entry.status }})">
+                {{ entry.client_name or "unmatched" }} — {{ entry.title }}</a>
+              {% else %}
+              <span class="ev {{ 'escalated' if entry.escalated }} {{ entry.status }}"
+                    title="{{ entry.client_name or 'unmatched' }} — {{ entry.title }} ({{ entry.status }})">
+                {{ entry.client_name or "unmatched" }} — {{ entry.title }}</span>
+              {% endif %}
             </li>
             {% endfor %}
+            {% if on_day|length > shown %}
+            <li class="more">+{{ on_day|length - shown }} more</li>
+            {% endif %}
           </ul>
+          {% endif %}
         </td>
         {% endfor %}
       </tr>
       {% endfor %}
     </tbody>
   </table>
+
+{# On a phone the grid keeps its shape and loses its words, so the words go
+   here. Hidden on a wide screen, where the grid already says all of this. #}
+<div class="monthlist">
+  <h3>{{ month_name }} in full</h3>
+  {% if month_entries %}
+  <ul>
+    {% for entry in month_entries %}
+    <li class="{{ 'escalated' if entry.escalated }}">
+      <span class="num when">{{ entry.date_value.strftime("%a %-d") }}</span>
+      <span class="who">{{ entry.client_name or "unmatched" }}</span>
+      <span class="what">{{ entry.title }}</span>
+      {% if entry.status != "confirmed" %}<span class="flag status-flag">{{ entry.status }}</span>{% endif %}
+      {% if entry.document_id %}
+      <span class="src"><a href="/documents/{{ entry.document_id }}">source</a></span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nothing this month.</p>
+  {% endif %}
+</div>
 {% elif entries %}
   <p class="muted keyhint">
     j and k move between dates, c confirms, d dismisses.
