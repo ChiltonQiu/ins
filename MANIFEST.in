@@ -1,0 +1,40 @@
+# What a source distribution has to carry beyond the importable package.
+#
+# The wheel is the library: renewal/, its templates and its stylesheet. None of
+# what follows is importable, and all of it is required to run the thing —
+# a database with no migrations is an empty database, and config/materiality.yaml
+# is read at startup, so a release without it starts and then cannot classify a
+# single difference.
+
+include README.md
+include PRIVACY.md
+include .env.example
+include alembic.ini
+
+# The schema. Without these there is nothing to connect to.
+recursive-include migrations *.py
+include migrations/script.py.mako
+
+# Read at runtime, not import time, which is exactly why it is easy to forget.
+recursive-include config *.yaml
+
+# Bulk import, the poller, the digest, account creation, re-extraction: the
+# operational surface of this application is command-line, and a distribution
+# without it can only serve pages.
+recursive-include scripts *.py
+include scripts/install.sh
+
+# The unit file and the proxy config, so a deployment does not have to go back
+# to the repository for them.
+recursive-include deploy *
+
+# How it works and why, for whoever is holding the tarball.
+recursive-include docs *.md
+
+# Tests ship too: they are how somebody who just downloaded this establishes
+# that it works on their machine before pointing it at anybody's documents.
+recursive-include tests *.py
+include conftest.py
+
+exclude CLAUDE.md
+prune docs/superpowers
