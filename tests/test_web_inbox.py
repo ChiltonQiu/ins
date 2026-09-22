@@ -82,7 +82,7 @@ def test_the_inbox_lists_a_document_that_needs_a_client(
 ):
     _document(engine, settings, filename="mystery.pdf")
     with signed() as client:
-        page = client.get("/")
+        page = client.get("/inbox")
     assert page.status_code == 200
     assert "mystery.pdf" in page.text
     assert "who is this for" in page.text
@@ -91,7 +91,7 @@ def test_the_inbox_lists_a_document_that_needs_a_client(
 def test_a_processing_document_shows_as_working_on_it(signed, engine, settings):
     _document(engine, settings, filename="inflight.pdf", status="processing")
     with signed() as client:
-        page = client.get("/")
+        page = client.get("/inbox")
     assert "Reading this now" in page.text
 
 
@@ -99,7 +99,7 @@ def test_a_long_running_document_shows_as_stalled(signed, engine, settings):
     _document(engine, settings, filename="stuck.pdf", status="processing",
               age=timedelta(hours=3))
     with signed() as client:
-        page = client.get("/")
+        page = client.get("/inbox")
     assert "restarted while this was in flight" in page.text
 
 
@@ -107,14 +107,14 @@ def test_an_empty_inbox_says_so_rather_than_showing_three_empty_headings(
     signed,
 ):
     with signed() as client:
-        page = client.get("/")
+        page = client.get("/inbox")
     assert page.status_code == 200
     assert "Nothing has come in yet" in page.text
 
 
 def test_the_inbox_no_longer_lists_runs(signed):
     with signed() as client:
-        page = client.get("/")
+        page = client.get("/inbox")
     assert "Renewal runs" not in page.text
 
 
@@ -132,7 +132,7 @@ def test_dropping_a_file_in_files_it_and_answers_immediately(
             follow_redirects=False,
         )
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/inbox"
 
     session = sessionmaker(bind=engine)()
     try:
@@ -152,7 +152,7 @@ def test_the_dropped_file_appears_on_the_inbox(signed, engine, settings):
                                 "application/pdf")},
             follow_redirects=False,
         )
-        page = client.get("/")
+        page = client.get("/inbox")
     assert "dropped.pdf" in page.text
 
 
@@ -254,7 +254,7 @@ def test_a_stalled_row_offers_the_retry_button(signed, engine, settings):
     _document(engine, settings, filename="stuck.pdf", status="processing",
               age=timedelta(hours=3))
     with signed() as client:
-        page = client.get("/")
+        page = client.get("/inbox")
     assert "/retry" in page.text
 
 
@@ -293,7 +293,7 @@ def test_the_detail_view_of_a_missing_document_is_a_404(signed):
 def test_a_needs_you_row_links_to_the_detail_view(signed, engine, settings):
     _document(engine, settings, filename="mystery.pdf")
     with signed() as client:
-        page = client.get("/")
+        page = client.get("/inbox")
     assert "/review" in page.text
 
 
@@ -324,7 +324,7 @@ def test_a_needs_client_row_offers_the_ranked_candidates(
     # Text has to exist for candidate extraction to read anything.
     with signed() as client:
         client.post(f"/documents/{document_id}/retry", follow_redirects=False)
-        page = client.get("/")
+        page = client.get("/inbox")
 
     assert f"/unmatched/{document_id}/assign" in page.text
     assert "Ramirez Landscaping Incorporated" in page.text
@@ -351,7 +351,7 @@ def test_assigning_a_client_from_the_inbox_lands_back_on_the_inbox(
             follow_redirects=False,
         )
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/inbox"
 
 
 def test_the_old_unmatched_page_is_gone(signed):

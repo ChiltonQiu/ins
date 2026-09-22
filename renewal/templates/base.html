@@ -24,34 +24,55 @@
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
-  <header class="topbar">
+  {% set path = request.url.path %}
+  <div class="shell">
+
+  {# A sidebar rather than a row of links across the top: six destinations
+     already crowded the masthead, and a list down the side has room for a
+     count beside each one — which is the thing that decides where she goes
+     next. On a narrow screen it becomes a scrolling rail above the content
+     rather than a hamburger, because a menu that hides the counts hides the
+     only navigation signal this application has. #}
+  <header class="sidebar">
     <a class="brand" href="/">Renewal <span>compare</span></a>
-    <nav>
-      {% set path = request.url.path %}
-      <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Inbox{% if needs_you_count %} <span class="badge">{{ needs_you_count }}</span>{% endif %}</a>
-      <a href="/calendar/month" {% if path.startswith("/calendar") %}aria-current="page"{% endif %}>Calendar</a>
-      <a href="/search" {% if path == "/search" %}aria-current="page"{% endif %}>Search</a>
-      <a href="/clients" {% if path.startswith("/clients") %}aria-current="page"{% endif %}>Clients</a>
+
+    <nav aria-label="Sections">
+      <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Home</a>
+      <a href="/inbox" {% if path == "/inbox" or path.startswith("/documents") %}aria-current="page"{% endif %}>
+        Inbox{% if needs_you_count %}<span class="badge">{{ needs_you_count }}</span>{% endif %}</a>
       <a href="/attention" {% if path.startswith("/attention") %}aria-current="page"{% endif %}>Attention</a>
-      <a href="/settings" {% if path == "/settings" %}aria-current="page"{% endif %}>Settings</a>
+      <a href="/calendar/month" {% if path.startswith("/calendar") %}aria-current="page"{% endif %}>Calendar</a>
+      <a href="/clients" {% if path.startswith("/clients") %}aria-current="page"{% endif %}>Clients</a>
+      <a href="/search" {% if path == "/search" %}aria-current="page"{% endif %}>Search</a>
     </nav>
+
     <span class="spacer"></span>
-    {% block crumb %}{% endblock %}
-    {% if request.state.user_email is defined %}
-    <form class="whoami" method="post" action="/logout">
-      <span>{{ request.state.user_email }}</span>
-      <button type="submit">Sign out</button>
-    </form>
-    {% endif %}
-    <div class="themepick" role="group" aria-label="Theme">
-      <button type="button" data-theme-set="system">System</button>
-      <button type="button" data-theme-set="light">Light</button>
-      <button type="button" data-theme-set="dark">Dark</button>
-    </div>
+
+    <nav class="foot" aria-label="Account">
+      <a href="/settings" {% if path == "/settings" %}aria-current="page"{% endif %}>Settings</a>
+      {% if request.state.user_email is defined %}
+      <form class="whoami" method="post" action="/logout">
+        <span title="{{ request.state.user_email }}">{{ request.state.user_email }}</span>
+        <button type="submit">Sign out</button>
+      </form>
+      {% endif %}
+      <div class="themepick" role="group" aria-label="Theme">
+        <button type="button" data-theme-set="system">System</button>
+        <button type="button" data-theme-set="light">Light</button>
+        <button type="button" data-theme-set="dark">Dark</button>
+      </div>
+    </nav>
   </header>
+
   <main id="main">
+    {# Above the page's own heading rather than in the masthead: with the nav
+       down the side there is nothing at the top to bury it in, and a trail
+       reads as a trail when it sits directly over what it leads back from. #}
+    {% block crumb %}{% endblock %}
     {% block content %}{% endblock %}
   </main>
+
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>

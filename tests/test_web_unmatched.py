@@ -107,12 +107,12 @@ def test_an_assigned_document_leaves_the_queue(client_app, seeded):
     because the page it looks at does not exist.
     """
     document_id, client_id = seeded
-    inbox = client_app.get("/")
+    inbox = client_app.get("/inbox")
     assert f"/unmatched/{document_id}/assign" in inbox.text
 
     client_app.post(f"/unmatched/{document_id}/assign",
                     data={"client_id": str(client_id)}, follow_redirects=False)
-    assert f"/unmatched/{document_id}/assign" not in client_app.get("/").text
+    assert f"/unmatched/{document_id}/assign" not in client_app.get("/inbox").text
 
 
 def test_assigning_a_client_that_does_not_exist_is_rejected(client_app, seeded):

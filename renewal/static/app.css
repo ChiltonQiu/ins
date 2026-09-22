@@ -194,19 +194,31 @@ a:hover {
 
 /* ---- chrome ------------------------------------------------------------ */
 
-.topbar {
+/* ---- the shell --------------------------------------------------------- */
+
+/* A sidebar, not a masthead. Six destinations had already filled the top bar
+   edge to edge, and the thing that decides where she goes next is the count
+   beside each one — which a horizontal nav has nowhere to put. Down the side
+   there is room for it, permanently, without it becoming decoration. */
+.shell {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
   position: sticky;
   top: 0;
-  z-index: 20;
+  align-self: start;
+  height: 100vh;
   display: flex;
-  align-items: center;
-  gap: 30px;
-  height: 56px;
-  padding: 0 26px;
-  background: var(--surface);
-  /* Full-strength: the masthead is a different kind of thing from the page
-     under it, and a hairline here made the two bleed together. */
-  border-bottom: 1px solid var(--rule-strong);
+  flex-direction: column;
+  gap: 22px;
+  padding: 18px 0 16px;
+  background: var(--surface-sunk);
+  /* Full strength: the rail is a different kind of thing from the page beside
+     it, and a hairline let the two bleed together. */
+  border-right: 1px solid var(--rule-strong);
 }
 
 .brand {
@@ -216,6 +228,7 @@ a:hover {
   color: var(--ink);
   text-decoration: none;
   white-space: nowrap;
+  padding: 0 18px;
 }
 
 .brand span {
@@ -223,36 +236,155 @@ a:hover {
   color: var(--ink-3);
 }
 
-.topbar nav {
+.sidebar nav {
   display: flex;
-  gap: 22px;
+  flex-direction: column;
 }
 
-.topbar nav a {
+.sidebar nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 18px;
   color: var(--ink-2);
   text-decoration: none;
   font-weight: 500;
-  padding: 18px 0 17px;
+  font-size: 13.5px;
   letter-spacing: -0.005em;
-  border-bottom: 2px solid transparent;
+  /* Transparent at rest so the current item's marker does not shift the text
+     by three pixels when it appears. */
+  border-left: 3px solid transparent;
 }
 
-.topbar nav a:hover {
+.sidebar nav a:hover {
   color: var(--ink);
+  background: var(--accent-wash);
 }
 
-.topbar nav a[aria-current="page"] {
+/* Ink, and only ink: the current section is stated by weight and a solid
+   marker rather than by a tint, which is what keeps the one colour in this
+   interface meaning something. */
+.sidebar nav a[aria-current="page"] {
   color: var(--ink);
-  border-bottom-color: var(--accent);
+  font-weight: 600;
+  border-left-color: var(--accent);
+  background: var(--surface);
 }
 
-.topbar .spacer {
+.sidebar .spacer {
   flex: 1;
 }
 
-.crumb {
+.sidebar .foot {
+  gap: 2px;
+  font-size: 12.5px;
+}
+
+.sidebar .foot .whoami {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 18px 6px;
+  margin-top: 6px;
+  border-top: 1px solid var(--rule);
+}
+
+.sidebar .foot .whoami span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+
+.sidebar .foot .whoami button {
+  font: inherit;
+  font-size: 12px;
   color: var(--ink-2);
-  font-size: 13px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 3px;
+}
+
+.sidebar .foot .whoami button:hover {
+  color: var(--accent-hover);
+}
+
+.sidebar .themepick {
+  padding: 8px 18px 0;
+}
+
+/* Under a laptop the rail becomes a strip above the content. Not a hamburger:
+   the counts are the only navigation signal this application has, and a menu
+   that hides them hides the reason to look at the nav at all. */
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  .sidebar nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .sidebar nav a {
+    padding: 5px 10px;
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .sidebar nav a[aria-current="page"] {
+    border-left: 0;
+    border-bottom-color: var(--accent);
+    background: none;
+  }
+
+  .sidebar .spacer {
+    flex: 1 0 100%;
+    display: none;
+  }
+
+  .sidebar .foot .whoami {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .sidebar .themepick {
+    padding: 0;
+  }
+}
+
+/* It sits above the page heading now that the nav is down the side, so it
+   gets the space a trail needs rather than the space a masthead had left
+   over. */
+.crumb {
+  display: block;
+  margin: 0 0 12px;
+  color: var(--ink-2);
+  font-size: 12.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -296,9 +428,14 @@ a:hover {
 }
 
 main {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 30px 26px 96px;
+  max-width: 1180px;
+  padding: 26px 30px 96px;
+}
+
+@media (max-width: 860px) {
+  main {
+    padding: 20px 16px 72px;
+  }
 }
 
 /* ---- headings ---------------------------------------------------------- */
@@ -1991,4 +2128,272 @@ ul.inbox > li > .btn {
   color: var(--ink-2);
   font-size: 0.86rem;
   line-height: 1.45;
+}
+
+/* ---- the front page ---------------------------------------------------- */
+
+/* A notice, not a card: full width, a rule top and bottom, and the one line
+   of prose that says what to do about it. It sits above the numbers because
+   everything below is downstream of whether documents can still arrive. */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.7rem;
+  margin: 0 0 20px;
+  padding: 11px 14px;
+  background: var(--accent-wash);
+  border-left: 3px solid var(--accent);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.notice.bad {
+  background: var(--danger-wash);
+  border-left-color: var(--danger);
+}
+
+.notice .meta {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.notice code {
+  font-size: 12.5px;
+}
+
+/* Four counts, and no more. This is where a dashboard starts inventing
+   metrics to fill a row; these are the only numbers in the system that change
+   what somebody does next, so these are the only ones that get a tile.
+
+   Two of them are links and two are not, and the difference is legible: a
+   number you can act on lifts on hover, a number that is only reporting sits
+   still. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1px;
+  margin: 0 0 26px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 13px 15px 14px;
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+}
+
+a.tile:hover {
+  background: var(--accent-wash);
+}
+
+.tile .label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* The number is the tile. Set large enough that the row reads as a row of
+   quantities at a glance, tabular so the columns line up with each other. */
+.tile .figure {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+/* A count that is zero is not news. Dropping it to the secondary ink means
+   the row reads as "these two need me" without anything being coloured. */
+.tile:not(.live) .figure {
+  color: var(--ink-2);
+}
+
+.tile .meta {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* Two panels side by side on a desk, stacked on anything narrower. Not a card
+   grid: they are separated by their own rules and headers, and boxing them
+   would put a border inside a border. */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 26px 34px;
+  margin: 0 0 26px;
+}
+
+.columns .panel {
+  margin: 0;
+}
+
+.panel > header .more {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.panel > header .more:hover {
+  color: var(--accent-hover);
+}
+
+/* The dense row. Hairline between rows, nothing around them, and the columns
+   sized by what they carry rather than evenly — a filename needs room and a
+   date does not. */
+table.rows {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.rows thead th {
+  padding: 0 10px 6px 0;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+table.rows thead th.num,
+table.rows td.num {
+  text-align: right;
+}
+
+table.rows td {
+  padding: 7px 10px 7px 0;
+  border-top: 1px solid var(--rule);
+  vertical-align: baseline;
+}
+
+table.rows tbody tr:first-child td {
+  border-top: 0;
+}
+
+table.rows thead + tbody tr:first-child td {
+  border-top: 1px solid var(--rule);
+}
+
+table.rows tbody tr:hover {
+  background: var(--surface-sunk);
+}
+
+table.rows td:last-child {
+  padding-right: 0;
+}
+
+table.rows .name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+table.rows .name a {
+  text-decoration: none;
+}
+
+table.rows .name a:hover {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+}
+
+table.rows .said {
+  color: var(--ink-2);
+}
+
+table.rows .when {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* How far away, beside the date rather than instead of it: the date is the
+   fact and this is the arithmetic she would otherwise do in her head. */
+table.rows .when .away {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+table.rows tr.escalated .when,
+table.rows tr.escalated .said {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+table.rows .go a {
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* A reason, stated in words. Bordered rather than filled: a row of filled
+   chips turns a list into a pile of buttons, and none of these is pressable. */
+.pill {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--ink-2);
+  border: 1px solid var(--rule);
+}
+
+/* Only the one that is actually broken is coloured. needs_client and
+   needs_review are ordinary work; failed is the one where something went
+   wrong on our side. */
+.pill.failed {
+  color: var(--danger);
+  border-color: var(--danger-line);
+  background: var(--danger-wash);
+}
+
+.pill.quiet {
+  border-style: dotted;
+  color: var(--ink-3);
+}
+
+/* Upward only. A premium that went up is the conversation; one that went down
+   is good news and does not need a signal spent on it. */
+.delta {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.delta.up {
+  color: var(--danger);
+}
+
+.delta .pct {
+  margin-left: 5px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.delta.up .pct {
+  color: inherit;
+}
+
+/* An empty panel says what would put something in it. Set as prose rather
+   than centred in a box, because it is a sentence and not a placeholder. */
+.panel .quiet {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  max-width: 56ch;
 }

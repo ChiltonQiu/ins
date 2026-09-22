@@ -44,7 +44,7 @@ def register(app, deps: Deps) -> None:
                 user_id=acting_user_id(request),
             )
             session.commit()
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/inbox", status_code=303)
 
     @router.post("/unmatched/{document_id}/new-client")
     def new_client_for_document(
@@ -60,7 +60,7 @@ def register(app, deps: Deps) -> None:
             assign(session, document_id, client_id=client.id, policy_id=None,
                    candidates=[], user_id=acting_user_id(request))
             session.commit()
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/inbox", status_code=303)
 
     app.include_router(router)
 

@@ -54,7 +54,7 @@ def register(app, deps: Deps) -> None:
     model_client = deps.model_client
     router = APIRouter()
 
-    @router.get("/", response_class=HTMLResponse)
+    @router.get("/inbox", response_class=HTMLResponse)
     def inbox(request: Request):
         with session_factory() as session:
             groups = bucketed(inbox_rows(
@@ -146,7 +146,7 @@ def register(app, deps: Deps) -> None:
             model_client=model_client,
             settings=settings,
         )
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/inbox", status_code=303)
 
     @router.post("/documents/{document_id}/retry")
     def retry_document(
@@ -177,7 +177,7 @@ def register(app, deps: Deps) -> None:
             settings=settings,
             acknowledged=frozenset(acknowledged),
         )
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/inbox", status_code=303)
 
     @router.get("/documents/{document_id}/review", response_class=HTMLResponse)
     def review_document(request: Request, document_id: int):
@@ -282,6 +282,6 @@ def register(app, deps: Deps) -> None:
                 user_id=acting_user_id(request),
             )
             session.commit()
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/inbox", status_code=303)
 
     app.include_router(router)

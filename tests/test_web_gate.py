@@ -82,7 +82,7 @@ def signed_in(bare_client, db):
 # unauthenticated request to a route that no longer exists still redirects,
 # and the case went on passing while testing nothing.
 @pytest.mark.parametrize(
-    "path", ["/", "/calendar", "/search", "/clients", "/attention",
+    "path", ["/", "/inbox", "/calendar", "/search", "/clients", "/attention",
              "/settings", "/documents/1/review"],
 )
 def test_a_protected_page_redirects_to_login(bare_client, path):

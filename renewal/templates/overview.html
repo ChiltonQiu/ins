@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+
+{# The three numbers that decide what she does next, and nothing else. A row
+   of tiles is where a dashboard usually starts inventing metrics; these are
+   the only counts in the system that change a decision, so these are the only
+   ones here. #}
+<div class="pagehead">
+  <h1>Home</h1>
+  <span class="sub">{{ today.strftime("%A %-d %B") }}</span>
+</div>
+
+{# Before anything else, because everything below it is downstream of whether
+   documents can still arrive. A quiet week and a forwarding rule that broke
+   on Thursday look identical from every other panel on this page. #}
+{% if not intake.configured %}
+<div class="notice">
+  <strong>No mailbox is connected.</strong>
+  Documents only arrive here if somebody uploads one. Connect a mailbox by
+  setting the <code>IMAP_*</code> values, and carrier mail is read, filed and
+  compared without being asked.
+</div>
+{% elif intake.last_error %}
+<div class="notice bad">
+  <strong>The mailbox stopped answering.</strong>
+  {{ intake.host }}/{{ intake.folder }} — {{ intake.last_error }}
+  {% if intake.last_polled_at %}
+  <span class="meta">last tried {{ intake.last_polled_at.strftime("%-d %b %H:%M") }}</span>
+  {% endif %}
+  <a href="/settings">Settings</a>
+</div>
+{% endif %}
+
+<div class="tiles">
+  <a class="tile {{ 'live' if counts.needs_you }}" href="/inbox">
+    <span class="label">Needs you</span>
+    <span class="num figure">{{ counts.needs_you }}</span>
+    <span class="meta">
+      {% if counts.needs_you %}document{{ "" if counts.needs_you == 1 else "s" }} nobody else can finish
+      {% else %}nothing waiting{% endif %}
+    </span>
+  </a>
+  <a class="tile {{ 'live' if counts.escalated }}" href="/calendar/month">
+    <span class="label">Dates in {{ 30 }} days</span>
+    <span class="num figure">{{ counts.dates }}</span>
+    <span class="meta">
+      {% if counts.escalated %}{{ counts.escalated }} escalated{% else %}none escalated{% endif %}
+    </span>
+  </a>
+  <div class="tile">
+    <span class="label">In flight</span>
+    <span class="num figure">{{ counts.working }}</span>
+    <span class="meta">
+      {% if counts.stalled %}{{ counts.stalled }} stalled{% else %}being read now{% endif %}
+    </span>
+  </div>
+  <div class="tile">
+    <span class="label">Arrived this week</span>
+    <span class="num figure">{{ counts.arrived_week }}</span>
+    <span class="meta">
+      {% if intake.configured %}{{ intake.folder or "mailbox" }}{% else %}by hand{% endif %}
+    </span>
+  </div>
+</div>
+
+<div class="columns">
+
+<section class="panel">
+  <header>
+    <h2>Needs you</h2>
+    {% if needs_you_total > needs_you|length %}
+    <a class="more" href="/inbox">All {{ needs_you_total }} &rarr;</a>
+    {% endif %}
+  </header>
+  {% if needs_you %}
+  <table class="rows">
+    <tbody>
+      {% for state in needs_you %}
+      <tr>
+        <td class="name">
+          <a href="/documents/{{ state.document.id }}/review">{{ state.document.original_filename }}</a>
+        </td>
+        <td class="state"><span class="pill {{ state.reason }}">{{ state.reason.replace("_", " ") }}</span></td>
+        <td class="said">{{ state.summary }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="quiet">Nothing is waiting on you.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <header>
+    <h2>Coming up</h2>
+    {% if dates_total > dates|length %}
+    <a class="more" href="/calendar/month">All {{ dates_total }} &rarr;</a>
+    {% endif %}
+  </header>
+  {% if dates %}
+  <table class="rows">
+    <tbody>
+      {% for entry in dates %}
+      <tr class="{{ 'escalated' if entry.escalated }}">
+        <td class="when num">
+          {{ entry.date_value.strftime("%-d %b") }}
+          {% set away = (entry.date_value - today).days %}
+          <span class="away">{% if away == 0 %}today{% elif away == 1 %}tomorrow{% else %}{{ away }}d{% endif %}</span>
+        </td>
+        <td class="name">{{ entry.client_name or "unmatched" }}</td>
+        <td class="said">
+          {{ entry.title }}
+          {% if entry.status != "confirmed" %}<span class="pill quiet">{{ entry.status }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="quiet">Nothing in the next {{ 30 }} days.</p>
+  {% endif %}
+</section>
+
+</div>
+
+{# Last, and deliberately not a count: this is the only panel reporting work
+   already finished, and it is the evidence that the automatic half runs at
+   all. A front page of nothing but chores would hide that entirely. #}
+<section class="panel">
+  <header>
+    <h2>Renewals it built</h2>
+    <span class="sub muted">no one asked it to</span>
+  </header>
+  {% if renewals %}
+  <table class="rows wide">
+    <thead>
+      <tr>
+        <th>Client</th><th>Policy</th><th class="num">Prior</th>
+        <th class="num">Renewal</th><th class="num">Change</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in renewals %}
+      <tr>
+        <td class="name">{{ r.client_name }}</td>
+        <td class="said">{{ r.carrier_name }} <span class="muted">{{ r.policy_number }}</span></td>
+        <td class="num">{% if r.prior_premium %}${{ "{:,.0f}".format(r.prior_premium) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="num">{% if r.renewal_premium %}${{ "{:,.0f}".format(r.renewal_premium) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="num">
+          {% if r.pct is not none %}
+          {# Only the direction is coloured, and only upward: a premium that
+             went up is the conversation, a premium that went down is good
+             news and does not need a signal spent on it. #}
+          <span class="delta {{ 'up' if r.delta > 0 }}">
+            {{ "+" if r.delta > 0 }}{{ "{:,.0f}".format(r.delta) }}
+            <span class="pct">{{ "{:+.0f}%".format(r.pct) }}</span>
+          </span>
+          {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+        <td class="go"><a href="/comparisons/{{ r.comparison_id }}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="quiet">
+    Nothing has been compared yet. A comparison builds itself when a renewal
+    lands on a policy that already has a term.
+  </p>
+  {% endif %}
+</section>
+
+{% endblock %}

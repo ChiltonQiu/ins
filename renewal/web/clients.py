@@ -102,7 +102,7 @@ def register(app, deps: Deps) -> None:
         with session_factory() as session:
             session.add(Client(display_name=display_name))
             session.commit()
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/inbox", status_code=303)
 
     @router.post("/policies")
     def add_policy(
@@ -122,7 +122,7 @@ def register(app, deps: Deps) -> None:
                 )
             )
             session.commit()
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/inbox", status_code=303)
 
     @router.get("/documents/{document_id}")
     def show_document(document_id: int):
