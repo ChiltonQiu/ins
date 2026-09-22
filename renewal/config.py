@@ -82,6 +82,7 @@ class Settings:
     imap_password: str = ""
     imap_folder: str = "INBOX"
     imap_poll_seconds: int = 300
+    usage_tracking: bool = True
 
 
 def load_settings() -> Settings:
@@ -150,6 +151,12 @@ def load_settings() -> Settings:
         imap_password=os.environ.get("IMAP_PASSWORD", ""),
         imap_folder=os.environ.get("IMAP_FOLDER", "INBOX"),
         imap_poll_seconds=int(os.environ.get("IMAP_POLL_SECONDS", "300")),
+        # On by default: an install nobody is measuring is one where "is this
+        # any good" has no answer but an opinion. It records which screens
+        # were used and how long they took, never what was on them.
+        usage_tracking=os.environ.get(
+            "USAGE_TRACKING", "true"
+        ).lower() not in ("0", "false", "no"),
         stalled_after_minutes=int(os.environ.get("STALLED_AFTER_MINUTES", "10")),
         inbox_poll_seconds=int(os.environ.get("INBOX_POLL_SECONDS", "4")),
         inbox_limit=int(os.environ.get("INBOX_LIMIT", "200")),

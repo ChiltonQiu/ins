@@ -24,7 +24,7 @@ from renewal.web import (
     overview as overview_routes, search as search_routes,
     settings as settings_routes, unmatched,
 )
-from renewal.web import navbadge, security
+from renewal.web import navbadge, security, usage
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -88,4 +88,7 @@ def create_app(
     )
     security.install(app, deps)
     navbadge.install(app, deps)
+    # Last, so it wraps the others and times the whole request rather than
+    # whatever is left after the gate has run.
+    usage.install(app, deps)
     return app

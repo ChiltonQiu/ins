@@ -394,6 +394,46 @@ To run it from cron instead, set `DIGEST_TICK_SECONDS=0` and add:
 The once-a-day record lives in the database, so a cron entry and a running
 application cannot between them send two.
 
+## Knowing whether it is any good
+
+Two questions, and only one of them needs the person using it.
+
+**Is the extraction correct?** Nobody can answer that from usage. Run a set of
+documents whose values you already know and compare. `evals/` is where that
+lives.
+
+**Is the application any use?** That one answers itself, because every screen
+records a decision. A correction says what the model produced and what the
+truth was. A manual link says the match was wrong. A dismissed date says the
+extractor found something that was not there. Those rows are an evaluation set
+that writes itself, and `USAGE_TRACKING` adds the half the database cannot
+know — which screens, how often, in what order, how slow.
+
+```bash
+.venv/bin/python -m scripts.usage_report --days 30 --out usage.json
+.venv/bin/python -m scripts.usage_report --check     # what it would contain
+```
+
+The file is meant to leave: mailed, pasted into a chat, handed to a model for
+a second opinion. So it carries counts, distributions, durations and field
+paths, and it carries **no client name, no filename, no premium and no
+document text**. A field path is schema; a premium is somebody's insurance
+policy. There is a test that fails if a client's name can reach the export.
+
+What comes back is worth reading in a particular order:
+
+| Section | The question it answers |
+|---|---|
+| `intake` | Are documents still arriving, and by which door |
+| `pipeline` | What the machine did with them, and how long it took |
+| `corrections` | Where the extractor is wrong, **by field path** |
+| `judgements` | What she accepted and what she threw away |
+| `usage` | Which screens she uses, in what order, and which are slow |
+| `friction` | What she started and did not finish |
+
+`corrections.by_field_path` is the one to read first. "It is inaccurate" is an
+opinion; "it cannot read a deductible" is a thing to go and fix.
+
 ## Tests
 
 ```bash

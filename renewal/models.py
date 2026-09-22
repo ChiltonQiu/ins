@@ -750,6 +750,40 @@ class MailPollState(Base):
     last_ingested: Mapped[int] = mapped_column(Integer, server_default="0")
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+class UsageEvent(Base):
+    """One request, recorded so somebody can tell later how the thing was used.
+
+    Deliberately thin. The route *template* rather than the path, no query
+    string, no form body, no filename and no client: those are the parts that
+    would turn a usage log into a second copy of the record layer, sitting
+    somewhere with none of its protections and eventually being handed to
+    somebody outside the agency. What is here answers "which screens, how
+    often, how long, in what order" and nothing else.
+
+    A row is written for page views only. The PDF route, the .ics feed and the
+    static files are traffic, not use.
+    """
+
+    __tablename__ = "usage_event"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    occurred_at: Mapped[datetime] = _created_at()
+    # NULL for the login page itself, which is the one page somebody can see
+    # without being anybody yet.
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("app_user.id"), nullable=True, index=True
+    )
+    # "/documents/{document_id}/review", not "/documents/41/review". The
+    # template aggregates; the path would be forty rows saying the same thing
+    # and one of them naming a document.
+    route: Mapped[str] = mapped_column(Text, index=True)
+    method: Mapped[str] = mapped_column(Text)
+    status: Mapped[int] = mapped_column(Integer)
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    # Which page she came from, so a path through the application can be
+    # reconstructed without storing a session identifier beside it.
+    from_route: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class AttentionItem(Base):
     """Not a task manager: a list of documents that appear to need a human
     response, with a suggested reason. Never auto-resolves, never auto-acts."""
