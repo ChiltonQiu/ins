@@ -98,7 +98,8 @@ Section "Renewal" SecMain
   Pop $0
   ${If} $0 != 0
     DetailPrint "Setup did not finish cleanly (exit code $0)."
-    MessageBox MB_ICONEXCLAMATION|MB_OK "Setup did not finish.$\r$\n$\r$\nThe log above says where it stopped. You can try again by running install.cmd in:$\r$\n$INSTDIR"
+    DetailPrint "The log is at $INSTDIR\runtime\install.log"
+    MessageBox MB_ICONEXCLAMATION|MB_OK "Setup did not finish.$\r$\n$\r$\nWhat went wrong is written to:$\r$\n$INSTDIR\runtime\install.log$\r$\n$\r$\nSend that file to whoever is helping you. To try again with the output on screen, run install.cmd in:$\r$\n$INSTDIR"
   ${EndIf}
 SectionEnd
 

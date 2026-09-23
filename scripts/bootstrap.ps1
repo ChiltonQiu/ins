@@ -39,15 +39,44 @@ $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
 $root = $PWD
 
-function Say  { param($m) Write-Host "`n$m" -ForegroundColor White }
-function Ok   { param($m) Write-Host "  [ok] $m" -ForegroundColor Green }
-function Warn { param($m) Write-Host "  [!]  $m" -ForegroundColor Yellow }
-function Die  { param($m) Write-Host "`n$m`n" -ForegroundColor Red; exit 1 }
-
 $runtime = Join-Path $root 'runtime'
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 $downloads = Join-Path $runtime 'downloads'
 New-Item -ItemType Directory -Force -Path $downloads | Out-Null
+
+# Everything this prints, kept. Run from the .exe there is no window to read
+# afterwards, and run from install.cmd the window can be closed before anybody
+# writes the error down — either way the one thing needed to fix a failure was
+# the first thing lost. It is a file now.
+$logFile = Join-Path $runtime 'install.log'
+$script:transcribing = $false
+try {
+    Start-Transcript -Path $logFile -Append | Out-Null
+    $script:transcribing = $true
+} catch {
+    # A host without transcription support is not a reason to refuse to
+    # install; it only means this run is not recorded.
+}
+
+function Stop-Log {
+    if ($script:transcribing) {
+        try { Stop-Transcript | Out-Null } catch { }
+        $script:transcribing = $false
+    }
+}
+
+function Say  { param($m) Write-Host "`n$m" -ForegroundColor White }
+function Ok   { param($m) Write-Host "  [ok] $m" -ForegroundColor Green }
+function Warn { param($m) Write-Host "  [!]  $m" -ForegroundColor Yellow }
+function Die  {
+    param($m)
+    Write-Host "`n$m`n" -ForegroundColor Red
+    Write-Host "  The whole log of this attempt is at:" -ForegroundColor Yellow
+    Write-Host "    $logFile" -ForegroundColor Yellow
+    Write-Host "  Send that file to whoever is helping you.`n" -ForegroundColor Yellow
+    Stop-Log
+    exit 1
+}
 
 function Get-File {
     param([string]$Url, [string]$Destination, [string]$What)
@@ -234,5 +263,14 @@ Say 'Installing the application'
 $installer = Join-Path $PSScriptRoot 'install.ps1'
 & (Get-Command powershell).Source -NoProfile -ExecutionPolicy Bypass -File $installer
 $code = $LASTEXITCODE
-if ($code -ne 0) { exit $code }
+
+if ($code -ne 0) {
+    Write-Host "`n  The whole log of this attempt is at:" -ForegroundColor Yellow
+    Write-Host "    $logFile" -ForegroundColor Yellow
+    Stop-Log
+    exit $code
+}
+
+Write-Host "`n  A log of this install is at $logFile"
+Stop-Log
 exit 0
