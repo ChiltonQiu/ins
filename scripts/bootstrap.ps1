@@ -225,5 +225,14 @@ if ($SkipApp) {
 }
 
 Say 'Installing the application'
-& (Join-Path $PSScriptRoot 'install.ps1')
-exit $LASTEXITCODE
+
+# In a child process on purpose. `& script.ps1` is a script call, and a script
+# call does not set $LASTEXITCODE — so the old `exit $LASTEXITCODE` here
+# propagated whatever the last *native* command inside install.ps1 happened to
+# leave behind, and reported a successful install as a failure. Run as a
+# native command, the exit code is install.ps1's own.
+$installer = Join-Path $PSScriptRoot 'install.ps1'
+& (Get-Command powershell).Source -NoProfile -ExecutionPolicy Bypass -File $installer
+$code = $LASTEXITCODE
+if ($code -ne 0) { exit $code }
+exit 0

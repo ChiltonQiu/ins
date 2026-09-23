@@ -27,6 +27,7 @@ include scripts/install.ps1
 include scripts/start.ps1
 include install.cmd
 include install-no-downloads.cmd
+include create-account.cmd
 include scripts/bootstrap.ps1
 
 # The unit file and the proxy config, so a deployment does not have to go back

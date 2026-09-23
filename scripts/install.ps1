@@ -273,6 +273,13 @@ if ($LASTEXITCODE -ne 0) { Die 'Could not read the accounts table.' }
 
 if ([int]$accounts -gt 0) {
     Ok "$accounts account(s) already exist"
+} elseif ([Console]::IsInputRedirected -or -not [Environment]::UserInteractive) {
+    # The .exe runs this through nsExec, which has no console to read from, so
+    # Read-Host here returns nothing and the first account is silently never
+    # made — leaving somebody at a login page with no way past it. Say so
+    # instead, and leave create-account.cmd for them to double-click.
+    Warn 'No account yet, and nothing here to type into.'
+    Warn 'Double-click create-account.cmd in this folder to make one.'
 } else {
     # There is no signup route on purpose: the person with shell access is the
     # provisioning system. This is that person, here, now.
@@ -281,7 +288,7 @@ if ([int]$accounts -gt 0) {
     if ($email) {
         & $venvPython -m scripts.add_user $email
     } else {
-        Warn 'Skipped. Run: .venv\Scripts\python -m scripts.add_user you@agency.com'
+        Warn 'Skipped. Double-click create-account.cmd to make one.'
     }
 }
 

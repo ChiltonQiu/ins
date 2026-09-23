@@ -39,10 +39,13 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_TEXT "Renewal is installed.$\r$\n$\r$\nOne thing is still needed before it will start: an API key in the .env file in the installation folder. The README explains where to get one.$\r$\n$\r$\nAfter that, use the Renewal icon on the desktop."
+!define MUI_FINISHPAGE_TEXT "Renewal is installed.$\r$\n$\r$\nTwo things are still needed before it will start:$\r$\n$\r$\n1. An API key in the .env file in the installation folder.$\r$\n2. A login. Tick the box below to make one now, or double-click create-account.cmd later.$\r$\n$\r$\nAfter that, use the Renewal icon on the desktop."
 !define MUI_FINISHPAGE_RUN
-!define MUI_FINISHPAGE_RUN_FUNCTION OpenFolder
-!define MUI_FINISHPAGE_RUN_TEXT "Open the installation folder"
+!define MUI_FINISHPAGE_RUN_FUNCTION MakeAccount
+!define MUI_FINISHPAGE_RUN_TEXT "Create a login now"
+!define MUI_FINISHPAGE_SHOWREADME
+!define MUI_FINISHPAGE_SHOWREADME_FUNCTION OpenFolder
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "Open the installation folder"
 !insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_CONFIRM
@@ -51,6 +54,13 @@ SetCompressor /SOLID lzma
 
 Function OpenFolder
   ExecShell "open" "$INSTDIR"
+FunctionEnd
+
+Function MakeAccount
+  ; A visible console window on purpose: it has to read an address and a
+  ; password from somebody, which is exactly what the installer itself cannot
+  ; do — and why the account step was skipped in the first place.
+  ExecShell "open" "$INSTDIR\create-account.cmd"
 FunctionEnd
 
 Section "Renewal" SecMain
