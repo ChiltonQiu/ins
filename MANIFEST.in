@@ -26,10 +26,15 @@ include scripts/install.sh
 include scripts/install.ps1
 include scripts/start.ps1
 include install.cmd
+include install-no-downloads.cmd
+include scripts/bootstrap.ps1
 
 # The unit file and the proxy config, so a deployment does not have to go back
 # to the repository for them.
 recursive-include deploy *
+
+# The Windows installer's own sources: whoever has the tarball can build it.
+recursive-include packaging *
 
 # How it works and why, for whoever is holding the tarball.
 recursive-include docs *.md

@@ -10,10 +10,13 @@ rem about the machine.
 
 setlocal
 echo.
-echo   Installing Renewal. This takes a few minutes the first time.
+echo   Installing Renewal.
+echo.
+echo   On a machine with neither Python nor PostgreSQL this downloads both
+echo   ^(about 315 MB^) and can take ten minutes. Nothing needs an administrator.
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\install.ps1" %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\bootstrap.ps1" %*
 set RESULT=%ERRORLEVEL%
 
 echo.

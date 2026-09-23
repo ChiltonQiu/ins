@@ -8,9 +8,13 @@
     already listening on the port, this opens a browser at it rather than
     starting a second copy that cannot bind and dies confusingly.
 
+    If bootstrap.ps1 created a private PostgreSQL in this folder, starting it
+    is part of starting the application — it is not a Windows service and does
+    not come back by itself after a restart.
+
     The server runs in a hidden window. It keeps running when the browser is
-    closed, which is the behaviour somebody expects from a thing they started
-    from a desktop icon, and it stops when the machine does.
+    closed, which is what somebody expects from a thing they started from a
+    desktop icon, and it stops when the machine does.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\start.ps1
@@ -21,9 +25,9 @@
 param(
     [int]$Port = 8000,
     [switch]$NoBrowser,
-    # For the logon task: the network stack and PostgreSQL are often not ready
-    # the instant somebody signs in, and a service that gave up at second one
-    # would look like a service that does not work.
+    # For the logon task: the network stack and the database are often not
+    # ready the instant somebody signs in, and a launcher that gave up at
+    # second one would look like an application that does not work.
     [int]$WaitSeconds = 40
 )
 
@@ -53,11 +57,38 @@ function Say-Problem {
     param([string]$Message)
     Write-Host $Message -ForegroundColor Red
     try {
-        (New-Object -ComObject WScript.Shell).Popup($Message, 0, 'Renewal', 0x10) | Out-Null
+        (New-Object -ComObject WScript.Shell).Popup(
+            $Message, 0, 'Renewal', 0x10) | Out-Null
     } catch {
         # No shell object available: the console line above is the whole of it.
     }
 }
+
+# ------------------------------------------------------- the private database
+
+$pgCtl = Join-Path $PWD 'runtime\pgsql\bin\pg_ctl.exe'
+$pgData = Join-Path $PWD 'runtime\pgdata'
+if ((Test-Path $pgCtl) -and (Test-Path $pgData)) {
+    & $pgCtl -D $pgData status 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        # -w waits for it to accept connections rather than returning the
+        # moment the process exists, which is the difference between this
+        # working and a race nobody can reproduce.
+        & $pgCtl -D $pgData -l (Join-Path $PWD 'runtime\postgres.log') -w start 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Say-Problem @"
+The database would not start.
+
+Its log is runtime\postgres.log and the reason is at the end of it. The usual
+cause is a previous copy still running, or the machine having been switched
+off without it being stopped.
+"@
+            exit 1
+        }
+    }
+}
+
+# ------------------------------------------------------------ the application
 
 if (-not (Test-Up)) {
     $python = Join-Path $PWD '.venv\Scripts\python.exe'

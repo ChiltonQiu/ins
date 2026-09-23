@@ -34,20 +34,38 @@ overwrites a `.env`, never regenerates a key that exists, and re-running after
 a `git pull` is how you upgrade. It does not install PostgreSQL or Tesseract —
 it tells you the command for your distribution and stops.
 
-On Windows, **double-click `install.cmd`**.
+On Windows, **double-click `install.cmd`** — or run `Renewal-x.y.z-setup.exe`
+from the release, which is the same thing with a wizard around it.
 
-That is the whole of it. A `.ps1` cannot be started by double-clicking —
-Windows opens it in an editor, and a downloaded one is blocked by the
-execution policy besides — so the one file to find in the folder is a `.cmd`
-that runs the installer with `-ExecutionPolicy Bypass`, which applies to that
-one process and changes nothing about the machine.
+Either way nothing needs an administrator password, and nothing is installed
+on the machine outside one folder:
+
+- **Python**, if it is missing, is installed **for this user only**
+  (`InstallAllUsers=0`), into `AppData`.
+- **PostgreSQL**, if it is missing, is not installed at all. The binaries are
+  unpacked into `runtime\` inside the application folder, `initdb` makes a
+  cluster there, and it listens on **127.0.0.1:5433** — no Windows service, no
+  superuser password, nothing registered on the machine. A computer that
+  already has PostgreSQL is left alone and used as-is.
+- **Deleting the folder removes everything** except the per-user Python.
+
+That download is about 315 MB and is the slow part; a machine that already has
+both prerequisites fetches nothing. `install-no-downloads.cmd` skips the
+fetching entirely and fails with a download link instead, for somebody who
+would rather install the prerequisites themselves.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\install.ps1   # the same thing, by hand
+powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1   # the same thing, by hand
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1     # without the downloads
 ```
 
-Same steps and same guarantees as the shell script, plus three things that
-only Windows needs:
+A `.ps1` cannot be started by double-clicking — Windows opens it in an editor,
+and a downloaded one is blocked by the execution policy besides — which is why
+the file to find in the folder is a `.cmd`, and why it runs PowerShell with
+`-ExecutionPolicy Bypass`, which applies to that one process and changes
+nothing about the machine.
+
+The installer does three more things that only Windows needs:
 
 - It looks for Python, PostgreSQL and Tesseract **where their Windows
   installers actually put them** rather than only on PATH, and skips the
@@ -64,6 +82,22 @@ task, or remove it later with `schtasks /Delete /TN Renewal /F`. The icon runs
 `scripts\start.ps1`, which is safe to run twice: if something is already
 listening it opens a browser rather than starting a second copy that cannot
 bind.
+
+### Building the `.exe`
+
+The installer is NSIS, because NSIS is the one Windows-installer toolchain
+that builds from Linux:
+
+```bash
+sudo pacman -S nsis            # or: sudo apt install nsis
+./packaging/build-installer.sh # version from pyproject.toml
+```
+
+It stages from the **source distribution** rather than from the working copy,
+so the installer and the tarball cannot drift apart — and so a dirty checkout
+cannot ship `.venv`, `runtime/` or somebody's `.env` inside a file that goes
+to other people. It refuses to build if the staged tree is missing an entry
+point.
 
 **The application is portable Python and the tooling around it is not.** There
 are no Unix-only imports, no posix paths and no shelling out, so the server,
