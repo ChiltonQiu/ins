@@ -285,16 +285,76 @@ if ([int]$accounts -gt 0) {
     }
 }
 
+# ------------------------------------------------------- a way to start it
+
+Say 'Starting it'
+
+# Everything above this point leaves somebody with a working application and
+# no way to run it that does not involve typing. That is the actual barrier on
+# Windows — not the install, the sixty times afterwards.
+$startScript = Join-Path $PWD 'scripts\start.ps1'
+$launcher = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$startScript`""
+
+function New-RenewalShortcut {
+    param([string]$Folder)
+    $shell = New-Object -ComObject WScript.Shell
+    $link = $shell.CreateShortcut((Join-Path $Folder 'Renewal.lnk'))
+    $link.TargetPath = (Get-Command powershell).Source
+    $link.Arguments = $launcher
+    $link.WorkingDirectory = "$PWD"
+    $link.Description = 'Open Renewal'
+    # A generic document icon from the shell library: no icon at all gives a
+    # blue PowerShell square, which reads as "a script somebody left here".
+    $link.IconLocation = "$env:SystemRoot\System32\imageres.dll,3"
+    $link.Save()
+}
+
+try {
+    New-RenewalShortcut ([Environment]::GetFolderPath('Desktop'))
+    $startMenu = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'
+    if (Test-Path $startMenu) { New-RenewalShortcut $startMenu }
+    Ok 'Desktop and Start Menu shortcut created'
+} catch {
+    Warn "Could not create the shortcut: $($_.Exception.Message)"
+    Warn "Start it by hand with: powershell -ExecutionPolicy Bypass -File scripts\start.ps1"
+}
+
+# The Windows half of deploy/renewal.service. A logon task rather than a
+# service: a service would need an account to run as and a password to go with
+# it, and this is one person's computer.
+if ($env:RENEWAL_AUTOSTART -eq '0') {
+    Ok 'Skipped the logon task (RENEWAL_AUTOSTART=0)'
+} else {
+    try {
+        $action = New-ScheduledTaskAction `
+            -Execute (Get-Command powershell).Source `
+            -Argument "$launcher -NoBrowser" `
+            -WorkingDirectory "$PWD"
+        $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+        # A laptop that was on battery at sign-in is still a laptop somebody
+        # is about to work on, and the default settings would skip the run.
+        $taskSettings = New-ScheduledTaskSettingsSet `
+            -StartWhenAvailable -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries
+        Register-ScheduledTask -TaskName 'Renewal' -Action $action `
+            -Trigger $trigger -Settings $taskSettings -Force | Out-Null
+        Ok 'It will start itself when this account signs in'
+    } catch {
+        Warn "Could not register the logon task: $($_.Exception.Message)"
+        Warn 'The desktop shortcut still works.'
+    }
+}
+
 # --------------------------------------------------------------------- done
 
 Say 'Ready'
 
 if (-not $modelReady) {
     Write-Host "  1. Put $keyVar in .env - nothing starts without it."
-    Write-Host '  2. Start it:  .venv\Scripts\uvicorn renewal.app:app --port 8000'
+    Write-Host '  2. Double-click the Renewal icon on the desktop.'
 } else {
-    Write-Host '  Start it:  .venv\Scripts\uvicorn renewal.app:app --port 8000'
-    Write-Host '  Then open: http://127.0.0.1:8000'
+    Write-Host '  Double-click the Renewal icon on the desktop.'
+    Write-Host '  It opens at http://127.0.0.1:8000, and starts itself at sign-in.'
 }
 
 Write-Host @'
@@ -303,6 +363,7 @@ Write-Host @'
     Mail        the six IMAP_* values, so documents arrive on their own
     Summaries   the SMTP_* values, so the daily email can be sent
     An archive  .venv\Scripts\python -m scripts.bulk_import C:\path\to\archive
-    On boot     see "Running it as a service on Windows" in the README
+
+  To stop it starting at sign-in:  schtasks /Delete /TN Renewal /F
 
 '@

@@ -34,24 +34,42 @@ overwrites a `.env`, never regenerates a key that exists, and re-running after
 a `git pull` is how you upgrade. It does not install PostgreSQL or Tesseract —
 it tells you the command for your distribution and stops.
 
-On Windows:
+On Windows, **double-click `install.cmd`**.
+
+That is the whole of it. A `.ps1` cannot be started by double-clicking —
+Windows opens it in an editor, and a downloaded one is blocked by the
+execution policy besides — so the one file to find in the folder is a `.cmd`
+that runs the installer with `-ExecutionPolicy Bypass`, which applies to that
+one process and changes nothing about the machine.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1   # the same thing, by hand
 ```
 
-Same steps, same guarantees. The `ExecutionPolicy` flag applies to that one
-process rather than changing the machine's setting, and a downloaded script is
-blocked without it. It looks for Python, PostgreSQL and Tesseract where their
-Windows installers actually put them rather than only on PATH, and writes
-`TESSERACT_CMD` into `.env` when it finds a Tesseract that PATH would miss.
+Same steps and same guarantees as the shell script, plus three things that
+only Windows needs:
+
+- It looks for Python, PostgreSQL and Tesseract **where their Windows
+  installers actually put them** rather than only on PATH, and skips the
+  Microsoft Store stub that answers `python` on a machine with no Python.
+- It writes `TESSERACT_CMD` into `.env` when it finds a Tesseract that PATH
+  would miss — without which every scanned page fails there.
+- It leaves a **Renewal icon on the desktop and in the Start Menu**, and
+  registers a task so the application starts itself when that account signs
+  in. After the first install nobody has to see a terminal again: the icon
+  opens the browser at it, starting it first if it is not already up.
+
+Set `RENEWAL_AUTOSTART=0` before running the installer to skip the sign-in
+task, or remove it later with `schtasks /Delete /TN Renewal /F`. The icon runs
+`scripts\start.ps1`, which is safe to run twice: if something is already
+listening it opens a browser rather than starting a second copy that cannot
+bind.
 
 **The application is portable Python and the tooling around it is not.** There
 are no Unix-only imports, no posix paths and no shelling out, so the server,
-the pipeline and the command-line scripts all run on Windows — but
-`install.sh` is bash and `deploy/` is systemd and nginx. The PowerShell
-installer closes that gap for setup; for running it on boot, use NSSM or a
-Scheduled Task with `.venv\Scripts\uvicorn.exe renewal.app:app --port 8000`.
+the pipeline and the command-line scripts all run on Windows — `install.sh` is
+bash and `deploy/` is systemd and nginx, and `install.cmd`, `install.ps1` and
+`start.ps1` are the Windows halves of those.
 
 **Windows is untested.** The above is written from the code rather than from a
 machine: nothing in this project has ever been run on Windows. WSL2 is the

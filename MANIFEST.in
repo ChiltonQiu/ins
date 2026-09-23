@@ -24,6 +24,8 @@ recursive-include config *.yaml
 recursive-include scripts *.py
 include scripts/install.sh
 include scripts/install.ps1
+include scripts/start.ps1
+include install.cmd
 
 # The unit file and the proxy config, so a deployment does not have to go back
 # to the repository for them.
