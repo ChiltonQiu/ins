@@ -158,3 +158,102 @@ jobs:
             "===== $f"
             if (Test-Path $p) { Get-Content $p -Tail 200 } else { '(missing)' }
           }
+
+  # The .exe is what somebody is actually handed. It runs the same scripts
+  # with no console at all -- nsExec pipes their output -- which is exactly
+  # the condition both the pg_ctl hang and the lost log depended on.
+  exe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update -q && sudo apt-get install -y -q nsis
+      - run: python -m pip install build && ./packaging/build-installer.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: setup-exe
+          path: dist/Renewal-*-setup.exe
+
+  install-exe:
+    needs: exe
+    runs-on: windows-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: setup-exe
+          path: setup
+
+      - name: Hide the runner's PostgreSQL
+        run: |
+          Get-Service postgresql* -ErrorAction SilentlyContinue | Stop-Service -Force
+          if (Test-Path 'C:\Program Files\PostgreSQL') {
+            Rename-Item 'C:\Program Files\PostgreSQL' 'PostgreSQL-hidden'
+          }
+          foreach ($v in 'PGUSER','PGPASSWORD','PGDATA','PGBIN','PGROOT','PGHOST','PGPORT') {
+            [Environment]::SetEnvironmentVariable($v, $null, 'Machine')
+            "$v=" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          }
+          "APP=$env:LOCALAPPDATA\Renewal" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      # WaitForExit, not Start-Process -Wait: on 5.1 -Wait waits for every
+      # descendant too, and the database the installer starts is one.
+      - name: Run the .exe silently
+        timeout-minutes: 30
+        run: |
+          foreach ($v in 'PGUSER','PGPASSWORD','PGDATA','PGBIN','PGROOT','PGHOST','PGPORT') { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
+          $exe = (Get-ChildItem setup\Renewal-*-setup.exe)[0].FullName
+          $p = Start-Process -FilePath $exe -ArgumentList '/S' -PassThru
+          $null = $p.Handle
+          $p.WaitForExit()
+          if ($p.ExitCode -ne 0) { throw "the installer exited $($p.ExitCode)" }
+          if (-not (Test-Path "$env:APP\.venv\Scripts\python.exe")) { throw 'no .venv: setup did not run to the end' }
+
+      - name: A key and an account
+        run: |
+          Set-Location $env:APP
+          $envFile = Join-Path $env:APP '.env'
+          $lines = (Get-Content $envFile) -replace '^ANTHROPIC_API_KEY=.*$', 'ANTHROPIC_API_KEY=ci-not-a-real-key'
+          [IO.File]::WriteAllText($envFile, ($lines -join "`r`n") + "`r`n", (New-Object Text.UTF8Encoding $false))
+          $py = @'
+          from sqlalchemy.orm import sessionmaker
+          from renewal.db import get_engine
+          from scripts.add_user import upsert_user
+          session = sessionmaker(bind=get_engine())()
+          upsert_user(session, "ci@example.com", "ci-password-long-enough", "CI")
+          session.commit()
+          '@
+          Set-Content -Path ci_user.py -Value $py -Encoding ASCII
+          .venv\Scripts\python ci_user.py
+          if ($LASTEXITCODE -ne 0) { throw 'could not create the account' }
+
+      - name: Start it from the desktop shortcut
+        timeout-minutes: 5
+        run: |
+          $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Renewal.lnk'
+          if (-not (Test-Path $lnk)) { throw 'no desktop shortcut' }
+          $s = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+          $p = Start-Process -FilePath $s.TargetPath -ArgumentList "$($s.Arguments) -NoBrowser" -WorkingDirectory $s.WorkingDirectory -PassThru
+          $null = $p.Handle
+          $p.WaitForExit()
+          if ($p.ExitCode -ne 0) { throw "the shortcut's script exited $($p.ExitCode)" }
+          $r = Invoke-WebRequest http://127.0.0.1:8000/login -UseBasicParsing
+          if ($r.StatusCode -ne 200) { throw "login page: $($r.StatusCode)" }
+
+      - name: Logs
+        if: always()
+        run: |
+          foreach ($f in 'runtime\install.log', 'runtime\postgres.log', 'runtime\pg_ctl.out', 'runtime\pg_ctl.err') {
+            $p = Join-Path $env:APP $f
+            "===== $f"
+            if (Test-Path $p) { Get-Content $p -Tail 200 } else { '(missing)' }
+          }

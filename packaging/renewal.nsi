@@ -99,7 +99,11 @@ Section "Renewal" SecMain
   ${If} $0 != 0
     DetailPrint "Setup did not finish cleanly (exit code $0)."
     DetailPrint "The log is at $INSTDIR\runtime\install.log"
-    MessageBox MB_ICONEXCLAMATION|MB_OK "Setup did not finish.$\r$\n$\r$\nWhat went wrong is written to:$\r$\n$INSTDIR\runtime\install.log$\r$\n$\r$\nSend that file to whoever is helping you. To try again with the output on screen, run install.cmd in:$\r$\n$INSTDIR"
+    ; /SD IDOK: under /S a message box would otherwise wait for a click
+    ; nobody is there to make. SetErrorLevel: without it a silent install
+    ; that failed still exits 0, and whatever ran it believes it worked.
+    SetErrorLevel 2
+    MessageBox MB_ICONEXCLAMATION|MB_OK "Setup did not finish.$\r$\n$\r$\nWhat went wrong is written to:$\r$\n$INSTDIR\runtime\install.log$\r$\n$\r$\nSend that file to whoever is helping you. To try again with the output on screen, run install.cmd in:$\r$\n$INSTDIR" /SD IDOK
   ${EndIf}
 SectionEnd
 
