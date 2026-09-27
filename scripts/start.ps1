@@ -74,8 +74,18 @@ if ((Test-Path $pgCtl) -and (Test-Path $pgData)) {
         # -w waits for it to accept connections rather than returning the
         # moment the process exists, which is the difference between this
         # working and a race nobody can reproduce.
-        & $pgCtl -D $pgData -l (Join-Path $PWD 'runtime\postgres.log') -w start 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
+        #
+        # Output to files, never a pipe: the server inherits pg_ctl's output,
+        # and PowerShell waits on a pipe until it closes -- which it never does
+        # while the database is up. WaitForExit waits for pg_ctl alone.
+        $proc = Start-Process -FilePath $pgCtl -NoNewWindow -PassThru `
+            -ArgumentList @('-D', "`"$pgData`"", '-l', "`"$(Join-Path $PWD 'runtime\postgres.log')`"", '-w', 'start') `
+            -RedirectStandardOutput (Join-Path $PWD 'runtime\pg_ctl.out') `
+            -RedirectStandardError (Join-Path $PWD 'runtime\pg_ctl.err')
+        # Without touching Handle first, ExitCode reads back empty on 5.1.
+        $null = $proc.Handle
+        $proc.WaitForExit()
+        if ($proc.ExitCode -ne 0) {
             Say-Problem @"
 The database would not start.
 

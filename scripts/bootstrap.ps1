@@ -102,6 +102,24 @@ function Get-File {
     }
 }
 
+function Start-Database {
+    # pg_ctl leaves the server running, and the server inherits whatever
+    # pg_ctl's output was connected to. Connect it to a pipe -- `| Out-Null`,
+    # 2>&1 -- and PowerShell waits for that pipe to close, which it never does
+    # while the database is up: the first real install hung here for good,
+    # with the cluster made and nothing on screen. Files are not waited on,
+    # and WaitForExit waits for pg_ctl alone.
+    param([string]$PgCtl, [string]$PgData)
+    $proc = Start-Process -FilePath $PgCtl -NoNewWindow -PassThru `
+        -ArgumentList @('-D', "`"$PgData`"", '-l', "`"$(Join-Path $runtime 'postgres.log')`"", '-w', 'start') `
+        -RedirectStandardOutput (Join-Path $runtime 'pg_ctl.out') `
+        -RedirectStandardError (Join-Path $runtime 'pg_ctl.err')
+    # Without touching Handle first, ExitCode reads back empty on 5.1.
+    $null = $proc.Handle
+    $proc.WaitForExit()
+    return $proc.ExitCode
+}
+
 # ------------------------------------------------------------------- Python
 
 Say 'Python'
@@ -208,11 +226,15 @@ port = $PostgresPort
         Ok "Cluster created in runtime\pgdata on port $PostgresPort"
     }
 
-    # Idempotent: pg_ctl start on a running cluster reports it and exits
-    # non-zero, which is not a failure worth stopping for.
+    # Only when it is not already up: a running server still holds the files
+    # the last start redirected into, and a second start could not open them.
     $pgCtl = Join-Path $pgBin 'pg_ctl.exe'
-    & $pgCtl -D $pgData -l (Join-Path $runtime 'postgres.log') -w start 2>&1 | Out-Null
-    Start-Sleep -Seconds 2
+    & $pgCtl -D $pgData status 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        if ((Start-Database $pgCtl $pgData) -ne 0) {
+            Die "The database would not start. The reason is at the end of runtime\postgres.log."
+        }
+    }
 
     $createdb = Join-Path $pgBin 'createdb.exe'
     & $createdb -h 127.0.0.1 -p $PostgresPort -U postgres renewal 2>&1 | Out-Null
