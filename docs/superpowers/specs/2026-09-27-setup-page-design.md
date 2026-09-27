@@ -50,12 +50,15 @@ Both files are updated in the same change.
 ## The page
 
 `/setup`, linked from the nav and from `/settings`. Three cards, top to bottom,
-each showing **✓ Working** or **Not set up**.
+each showing **✓ Set up** or **Not set up**, derived from the saved
+values (a key is present; host, user and password are present).
 
 ### Card 1 — AI
 
-- Provider dropdown, defaulting to Anthropic. The other providers in
-  `PRESETS` remain available.
+- Anthropic only. The other providers in `PRESETS` also need model names
+  that differ per provider, which is a form nobody at an agency needs; they
+  stay configurable in `.env`, and the card says so in one line when `.env`
+  names one. (Narrowed from "a provider dropdown" while planning.)
 - API key field, with a link to where the key is made.
 - **Save & test** sends one minimal real request with the proposed key and
   reports the outcome in a sentence.
@@ -155,8 +158,7 @@ whatever `Live` currently holds.
   environment, matching `load_dotenv`'s precedence, rather than calling
   `load_dotenv(override=True)`.
 
-The keys the page owns: `PROVIDER`, the provider's key variable
-(`PROVIDER_KEY_ENV`), `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD`,
+The keys the page owns: `ANTHROPIC_API_KEY`, `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD`,
 `IMAP_FOLDER`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
 `NOTIFY_FROM`. `NOTIFY_TO` stays a preference in `settings_store`, where it
 already lives.
@@ -167,7 +169,7 @@ One function per card, each taking **proposed** values (not the live ones) and
 returning a `CheckResult(ok, message, detail)`: `message` is the sentence the
 page shows; `detail` is the underlying error for the log.
 
-- `check_model(provider, key)` — one minimal completion on the classification
+- `check_model(settings, key)` — one minimal completion on the classification
   model.
 - `list_folders(host, port, user, password)` and
   `check_mailbox(host, port, user, password, folder)` — via `Mailbox`, so
