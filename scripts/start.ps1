@@ -32,6 +32,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Invoke-Native {
+    # Windows PowerShell 5.1 turns each line a native command writes to
+    # stderr into an error record once stderr is redirected, and under
+    # ErrorActionPreference = 'Stop' that record is fatal: a re-run died on
+    # createdb saying the database already existed, the one thing it was there
+    # to shrug off. Relaxed here, for this call alone; $LASTEXITCODE is still
+    # the command's own. Output comes back as plain strings.
+    param([scriptblock]$Command)
+    $ErrorActionPreference = 'Continue'
+    & $Command 2>&1 | ForEach-Object { "$_" }
+}
 Set-Location (Join-Path $PSScriptRoot '..')
 
 $url = "http://127.0.0.1:$Port"
@@ -69,7 +81,7 @@ function Say-Problem {
 $pgCtl = Join-Path $PWD 'runtime\pgsql\bin\pg_ctl.exe'
 $pgData = Join-Path $PWD 'runtime\pgdata'
 if ((Test-Path $pgCtl) -and (Test-Path $pgData)) {
-    & $pgCtl -D $pgData status 2>&1 | Out-Null
+    Invoke-Native { & $pgCtl -D $pgData status } | Out-Null
     if ($LASTEXITCODE -ne 0) {
         # -w waits for it to accept connections rather than returning the
         # moment the process exists, which is the difference between this

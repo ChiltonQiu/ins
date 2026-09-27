@@ -36,6 +36,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Invoke-Native {
+    # Windows PowerShell 5.1 turns each line a native command writes to
+    # stderr into an error record once stderr is redirected, and under
+    # ErrorActionPreference = 'Stop' that record is fatal: a re-run died on
+    # createdb saying the database already existed, the one thing it was there
+    # to shrug off. Relaxed here, for this call alone; $LASTEXITCODE is still
+    # the command's own. Output comes back as plain strings.
+    param([scriptblock]$Command)
+    $ErrorActionPreference = 'Continue'
+    & $Command 2>&1 | ForEach-Object { "$_" }
+}
 Set-Location (Join-Path $PSScriptRoot '..')
 $root = $PWD
 
@@ -214,7 +226,7 @@ if ($systemPsql -and -not (Test-Path $pgBinLocal)) {
         # authenticate against on a cluster that exists for one application on
         # one laptop, and a password here would have to be stored beside it.
         $initdb = Join-Path $pgBin 'initdb.exe'
-        & $initdb -D $pgData -U postgres --auth=trust --encoding=UTF8 -E UTF8 2>&1 | Out-Null
+        Invoke-Native { & $initdb -D $pgData -U postgres --auth=trust --encoding=UTF8 -E UTF8 } | Out-Null
         if ($LASTEXITCODE -ne 0) { Die 'initdb failed.' }
         Add-Content (Join-Path $pgData 'postgresql.conf') @"
 
@@ -229,7 +241,7 @@ port = $PostgresPort
     # Only when it is not already up: a running server still holds the files
     # the last start redirected into, and a second start could not open them.
     $pgCtl = Join-Path $pgBin 'pg_ctl.exe'
-    & $pgCtl -D $pgData status 2>&1 | Out-Null
+    Invoke-Native { & $pgCtl -D $pgData status } | Out-Null
     if ($LASTEXITCODE -ne 0) {
         if ((Start-Database $pgCtl $pgData) -ne 0) {
             Die "The database would not start. The reason is at the end of runtime\postgres.log."
@@ -237,7 +249,7 @@ port = $PostgresPort
     }
 
     $createdb = Join-Path $pgBin 'createdb.exe'
-    & $createdb -h 127.0.0.1 -p $PostgresPort -U postgres renewal 2>&1 | Out-Null
+    Invoke-Native { & $createdb -h 127.0.0.1 -p $PostgresPort -U postgres renewal } | Out-Null
     Ok 'Database ready'
 }
 
@@ -293,8 +305,17 @@ if ($usePrivate) {
     $env:PGPORT = "$PostgresPort"
     $env:PGUSER = 'postgres'
 }
+# The child writes its own transcript into the same file. Output from a child
+# process never reaches this one's transcript, so without handing the file
+# over the log ended at "Installing the application" -- right where the
+# longest and likeliest-to-fail half begins.
+Stop-Log
 & (Get-Command powershell).Source -NoProfile -ExecutionPolicy Bypass -File $installer
 $code = $LASTEXITCODE
+try {
+    Start-Transcript -Path $logFile -Append | Out-Null
+    $script:transcribing = $true
+} catch { }
 
 if ($code -ne 0) {
     Write-Host "`n  The whole log of this attempt is at:" -ForegroundColor Yellow

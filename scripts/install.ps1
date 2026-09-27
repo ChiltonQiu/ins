@@ -27,12 +27,34 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+
+function Invoke-Native {
+    # Windows PowerShell 5.1 turns each line a native command writes to
+    # stderr into an error record once stderr is redirected, and under
+    # ErrorActionPreference = 'Stop' that record is fatal: a re-run died on
+    # createdb saying the database already existed, the one thing it was there
+    # to shrug off. Relaxed here, for this call alone; $LASTEXITCODE is still
+    # the command's own. Output comes back as plain strings.
+    param([scriptblock]$Command)
+    $ErrorActionPreference = 'Continue'
+    & $Command 2>&1 | ForEach-Object { "$_" }
+}
 Set-Location (Join-Path $PSScriptRoot '..')
 
 function Say  { param($m) Write-Host "`n$m" -ForegroundColor White }
 function Ok   { param($m) Write-Host "  [ok] $m" -ForegroundColor Green }
 function Warn { param($m) Write-Host "  [!]  $m" -ForegroundColor Yellow }
-function Die  { param($m) Write-Host "`n$m`n" -ForegroundColor Red; exit 1 }
+function Die  {
+    param($m)
+    Write-Host "`n$m`n" -ForegroundColor Red
+    try { Stop-Transcript | Out-Null } catch { }
+    exit 1
+}
+
+# Appended to the same log bootstrap.ps1 keeps, which hands the file over
+# before starting this. Run on its own, this is the whole of the log.
+New-Item -ItemType Directory -Force -Path 'runtime' | Out-Null
+try { Start-Transcript -Path (Join-Path $PWD 'runtime\install.log') -Append | Out-Null } catch { }
 
 # Windows ships tesseract.exe and the PostgreSQL tools outside PATH more often
 # than not, so "not on PATH" is not the same question as "not installed".
@@ -197,7 +219,7 @@ $dbUrl = Get-EnvValue 'DATABASE_URL'
 if (-not $dbUrl) { $dbUrl = 'postgresql+psycopg:///renewal' }
 $dbName = ($dbUrl -split '/')[-1] -replace '\?.*$', ''
 
-$existing = & $psql -lqt 2>$null
+$existing = Invoke-Native { & $psql -lqt }
 if ($LASTEXITCODE -ne 0) {
     Die @"
 Could not reach PostgreSQL with $psql.
@@ -211,7 +233,7 @@ cannot make either.
 if (($existing -split "`n" | ForEach-Object { ($_ -split '\|')[0].Trim() }) -contains $dbName) {
     Ok "Database '$dbName' exists"
 } else {
-    & $createdb $dbName 2>$null
+    Invoke-Native { & $createdb $dbName } | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Die @"
 Could not create the database '$dbName'.
@@ -374,3 +396,5 @@ Write-Host @'
   To stop it starting at sign-in:  schtasks /Delete /TN Renewal /F
 
 '@
+
+try { Stop-Transcript | Out-Null } catch { }

@@ -51,3 +51,26 @@ def test_pg_ctl_start_is_never_piped(path):
         if not line.lstrip().startswith("#") and _PIPED_PG_START.search(line)
     ]
     assert not bad, "pg_ctl start through a pipe hangs on Windows:\n" + "\n".join(bad)
+
+
+# Windows PowerShell 5.1 turns each line a native command writes to stderr
+# into an error record once stderr is redirected, and every script here runs
+# with $ErrorActionPreference = 'Stop' -- so the record is fatal. A re-run
+# died on `createdb ... 2>&1` saying the database already existed, which is the
+# one thing the line was there to shrug off. Native calls that redirect stderr
+# go through Invoke-Native, which relaxes the preference for that call alone.
+_REDIRECTED_NATIVE = re.compile(r"&\s*\$(?!Command\b)\w+.*\s2>")
+
+
+@pytest.mark.parametrize(
+    "path", sorted(ROOT.glob("scripts/*.ps1")), ids=lambda p: p.name
+)
+def test_redirected_native_calls_go_through_invoke_native(path):
+    bad = [
+        f"{number}: {line.strip()}"
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if not line.lstrip().startswith("#")
+        and _REDIRECTED_NATIVE.search(line)
+        and "Invoke-Native" not in line
+    ]
+    assert not bad, "stderr redirected under Stop is fatal on 5.1:\n" + "\n".join(bad)
