@@ -283,6 +283,16 @@ Say 'Installing the application'
 # leave behind, and reported a successful install as a failure. Run as a
 # native command, the exit code is install.ps1's own.
 $installer = Join-Path $PSScriptRoot 'install.ps1'
+if ($usePrivate) {
+    # install.ps1 finds psql on PATH or under Program Files, and connects with
+    # libpq's defaults: port 5432, as this Windows user. The private cluster is
+    # neither, so the first real install stopped at "PostgreSQL is not
+    # installed" with it running. The child inherits these.
+    $env:Path = "$pgBin;$env:Path"
+    $env:PGHOST = '127.0.0.1'
+    $env:PGPORT = "$PostgresPort"
+    $env:PGUSER = 'postgres'
+}
 & (Get-Command powershell).Source -NoProfile -ExecutionPolicy Bypass -File $installer
 $code = $LASTEXITCODE
 
