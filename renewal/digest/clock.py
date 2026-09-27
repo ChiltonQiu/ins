@@ -36,12 +36,15 @@ class DigestClock:
         tick_seconds: int = 300,
         sleep=time.sleep,
         send=None,
+        live=None,
     ) -> None:
         self._session_factory = session_factory
         self._settings = settings
         self._tick_seconds = tick_seconds
         self._sleep = sleep
         self._send = send
+        # Read on every tick when given: /setup can change the sender.
+        self._live = live
 
     def tick(self) -> bool:
         """One pass. Its own session, and it commits: a summary whose row is
@@ -49,7 +52,8 @@ class DigestClock:
         with self._session_factory() as session:
             # Her settings, not the environment's. The thread never sees a
             # request, so this is the only place they can reach it.
-            settings = effective(session, self._settings)
+            base = self._live.settings if self._live is not None else self._settings
+            settings = effective(session, base)
             sent = send_due_digest(session, settings=settings, send=self._send)
             session.commit()
             return sent

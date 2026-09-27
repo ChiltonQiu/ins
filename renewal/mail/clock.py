@@ -36,6 +36,7 @@ class MailClock:
         client=None,
         runner=None,
         opener=open_mailbox,
+        live=None,
     ) -> None:
         self._session_factory = session_factory
         self._store = store
@@ -45,6 +46,14 @@ class MailClock:
         self._client = client
         self._runner = runner
         self._opener = opener
+        # When given, read on every tick: /setup can turn mail on, or change
+        # the account, under a running application.
+        self._live = live
+
+    def _current(self):
+        if self._live is not None:
+            return self._live.settings, self._live.model_client
+        return self._settings, self._client
 
     def _hand_off(self, document_id: int) -> None:
         """Where a stored attachment goes to be read.
@@ -55,18 +64,20 @@ class MailClock:
         """
         if self._runner is None:
             return
+        settings, client = self._current()
         self._runner.submit(
             process_document, self._session_factory, self._store, document_id,
-            model_client=self._client, settings=self._settings,
+            model_client=client, settings=settings,
         )
 
     def tick(self):
         """One poll. Its own session, and it commits: a message whose rows are
         rolled back is a message the next poll ingests again."""
+        settings, client = self._current()
         with self._session_factory() as session:
             result = poll_once(
-                session, self._store, settings=self._settings,
-                client=self._client, on_document=self._hand_off,
+                session, self._store, settings=settings,
+                client=client, on_document=self._hand_off,
                 opener=self._opener,
             )
             session.commit()

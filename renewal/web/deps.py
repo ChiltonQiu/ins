@@ -16,14 +16,23 @@ from renewal.config import Settings
 
 @dataclass(frozen=True)
 class Deps:
-    settings: Settings
+    # Settings and the model client are read through Live on every access,
+    # because /setup can change them under a running application.
+    live: Any
     store: BlobStore
-    model_client: Any
     session_factory: Any
     # Where work that must not block the response goes. The application builds
     # a ThreadRunner; tests pass an InlineRunner so their assertions are not
     # racing a thread.
     runner: Any = None
+
+    @property
+    def settings(self) -> Settings:
+        return self.live.settings
+
+    @property
+    def model_client(self) -> Any:
+        return self.live.model_client
 
 
 def acting_user_id(request) -> int | None:

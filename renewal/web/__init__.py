@@ -47,9 +47,14 @@ def build_inbound_provider(settings: Settings):
 
 
 def create_app(
-    *, settings: Settings, store: BlobStore, model_client, session_factory,
-    inbound_provider=None, runner=None,
+    *, store: BlobStore, session_factory, settings: Settings | None = None,
+    model_client=None, live=None, inbound_provider=None, runner=None,
 ):
+    if live is None:
+        from renewal.live import FixedLive
+
+        live = FixedLive(settings, model_client)
+    settings = live.settings
     app = FastAPI()
     app.mount(
         "/static",
@@ -74,9 +79,8 @@ def create_app(
         )
 
     deps = Deps(
-        settings=settings,
+        live=live,
         store=store,
-        model_client=model_client,
         session_factory=session_factory,
         runner=runner if runner is not None
         else ThreadRunner(settings.intake_workers),
