@@ -17,6 +17,20 @@ PROVIDER_KEY_ENV: dict[str, str | None] = {
 }
 
 
+def env_file_path() -> Path:
+    """The .env this installation reads and /setup writes.
+
+    One path, named, rather than load_dotenv()'s search up from the calling
+    file: the page that edits the file and the loader that reads it must never
+    be able to disagree about which file that is. RENEWAL_ENV_FILE is for
+    tests and for a deployment that keeps it elsewhere.
+    """
+    override = os.environ.get("RENEWAL_ENV_FILE")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parent.parent / ".env"
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -83,10 +97,17 @@ class Settings:
     imap_folder: str = "INBOX"
     imap_poll_seconds: int = 300
     usage_tracking: bool = True
+    # Asking GitHub once every twelve hours whether a newer release exists.
+    # The one thing this application does that tells a third party the
+    # office's address, so it has an off switch.
+    update_check: bool = True
+    update_api_url: str = (
+        "https://api.github.com/repos/ChiltonQiu/ins/releases/latest"
+    )
 
 
 def load_settings() -> Settings:
-    load_dotenv()
+    load_dotenv(env_file_path())
     provider = os.environ.get("PROVIDER", "anthropic")
     key_env = PROVIDER_KEY_ENV.get(provider)
     return Settings(
@@ -157,6 +178,13 @@ def load_settings() -> Settings:
         usage_tracking=os.environ.get(
             "USAGE_TRACKING", "true"
         ).lower() not in ("0", "false", "no"),
+        update_check=os.environ.get(
+            "UPDATE_CHECK", "true"
+        ).lower() not in ("0", "false", "no"),
+        update_api_url=os.environ.get(
+            "UPDATE_API_URL",
+            "https://api.github.com/repos/ChiltonQiu/ins/releases/latest",
+        ),
         stalled_after_minutes=int(os.environ.get("STALLED_AFTER_MINUTES", "10")),
         inbox_poll_seconds=int(os.environ.get("INBOX_POLL_SECONDS", "4")),
         inbox_limit=int(os.environ.get("INBOX_LIMIT", "200")),

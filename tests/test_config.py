@@ -7,6 +7,8 @@ monkeypatch rather than relying on ambient environment state.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from renewal import config
 from renewal.config import load_settings
 
@@ -96,3 +98,36 @@ def test_the_agency_timezone_defaults_to_utc(monkeypatch):
 def test_the_tick_interval_comes_from_the_environment(monkeypatch):
     monkeypatch.setenv("DIGEST_TICK_SECONDS", "60")
     assert load_settings().digest_tick_seconds == 60
+
+
+def test_the_env_file_is_the_one_beside_the_package(monkeypatch):
+    monkeypatch.delenv("RENEWAL_ENV_FILE", raising=False)
+    root = Path(config.__file__).resolve().parent.parent
+    assert config.env_file_path() == root / ".env"
+
+
+def test_the_env_file_can_be_pointed_elsewhere(monkeypatch, tmp_path):
+    monkeypatch.setenv("RENEWAL_ENV_FILE", str(tmp_path / "x.env"))
+    assert config.env_file_path() == tmp_path / "x.env"
+
+
+def test_settings_are_read_from_that_file(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("AGENCY_TZ=America/Chicago\n")
+    monkeypatch.setenv("RENEWAL_ENV_FILE", str(env))
+    monkeypatch.delenv("AGENCY_TZ", raising=False)
+    assert config.load_settings().agency_tz == "America/Chicago"
+
+
+def test_the_update_check_can_be_turned_off(monkeypatch):
+    monkeypatch.setenv("UPDATE_CHECK", "false")
+    assert config.load_settings().update_check is False
+
+
+def test_the_update_check_is_on_by_default(monkeypatch):
+    monkeypatch.setattr(config, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.delenv("UPDATE_CHECK", raising=False)
+    monkeypatch.delenv("UPDATE_API_URL", raising=False)
+    settings = config.load_settings()
+    assert settings.update_check is True
+    assert settings.update_api_url.endswith("/repos/ChiltonQiu/ins/releases/latest")
