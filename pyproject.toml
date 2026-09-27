@@ -31,6 +31,7 @@ packages = [
   "renewal", "renewal.attention", "renewal.auth", "renewal.calendarview",
   "renewal.classify", "renewal.clients", "renewal.dates", "renewal.digest",
   "renewal.extract", "renewal.mail", "renewal.resolve", "renewal.search",
+  "renewal.setup",
   "renewal.text", "renewal.web",
 ]
 
