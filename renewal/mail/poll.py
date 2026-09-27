@@ -52,6 +52,30 @@ def open_mailbox(settings: Settings) -> Mailbox:
     )
 
 
+def start_from_now(
+    session: Session, settings: Settings, *, opener=open_mailbox
+) -> int:
+    """Mark everything already in the folder as read, so the first poll takes
+    only what arrives from here on. A folder of years of carrier mail read in
+    full is a bill and an afternoon nobody asked for."""
+    with opener(settings) as box:
+        validity = box.uid_validity()
+        uids = box.uids_since(None)
+    state = _state(session, settings)
+    state.uid_validity = validity
+    state.last_uid = max(uids) if uids else 0
+    session.flush()
+    return len(uids)
+
+
+def start_from_beginning(session: Session, settings: Settings) -> None:
+    """Forget the mark, so the next poll reads the whole folder."""
+    state = _state(session, settings)
+    state.uid_validity = None
+    state.last_uid = None
+    session.flush()
+
+
 def _state(session: Session, settings: Settings) -> MailPollState:
     row = session.scalar(
         select(MailPollState)

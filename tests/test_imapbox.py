@@ -118,3 +118,36 @@ def test_a_refused_login_says_what_the_server_said():
     with pytest.raises(MailboxError, match="AUTHENTICATIONFAILED"):
         with _box(fake):
             pass
+
+
+class ListingImap:
+    def __init__(self, lines):
+        self._lines = lines
+
+    def login(self, user, password):
+        return ("OK", [b"ok"])
+
+    def examine(self, folder):
+        return ("OK", [b"1"])
+
+    def list(self):
+        return ("OK", self._lines)
+
+    def logout(self):
+        return ("BYE", [])
+
+
+def test_folders_are_listed_decoded_and_unselectable_ones_dropped():
+    lines = [
+        b'(\\HasNoChildren) "/" "INBOX"',
+        b'(\\HasNoChildren) "/" "Carriers"',
+        b'(\\HasChildren \\Noselect) "/" "[Gmail]"',
+        b'(\\All \\HasNoChildren) "/" "[Gmail]/All Mail"',
+        b'(\\HasNoChildren) "/" "Quote \\"Two\\""',
+        b'(\\HasNoChildren) "/" Plain',
+    ]
+    box = Mailbox("h", "u", "p", connector=lambda h, p: ListingImap(lines))
+    with box:
+        assert box.list_folders() == [
+            "INBOX", "Carriers", "[Gmail]/All Mail", 'Quote "Two"', "Plain",
+        ]

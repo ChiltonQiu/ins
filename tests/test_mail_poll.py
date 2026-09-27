@@ -287,3 +287,47 @@ def test_the_thread_is_a_daemon(engine, clean_db, store):
     assert started.wait(timeout=5)
     thread.join(timeout=5)
     assert not thread.is_alive()
+
+
+class _StartBox:
+    def __init__(self, uids):
+        self._uids = uids
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def uid_validity(self):
+        return 7
+
+    def uids_since(self, uid):
+        return list(self._uids)
+
+
+def test_start_from_now_skips_what_is_already_there(session):
+    from renewal.mail.poll import _state, start_from_now
+
+    settings = _imap_settings()
+    count = start_from_now(session, settings, opener=lambda s: _StartBox([3, 9, 41]))
+    state = _state(session, settings)
+    assert (count, state.uid_validity, state.last_uid) == (3, 7, 41)
+
+
+def test_start_from_now_on_an_empty_folder_starts_at_zero(session):
+    from renewal.mail.poll import _state, start_from_now
+
+    settings = _imap_settings()
+    assert start_from_now(session, settings, opener=lambda s: _StartBox([])) == 0
+    assert _state(session, settings).last_uid == 0
+
+
+def test_start_from_the_beginning_forgets_the_mark(session):
+    from renewal.mail.poll import _state, start_from_beginning
+
+    settings = _imap_settings()
+    state = _state(session, settings)
+    state.uid_validity, state.last_uid = 7, 41
+    start_from_beginning(session, settings)
+    assert (state.uid_validity, state.last_uid) == (None, None)

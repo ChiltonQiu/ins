@@ -19,6 +19,16 @@ import re
 logger = logging.getLogger(__name__)
 
 _UIDVALIDITY = re.compile(rb"UIDVALIDITY\s+(\d+)")
+_LIST = re.compile(
+    rb'^\((?P<flags>[^)]*)\)\s+(?:"(?:[^"\\]|\\.)*"|NIL)\s+(?P<name>.+)$'
+)
+
+
+def _unquote(raw: bytes) -> str:
+    raw = raw.strip()
+    if raw.startswith(b'"') and raw.endswith(b'"'):
+        raw = re.sub(rb"\\(.)", rb"\1", raw[1:-1])
+    return raw.decode("utf-8", errors="replace")
 
 
 class MailboxError(RuntimeError):
@@ -86,6 +96,21 @@ class Mailbox:
         if status != "OK":
             raise MailboxError(f"{what}: {status} {data!r}")
         return data
+
+    def list_folders(self) -> list[str]:
+        """Every folder that can be opened, by the name EXAMINE takes. A
+        \\Noselect entry is a label's parent, not a folder, and choosing it
+        would fail on the first poll."""
+        data = self._check(self._imap.list(), "list")
+        names = []
+        for line in data:
+            if not isinstance(line, bytes):
+                continue
+            found = _LIST.match(line)
+            if found is None or b"\\noselect" in found.group("flags").lower():
+                continue
+            names.append(_unquote(found.group("name")))
+        return names
 
     def uid_validity(self) -> int:
         """The folder's generation number.
