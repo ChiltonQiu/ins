@@ -22,7 +22,7 @@ from renewal.web import (
     clients as client_routes, comparison, corrections,
     inbox as inbox_routes, mail as mail_routes,
     overview as overview_routes, search as search_routes,
-    settings as settings_routes, unmatched,
+    settings as settings_routes, setup as setup_routes, unmatched,
 )
 from renewal.web import navbadge, security, usage
 from renewal.web.deps import Deps
@@ -31,7 +31,7 @@ from renewal.web.templating import TEMPLATES
 ROUTER_MODULES = (
     overview_routes, inbox_routes, corrections, comparison, unmatched, calendar,
     settings_routes, search_routes, client_routes, attention_routes,
-    auth_routes,
+    auth_routes, setup_routes,
 )
 
 

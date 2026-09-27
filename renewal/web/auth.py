@@ -19,6 +19,8 @@ from renewal.auth.passwords import (
 )
 from renewal.auth.sessions import COOKIE_NAME, create_session, revoke_session
 from renewal.models import User
+from renewal.settings_store import effective
+from renewal.setup.status import status_of
 from renewal.web.deps import Deps
 from renewal.web.templating import TEMPLATES
 
@@ -113,6 +115,12 @@ def register(app, deps: Deps) -> None:
             token = create_session(
                 session, user, ttl_hours=settings.session_ttl_hours
             )
+            # The first screen after an install is the one that finishes it:
+            # a home page with no key and no mail has nothing to show.
+            if destination == "/" and not status_of(
+                effective(session, deps.settings), deps.model_client
+            ).complete:
+                destination = "/setup"
             session.commit()
 
         response = RedirectResponse(destination, status_code=303)

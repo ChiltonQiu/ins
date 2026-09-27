@@ -73,7 +73,10 @@ def test_a_correct_password_sets_a_session_cookie(app_client, account):
         follow_redirects=False,
     )
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
+    # /setup rather than /: this app has no key and no mailbox, and an
+    # unfinished install lands on the page that finishes it
+    # (tests/test_web_setup.py pins that redirect).
+    assert response.headers["location"] == "/setup"
     assert app_client.cookies.get(COOKIE_NAME)
 
 

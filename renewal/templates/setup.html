@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Setup{% endblock %}
+{% block content %}
+{% macro chip(done) -%}
+{% if done %}<span class="chip ok">✓ Set up</span>{% else %}<span class="chip">Not set up</span>{% endif %}
+{%- endmacro %}
+{% macro result(card) -%}
+{% set r = results.get(card) %}
+{% if r %}
+<div class="notice {% if not r.ok %}bad{% elif r.warning %}warn{% endif %}" role="status"><p>{{ r.message }}</p></div>
+{% elif just_saved == card %}
+<div class="notice" role="status"><p>Saved.</p></div>
+{% endif %}
+{%- endmacro %}
+{% macro buttons(card, label) -%}
+<div class="actions">
+  <button class="btn primary" type="submit" name="action" value="test">{{ label }}</button>
+  {% if card in failed %}
+  <button class="btn quiet" type="submit" name="action" value="save_anyway">Save anyway</button>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+<div class="pagehead">
+  <h1>Setup</h1>
+</div>
+<p class="lede">
+  Two steps get Renewal reading your carrier mail: an AI key, and the mail
+  folder it should read. Each one is tested before it is saved.
+  {% if status.complete %}Both are done.{% else %}{{ status.done }} of 2 done.{% endif %}
+</p>
+
+{# ---------------------------------------------------------------- AI #}
+<section class="panel setupcard" id="ai">
+  <header><h2>1. AI</h2>{{ chip(status.model) }}</header>
+  <p>
+    Renewal uses Anthropic's AI to read documents: what kind each one is, its
+    dates, and the coverage on a policy. Documents are sent to Anthropic to be
+    read; Anthropic does not train on them.
+  </p>
+  {% if other_provider %}
+  <p class="hint">This install is set to another provider in <code>.env</code>.
+    Saving a key here switches it to Anthropic.</p>
+  {% endif %}
+  {{ result("ai") }}
+  {% if external.ai %}
+  <div class="notice"><p>The key is set by the server's environment — change it there.</p></div>
+  {% else %}
+  <form method="post" action="/setup/model">
+    <div class="field">
+      <label for="api_key">Anthropic API key</label>
+      <input id="api_key" name="api_key" type="password" autocomplete="off" value=""
+             {% if saved.key %}placeholder="••••• saved — leave blank to keep"{% else %}placeholder="sk-ant-…"{% endif %}>
+      <span class="hint">Make one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com → API keys</a>. The account needs a little credit.</span>
+    </div>
+    {{ buttons("ai", "Save & test") }}
+  </form>
+  {% endif %}
+</section>
+
+{# -------------------------------------------------------------- mail #}
+<section class="panel setupcard" id="mail">
+  <header><h2>2. Reading mail</h2>{{ chip(status.mail) }}</header>
+  <p>
+    Renewal reads one folder, read-only: it cannot mark, move or delete
+    anything, and your mail looks exactly as you left it. The best folder is
+    one a Gmail filter files carrier mail into.
+  </p>
+  {{ result("mail") }}
+  {% if external.mail %}
+  <div class="notice"><p>The mailbox is set by the server's environment — change it there.</p></div>
+  {% elif not status.model %}
+  {% if not results.get("mail") %}
+  <p class="hint">Set up the AI first — mail read without it is stored but not read.</p>
+  {% endif %}
+  {% elif folders is not none %}
+  <form method="post" action="/setup/mail">
+    <input type="hidden" name="host" value="{{ pending.host }}">
+    <input type="hidden" name="port" value="{{ pending.port }}">
+    <div class="field">
+      <label for="folder">Folder to read</label>
+      <select id="folder" name="folder">
+        {% for name in folders %}
+        <option value="{{ name }}" {% if name == s.imap_folder %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <fieldset class="field">
+      <legend>Where to start</legend>
+      <label><input type="radio" name="start" value="new" checked> Only mail that arrives from now on</label>
+      <label><input type="radio" name="start" value="all"> Everything already in the folder — every document is read by the AI, which costs money and can take hours</label>
+    </fieldset>
+    {{ buttons("mail", "Save & test") }}
+  </form>
+  {% else %}
+  {% if status.mail %}
+  <p>
+    Reading <strong>{{ s.imap_folder }}</strong> as {{ s.imap_user }}.
+    {% if poll and poll.last_polled_at %}
+      Last checked {{ poll.last_polled_at.strftime("%b %d, %H:%M") }} UTC{% if poll.last_error %} — it failed: {{ poll.last_error }}{% endif %}.
+    {% else %}
+      It has not been checked yet; that happens every few minutes.
+    {% endif %}
+  </p>
+  {% endif %}
+  <form method="post" action="/setup/mail/folders">
+    <div class="field">
+      <label for="email">Gmail address</label>
+      <input id="email" name="email" type="email" autocomplete="off"
+             value="{{ form.email or s.imap_user }}">
+    </div>
+    <div class="field">
+      <label for="password">App password</label>
+      <input id="password" name="password" type="password" autocomplete="off" value=""
+             {% if saved.imap_password %}placeholder="••••• saved — leave blank to keep"{% endif %}>
+      <span class="hint">
+        Not your normal password: Gmail needs an <a href="{{ app_password_url }}" target="_blank" rel="noopener">app password</a>.
+        Turn on 2-Step Verification if it isn't. Open App passwords, name it
+        Renewal, click Create. Paste the 16 letters here.
+      </span>
+    </div>
+    <details class="field">
+      <summary>Not Gmail?</summary>
+      <label for="host">Mail server</label>
+      <input id="host" name="host" value="{{ form.host or s.imap_host or gmail_imap }}">
+      <label for="port">Port</label>
+      <input id="port" name="port" inputmode="numeric" value="{{ form.port or s.imap_port }}">
+    </details>
+    <div class="actions">
+      <button class="btn primary" type="submit">Sign in and show folders</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+{# ----------------------------------------------------------- summary #}
+<section class="panel setupcard" id="summary">
+  <header><h2>Daily summary email <span class="optional">optional</span></h2>{{ chip(status.summary) }}</header>
+  <p>
+    Once a morning, a count of what needs you — never client names. Leave the
+    address empty and nothing is ever sent.
+  </p>
+  {{ result("summary") }}
+  {% if external.summary %}
+  <div class="notice"><p>Sending is set by the server's environment — change it there.</p></div>
+  {% else %}
+  <form method="post" action="/setup/summary">
+    <div class="field">
+      <label for="to">Send the summary to</label>
+      <input id="to" name="to" type="email" autocomplete="email" value="{{ form.to if form.to is defined else s.notify_to }}">
+    </div>
+    <div class="field">
+      <label><input type="checkbox" name="same_account" value="on"
+             {% if (form.same_account if form.same_account is defined else same_account) %}checked{% endif %}>
+        Send it from the Gmail account above</label>
+    </div>
+    <details class="field">
+      <summary>A different account</summary>
+      <label for="smtp_host">Mail server</label>
+      <input id="smtp_host" name="host" value="{{ form.host or s.smtp_host }}">
+      <label for="smtp_port">Port</label>
+      <input id="smtp_port" name="port" inputmode="numeric" value="{{ form.port or s.smtp_port }}">
+      <label for="smtp_user">Address</label>
+      <input id="smtp_user" name="user" value="{{ form.user or s.smtp_username }}">
+      <label for="smtp_password">Password</label>
+      <input id="smtp_password" name="password" type="password" autocomplete="off" value=""
+             {% if saved.smtp_password %}placeholder="••••• saved — leave blank to keep"{% endif %}>
+    </details>
+    {{ buttons("summary", "Save & send a test") }}
+  </form>
+  {% endif %}
+</section>
+
+{% if update is not none %}
+{% include "setup_updates.html" %}
+{% endif %}
+{% endblock %}

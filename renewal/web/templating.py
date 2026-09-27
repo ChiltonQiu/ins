@@ -15,7 +15,10 @@ from markupsafe import Markup, escape
 def _nav(request) -> dict:
     """Defaults to zero so a template rendered outside a request cycle — an
     error page, a test — still renders."""
-    return {"needs_you_count": getattr(request.state, "needs_you_count", 0)}
+    return {
+        "needs_you_count": getattr(request.state, "needs_you_count", 0),
+        "setup_status": getattr(request.state, "setup_status", None),
+    }
 
 
 TEMPLATES = Jinja2Templates(

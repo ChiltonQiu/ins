@@ -11,6 +11,8 @@ import logging
 import re
 
 from renewal.inbox import needs_you_count
+from renewal.settings_store import effective
+from renewal.setup.status import status_of
 from renewal.web.deps import Deps
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,11 @@ def install(app, deps: Deps) -> None:
             try:
                 with session_factory() as session:
                     request.state.needs_you_count = needs_you_count(session)
+                    # Beside the badge for the same reason: every page shows
+                    # "Finish setup" until it is done.
+                    request.state.setup_status = status_of(
+                        effective(session, deps.settings), deps.model_client
+                    )
             except Exception:  # noqa: BLE001 - a badge must never 500 a page
                 logger.exception("badge count failed")
         return await call_next(request)

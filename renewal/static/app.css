@@ -2397,3 +2397,113 @@ table.rows .go a {
   font-size: 13px;
   max-width: 56ch;
 }
+
+/* ------------------------------------------------------------- setup ---- */
+
+/* The one line every page carries until the key and the mailbox are in. In
+   the signal colour's wash rather than the signal itself: it is a to-do, not
+   an alarm. */
+.setupline {
+  display: block;
+  margin: 0 0 20px;
+  padding: 11px 14px;
+  background: var(--danger-wash);
+  border-left: 3px solid var(--danger);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.setupline:hover {
+  color: var(--accent-hover);
+}
+
+.lede {
+  max-width: 72ch;
+  color: var(--ink-2);
+  margin: 0 0 22px;
+}
+
+.setupcard > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setupcard > header h2 {
+  margin: 0;
+}
+
+.setupcard .optional {
+  font-size: 0.8em;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-left: 6px;
+}
+
+.chip {
+  font-size: 0.82rem;
+  padding: 2px 9px;
+  border: 1px solid var(--rule);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.chip.ok {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.setupcard form {
+  display: grid;
+  gap: 14px;
+  max-width: 44rem;
+}
+
+.setupcard .field {
+  display: grid;
+  gap: 6px;
+}
+
+.setupcard fieldset.field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.setupcard fieldset.field label,
+.setupcard .field > label:has(input[type="checkbox"]) {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.setupcard input[type="password"],
+.setupcard input[type="email"],
+.setupcard input:not([type]),
+.setupcard input[inputmode],
+.setupcard select {
+  width: 100%;
+  max-width: 32rem;
+}
+
+.setupcard details summary {
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
+.setupcard .hint {
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+.setupcard .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.notice.warn {
+  border-top-color: var(--danger);
+}

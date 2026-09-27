@@ -49,6 +49,7 @@
     <span class="spacer"></span>
 
     <nav class="foot" aria-label="Account">
+      <a href="/setup" {% if path == "/setup" %}aria-current="page"{% endif %}>Setup</a>
       <a href="/settings" {% if path == "/settings" %}aria-current="page"{% endif %}>Settings</a>
       {% if request.state.user_email is defined %}
       <form class="whoami" method="post" action="/logout">
@@ -65,6 +66,11 @@
   </header>
 
   <main id="main">
+    {# Until the key and the mailbox are in, nothing else here works, so every
+       page says so in the one place nobody scrolls past. #}
+    {% if setup_status and not setup_status.complete and path != "/setup" %}
+    <a class="setupline" href="/setup">Finish setup ({{ setup_status.done }} of 2 done) →</a>
+    {% endif %}
     {# Above the page's own heading rather than in the masthead: with the nav
        down the side there is nothing at the top to bury it in, and a trail
        reads as a trail when it sits directly over what it leads back from. #}
