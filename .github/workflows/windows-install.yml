@@ -95,13 +95,14 @@ jobs:
           cmd /c "echo.| install.cmd"
           if ($LASTEXITCODE -ne 0) { throw "install.cmd exited $LASTEXITCODE" }
 
-      # The application will not boot without a key. Any non-empty one gets it
-      # as far as serving pages, which is all this checks.
-      - name: A key and an account
+      # No key: the application must come up without one now, and /setup is
+      # where one would go. Plain-http sign-in for the checks below, and no
+      # update check against GitHub from CI.
+      - name: An account, and no key
         run: |
           Set-Location $env:APP
           $envFile = Join-Path $env:APP '.env'
-          $lines = (Get-Content $envFile) -replace '^ANTHROPIC_API_KEY=.*$', 'ANTHROPIC_API_KEY=ci-not-a-real-key'
+          $lines = @(Get-Content $envFile) + @('SESSION_COOKIE_SECURE=false', 'UPDATE_CHECK=false')
           [IO.File]::WriteAllText($envFile, ($lines -join "`r`n") + "`r`n", (New-Object Text.UTF8Encoding $false))
           $py = @'
           from sqlalchemy.orm import sessionmaker
@@ -135,6 +136,17 @@ jobs:
             $status = [int]$_.Exception.Response.StatusCode
           }
           if ($status -ne 303 -and $status -ne 302) { throw "sign-in answered $status, not a redirect" }
+
+      - name: Setup page, with nothing set up
+        run: |
+          $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          Invoke-WebRequest http://127.0.0.1:8000/login -Method Post -UseBasicParsing -WebSession $s `
+            -Headers @{ Origin = 'http://127.0.0.1:8000' } `
+            -Body @{ email = 'ci@example.com'; password = 'ci-password-long-enough' } | Out-Null
+          $page = Invoke-WebRequest http://127.0.0.1:8000/setup -UseBasicParsing -WebSession $s
+          if ($page.Content -notmatch 'Not set up') { throw 'the setup page did not render its cards' }
+          $inbox = Invoke-WebRequest http://127.0.0.1:8000/inbox -UseBasicParsing -WebSession $s
+          if ($inbox.Content -notmatch 'Finish setup') { throw 'no setup banner' }
 
       # The path the icon takes the morning after: the machine was switched
       # off, so the database is down and start.ps1 has to bring it up. That is
@@ -218,11 +230,13 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "the installer exited $($p.ExitCode)" }
           if (-not (Test-Path "$env:APP\.venv\Scripts\python.exe")) { throw 'no .venv: setup did not run to the end' }
 
-      - name: A key and an account
+      # No key, as above; the update check points at a feed this job serves
+      # itself, so the button can be pressed for real.
+      - name: An account, and no key
         run: |
           Set-Location $env:APP
           $envFile = Join-Path $env:APP '.env'
-          $lines = (Get-Content $envFile) -replace '^ANTHROPIC_API_KEY=.*$', 'ANTHROPIC_API_KEY=ci-not-a-real-key'
+          $lines = @(Get-Content $envFile) + @('SESSION_COOKIE_SECURE=false', 'UPDATE_API_URL=http://127.0.0.1:8765/latest.json')
           [IO.File]::WriteAllText($envFile, ($lines -join "`r`n") + "`r`n", (New-Object Text.UTF8Encoding $false))
           $py = @'
           from sqlalchemy.orm import sessionmaker
@@ -249,10 +263,67 @@ jobs:
           $r = Invoke-WebRequest http://127.0.0.1:8000/login -UseBasicParsing
           if ($r.StatusCode -ne 200) { throw "login page: $($r.StatusCode)" }
 
+      # The button's whole path: the check finds a "newer" release on a local
+      # server, the app downloads and verifies it, spawns update.ps1 from its
+      # own process tree, and is stopped, reinstalled and started by it.
+      - name: One-click update
+        timeout-minutes: 30
+        run: |
+          $exe = (Get-ChildItem setup\Renewal-*-setup.exe)[0]
+          $feed = Join-Path $env:RUNNER_TEMP 'feed'
+          New-Item -ItemType Directory -Force -Path $feed | Out-Null
+          Copy-Item $exe.FullName (Join-Path $feed 'Renewal-99.0.0-setup.exe')
+          $hash = (Get-FileHash (Join-Path $feed 'Renewal-99.0.0-setup.exe') -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText((Join-Path $feed 'SHA256SUMS'), "$hash  Renewal-99.0.0-setup.exe`n")
+          $json = @{ tag_name = 'v99.0.0'; html_url = 'http://127.0.0.1:8765/'; assets = @(
+            @{ name = 'Renewal-99.0.0-setup.exe'; browser_download_url = 'http://127.0.0.1:8765/Renewal-99.0.0-setup.exe' },
+            @{ name = 'SHA256SUMS'; browser_download_url = 'http://127.0.0.1:8765/SHA256SUMS' }) } | ConvertTo-Json -Depth 4
+          [IO.File]::WriteAllText((Join-Path $feed 'latest.json'), $json)
+          Start-Process python -ArgumentList '-m','http.server','8765','--bind','127.0.0.1' -WorkingDirectory $feed -WindowStyle Hidden
+
+          # Restart so the clock checks the local feed at start.
+          Set-Location $env:APP
+          Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+            Where-Object { $_.CommandLine -like '*uvicorn*' } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+          Start-Sleep 2
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start.ps1 -NoBrowser
+          if ($LASTEXITCODE -ne 0) { throw 'restart failed' }
+
+          $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          Invoke-WebRequest http://127.0.0.1:8000/login -Method Post -UseBasicParsing -WebSession $s `
+            -Headers @{ Origin = 'http://127.0.0.1:8000' } `
+            -Body @{ email = 'ci@example.com'; password = 'ci-password-long-enough' } | Out-Null
+          $deadline = (Get-Date).AddSeconds(90)
+          do {
+            Start-Sleep 2
+            $page = Invoke-WebRequest http://127.0.0.1:8000/setup -UseBasicParsing -WebSession $s
+          } until ($page.Content -match 'Update now' -or (Get-Date) -gt $deadline)
+          if ($page.Content -notmatch 'Update now') {
+            $page.Content -split "`n" | Select-String -Pattern 'pdate|Couldn' | Select-Object -First 10
+            throw 'the update was never offered'
+          }
+
+          $r = Invoke-WebRequest http://127.0.0.1:8000/setup/update -Method Post -UseBasicParsing `
+            -WebSession $s -Headers @{ Origin = 'http://127.0.0.1:8000' }
+          if ($r.Content -notmatch 'Updating to 99.0.0') { throw 'the button did not hand off' }
+
+          $log = Join-Path $env:APP 'runtime\update.log'
+          $deadline = (Get-Date).AddMinutes(20)
+          while (-not ((Test-Path $log) -and (Select-String -Path $log -Pattern 'start exited' -Quiet))) {
+            if ((Get-Date) -gt $deadline) { throw 'update.log never finished' }
+            Start-Sleep 5
+          }
+          Get-Content $log -Tail 40
+          if (-not (Select-String -Path $log -Pattern 'installer exited 0' -Quiet)) { throw 'the installer failed' }
+          if (-not (Get-ChildItem (Join-Path $env:APP 'runtime\backups\*.dump'))) { throw 'no backup was made' }
+          $r = Invoke-WebRequest http://127.0.0.1:8000/login -UseBasicParsing
+          if ($r.StatusCode -ne 200) { throw 'not back up after the update' }
+
       - name: Logs
         if: always()
         run: |
-          foreach ($f in 'runtime\install.log', 'runtime\postgres.log', 'runtime\pg_ctl.out', 'runtime\pg_ctl.err') {
+          foreach ($f in 'runtime\install.log', 'runtime\postgres.log', 'runtime\pg_ctl.out', 'runtime\pg_ctl.err', 'runtime\update.log') {
             $p = Join-Path $env:APP $f
             "===== $f"
             if (Test-Path $p) { Get-Content $p -Tail 200 } else { '(missing)' }

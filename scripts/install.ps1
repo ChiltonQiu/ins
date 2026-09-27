@@ -266,9 +266,7 @@ $keyVar = switch ($provider) {
 $modelReady = $true
 if ($keyVar -and -not (Get-EnvValue $keyVar)) {
     $modelReady = $false
-    Warn "PROVIDER=$provider but $keyVar is empty in .env."
-    Warn 'The application builds its model client at import, so it will not'
-    Warn 'start until that is filled in.'
+    Warn 'No AI key yet -- the setup page asks for it.'
 } else {
     Ok "PROVIDER=$provider"
 }
@@ -378,20 +376,15 @@ if ($env:RENEWAL_AUTOSTART -eq '0') {
 
 Say 'Ready'
 
-if (-not $modelReady) {
-    Write-Host "  1. Put $keyVar in .env - nothing starts without it."
-    Write-Host '  2. Double-click the Renewal icon on the desktop.'
-} else {
-    Write-Host '  Double-click the Renewal icon on the desktop.'
-    Write-Host '  It opens at http://127.0.0.1:8000, and starts itself at sign-in.'
-}
+Write-Host '  Double-click the Renewal icon on the desktop.'
+Write-Host '  It opens at http://127.0.0.1:8000, and starts itself at sign-in.'
+Write-Host '  The setup page there walks you through the AI key and your mail,'
+Write-Host '  and tests each one as you go.'
 
 Write-Host @'
 
-  Optional, and each one is a section in the README:
-    Mail        the six IMAP_* values, so documents arrive on their own
-    Summaries   the SMTP_* values, so the daily email can be sent
-    An archive  .venv\Scripts\python -m scripts.bulk_import C:\path\to\archive
+  To load an archive of old documents:
+    .venv\Scripts\python -m scripts.bulk_import C:\path\to\archive
 
   To stop it starting at sign-in:  schtasks /Delete /TN Renewal /F
 

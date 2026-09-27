@@ -140,9 +140,6 @@ if (-not (Test-Up)) {
         Say-Problem @"
 Renewal did not start within $WaitSeconds seconds.
 
-The usual cause is an empty ANTHROPIC_API_KEY in .env: the application builds
-its model client when it loads, so it stops before it serves anything.
-
 To see the actual error, open this folder in a terminal and run
   .venv\Scripts\python -m uvicorn renewal.app:app --port $Port
 "@

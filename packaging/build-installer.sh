@@ -43,7 +43,7 @@ tar xzf "$TARBALL" -C "$STAGE" --strip-components=1
 rm -rf "$STAGE/.venv" "$STAGE/runtime" "$STAGE/blobs" "$STAGE/.env" \
        "$STAGE"/*.egg-info
 
-for required in install.cmd scripts/bootstrap.ps1 scripts/install.ps1 scripts/start.ps1; do
+for required in install.cmd scripts/bootstrap.ps1 scripts/install.ps1 scripts/start.ps1 scripts/update.ps1; do
     [ -e "$STAGE/$required" ] || {
         echo "staged tree is missing $required" >&2
         exit 1

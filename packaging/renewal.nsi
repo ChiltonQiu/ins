@@ -39,7 +39,7 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_TEXT "Renewal is installed.$\r$\n$\r$\nTwo things are still needed before it will start:$\r$\n$\r$\n1. An API key in the .env file in the installation folder.$\r$\n2. A login. Tick the box below to make one now, or double-click create-account.cmd later.$\r$\n$\r$\nAfter that, use the Renewal icon on the desktop."
+!define MUI_FINISHPAGE_TEXT "Renewal is installed.$\r$\n$\r$\nTick the box below to make your login. Then open Renewal from the icon on the desktop: the setup page walks you through the AI key and your mail, and tests each one as you go."
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION MakeAccount
 !define MUI_FINISHPAGE_RUN_TEXT "Create a login now"

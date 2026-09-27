@@ -25,6 +25,7 @@ recursive-include scripts *.py
 include scripts/install.sh
 include scripts/install.ps1
 include scripts/start.ps1
+include scripts/update.ps1
 include install.cmd
 include install-no-downloads.cmd
 include create-account.cmd
