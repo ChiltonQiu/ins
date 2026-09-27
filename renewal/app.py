@@ -18,6 +18,7 @@ from renewal.db import get_engine
 from renewal.digest.clock import DigestClock
 from renewal.live import Live
 from renewal.mail.clock import MailClock
+from renewal.updates import UpdateClock
 from renewal.web import create_app
 
 # First, before anything reads .env: which keys the real environment set is
@@ -51,3 +52,7 @@ if _settings.imap_poll_seconds > 0:
         tick_seconds=_settings.imap_poll_seconds,
         runner=_runner, live=_live,
     ).start()
+
+# Once at start, then every twelve hours; UPDATE_CHECK=false makes each tick
+# a no-op.
+UpdateClock(_settings).start()
