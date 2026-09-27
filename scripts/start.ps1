@@ -81,6 +81,12 @@ function Say-Problem {
 $pgCtl = Join-Path $PWD 'runtime\pgsql\bin\pg_ctl.exe'
 $pgData = Join-Path $PWD 'runtime\pgdata'
 if ((Test-Path $pgCtl) -and (Test-Path $pgData)) {
+    # The private cluster's port is in its own postgresql.conf and its directory
+    # is passed with -D. PGPORT and PGDATA in the environment belong to some other
+    # PostgreSQL -- a system one, or a CI runner's -- and the server reads PGPORT
+    # at boot: an empty one is fatal ("invalid value for parameter port") before
+    # the config file is ever read.
+    Remove-Item Env:PGPORT, Env:PGDATA -ErrorAction SilentlyContinue
     Invoke-Native { & $pgCtl -D $pgData status } | Out-Null
     if ($LASTEXITCODE -ne 0) {
         # -w waits for it to accept connections rather than returning the

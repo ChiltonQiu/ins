@@ -122,6 +122,12 @@ function Start-Database {
     # with the cluster made and nothing on screen. Files are not waited on,
     # and WaitForExit waits for pg_ctl alone.
     param([string]$PgCtl, [string]$PgData)
+    # The private cluster's port is in its own postgresql.conf and its directory
+    # is passed with -D. PGPORT and PGDATA in the environment belong to some other
+    # PostgreSQL -- a system one, or a CI runner's -- and the server reads PGPORT
+    # at boot: an empty one is fatal ("invalid value for parameter port") before
+    # the config file is ever read.
+    Remove-Item Env:PGPORT, Env:PGDATA -ErrorAction SilentlyContinue
     $proc = Start-Process -FilePath $PgCtl -NoNewWindow -PassThru `
         -ArgumentList @('-D', "`"$PgData`"", '-l', "`"$(Join-Path $runtime 'postgres.log')`"", '-w', 'start') `
         -RedirectStandardOutput (Join-Path $runtime 'pg_ctl.out') `
