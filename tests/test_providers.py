@@ -327,3 +327,36 @@ def test_openai_client_raises_a_diagnostic_when_content_is_null():
     client = OpenAICompatClient("http://x/v1", "", transport=_stub(handler))
     with pytest.raises(ValueError, match="unexpected response shape"):
         client.complete(model="m", system="s", content=[text_block("hi")])
+
+
+def _bare_settings(**overrides):
+    import dataclasses
+    from pathlib import Path
+    from renewal.config import Settings
+    base = Settings(
+        database_url="postgresql+psycopg:///x", blob_root=Path("b"),
+        anthropic_api_key="", extraction_model="m", draft_model="m",
+        confidence_threshold=0.8, materiality_config=Path("m.yaml"),
+    )
+    return dataclasses.replace(base, **overrides)
+
+
+def test_no_key_gives_a_client_that_says_so():
+    from renewal.providers import (
+        ModelNotConfigured, build_client_or_unconfigured, is_configured,
+    )
+    client = build_client_or_unconfigured(_bare_settings())
+    assert not is_configured(client)
+    with pytest.raises(ModelNotConfigured, match="not set up"):
+        client.complete(model="m", system="s", content=[])
+
+
+def test_a_key_gives_a_real_client():
+    from renewal.providers import build_client_or_unconfigured, is_configured
+    client = build_client_or_unconfigured(_bare_settings(anthropic_api_key="k"))
+    assert is_configured(client)
+
+
+def test_no_client_at_all_is_not_configured():
+    from renewal.providers import is_configured
+    assert not is_configured(None)

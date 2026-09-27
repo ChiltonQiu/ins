@@ -180,3 +180,37 @@ def build_client(settings: Settings) -> ModelClient:
         raise ValueError(f"provider {settings.provider!r} needs {key_env}")
 
     return OpenAICompatClient(base_url, settings.llm_api_key)
+
+
+class ModelNotConfigured(RuntimeError):
+    """A model stage ran before anybody entered a key."""
+
+
+class UnconfiguredClient:
+    """What the application runs on until /setup has a key.
+
+    build_client raises on a missing key so that a script fails at once; the
+    web application must instead come up, because the page that fixes the key
+    is served by it. Every stage that calls this fails the way a stage fails
+    today -- logged and skipped -- so a document that arrives first is stored,
+    read and searchable, and its model stages wait for a Retry.
+    """
+
+    configured = False
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+
+    def complete(self, **kwargs) -> str:
+        raise ModelNotConfigured(self.reason)
+
+
+def build_client_or_unconfigured(settings: Settings) -> ModelClient:
+    try:
+        return build_client(settings)
+    except ValueError as exc:
+        return UnconfiguredClient(f"AI is not set up yet ({exc})")
+
+
+def is_configured(client) -> bool:
+    return client is not None and getattr(client, "configured", True)
