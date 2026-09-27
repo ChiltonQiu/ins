@@ -1,7 +1,7 @@
 @echo off
 rem Double-click this.
 rem
-rem A .ps1 cannot be run by double-clicking it — Windows opens it in an editor,
+rem A .ps1 cannot be run by double-clicking it -- Windows opens it in an editor,
 rem and a downloaded one is blocked by the execution policy besides. A .cmd
 rem can, so this is the one file somebody has to find in the folder.
 rem
@@ -27,6 +27,6 @@ if %RESULT% NEQ 0 (
 )
 echo.
 rem Without this the window vanishes the instant it finishes, taking the
-rem instructions — and any error — with it.
+rem instructions -- and any error -- with it.
 pause
 exit /b %RESULT%

@@ -3,7 +3,7 @@ rem Make a login for this application, or reset one.
 rem
 rem The installer cannot do this itself: it runs with no console to type into,
 rem so the password would have nowhere to come from. The password is never
-rem passed as an argument — it would land in the command history and be
+rem passed as an argument -- it would land in the command history and be
 rem visible to every other account on the machine.
 
 setlocal

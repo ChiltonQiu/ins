@@ -11,7 +11,7 @@
     Nothing here needs elevation, which is the whole design:
 
       Python      per-user install (InstallAllUsers=0), into AppData.
-      PostgreSQL  the binaries zip rather than the installer — unpacked into
+      PostgreSQL  the binaries zip rather than the installer -- unpacked into
                   this folder, with its own data directory and its own port.
                   No Windows service, no superuser password, nothing
                   registered on the machine.
@@ -46,7 +46,7 @@ New-Item -ItemType Directory -Force -Path $downloads | Out-Null
 
 # Everything this prints, kept. Run from the .exe there is no window to read
 # afterwards, and run from install.cmd the window can be closed before anybody
-# writes the error down — either way the one thing needed to fix a failure was
+# writes the error down -- either way the one thing needed to fix a failure was
 # the first thing lost. It is a file now.
 $logFile = Join-Path $runtime 'install.log'
 $script:transcribing = $false
@@ -153,7 +153,7 @@ if ($python) {
         $python = Find-Python
     }
     if (-not $python) {
-        Die "Python installed but could not be found afterwards. Close this window, open a new one, and run install.cmd again — the PATH change needs a fresh terminal."
+        Die "Python installed but could not be found afterwards. Close this window, open a new one, and run install.cmd again -- the PATH change needs a fresh terminal."
     }
     Ok "Python $PythonVersion installed for this user"
 }
@@ -181,7 +181,7 @@ if ($systemPsql -and -not (Test-Path $pgBinLocal)) {
     if (-not (Test-Path (Join-Path $pgBin 'postgres.exe'))) {
         $zip = Join-Path $downloads "postgresql-$PostgresVersion-windows-x64-binaries.zip"
         Get-File "https://get.enterprisedb.com/postgresql/postgresql-$PostgresVersion-windows-x64-binaries.zip" `
-            $zip "PostgreSQL $PostgresVersion (290 MB — this is the slow part)"
+            $zip "PostgreSQL $PostgresVersion (290 MB -- this is the slow part)"
         Write-Host '  unpacking ...' -NoNewline
         # The archive contains a single pgsql/ directory, which lands as
         # runtime\pgsql exactly where the paths above expect it.
@@ -256,7 +256,7 @@ if ($SkipApp) {
 Say 'Installing the application'
 
 # In a child process on purpose. `& script.ps1` is a script call, and a script
-# call does not set $LASTEXITCODE — so the old `exit $LASTEXITCODE` here
+# call does not set $LASTEXITCODE -- so the old `exit $LASTEXITCODE` here
 # propagated whatever the last *native* command inside install.ps1 happened to
 # leave behind, and reported a successful install as a failure. Run as a
 # native command, the exit code is install.ps1's own.

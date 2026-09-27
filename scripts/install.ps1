@@ -98,7 +98,7 @@ Ok "PostgreSQL tools at $pgBin"
 # poor way to find that out.
 $createdb = Join-Path $pgBin 'createdb.exe'
 
-# A scan without OCR is still stored, hashed and linked — it simply has no
+# A scan without OCR is still stored, hashed and linked -- it simply has no
 # text layer, so it is searchable only by filename and no dates come off it.
 # Worth a warning rather than a stop.
 $tesseract = Find-Tool 'tesseract.exe' @(
@@ -276,7 +276,7 @@ if ([int]$accounts -gt 0) {
 } elseif ([Console]::IsInputRedirected -or -not [Environment]::UserInteractive) {
     # The .exe runs this through nsExec, which has no console to read from, so
     # Read-Host here returns nothing and the first account is silently never
-    # made — leaving somebody at a login page with no way past it. Say so
+    # made -- leaving somebody at a login page with no way past it. Say so
     # instead, and leave create-account.cmd for them to double-click.
     Warn 'No account yet, and nothing here to type into.'
     Warn 'Double-click create-account.cmd in this folder to make one.'
@@ -298,7 +298,7 @@ Say 'Starting it'
 
 # Everything above this point leaves somebody with a working application and
 # no way to run it that does not involve typing. That is the actual barrier on
-# Windows — not the install, the sixty times afterwards.
+# Windows -- not the install, the sixty times afterwards.
 $startScript = Join-Path $PWD 'scripts\start.ps1'
 $launcher = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$startScript`""
 

@@ -9,7 +9,7 @@
     starting a second copy that cannot bind and dies confusingly.
 
     If bootstrap.ps1 created a private PostgreSQL in this folder, starting it
-    is part of starting the application — it is not a Windows service and does
+    is part of starting the application -- it is not a Windows service and does
     not come back by itself after a restart.
 
     The server runs in a hidden window. It keeps running when the browser is
@@ -38,7 +38,7 @@ $url = "http://127.0.0.1:$Port"
 
 function Test-Up {
     # /login is served to everybody and answers 200, so there is no redirect
-    # to reason about — which matters, because the exception a redirect raises
+    # to reason about -- which matters, because the exception a redirect raises
     # is a different type in PowerShell 5.1 and in 7. Anything that throws
     # here means nothing is listening yet.
     try {

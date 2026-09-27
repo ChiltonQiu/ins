@@ -7,7 +7,7 @@
 ;     makensis -DVERSION=0.2.1 packaging/renewal.nsi
 ;
 ; It installs per-user into %LOCALAPPDATA%, so it never asks for an
-; administrator password — and neither does anything it runs. The application
+; administrator password -- and neither does anything it runs. The application
 ; it unpacks is the same tree as the source distribution; the work of finding
 ; or fetching Python and PostgreSQL belongs to scripts\bootstrap.ps1 and is
 ; not duplicated here.
@@ -59,7 +59,7 @@ FunctionEnd
 Function MakeAccount
   ; A visible console window on purpose: it has to read an address and a
   ; password from somebody, which is exactly what the installer itself cannot
-  ; do — and why the account step was skipped in the first place.
+  ; do -- and why the account step was skipped in the first place.
   ExecShell "open" "$INSTDIR\create-account.cmd"
 FunctionEnd
 
@@ -111,8 +111,8 @@ Section "Uninstall"
   Delete "$DESKTOP\Renewal.lnk"
   Delete "$SMPROGRAMS\Renewal.lnk"
 
-  ; Everything this application is — the code, the virtualenv, the private
-  ; database cluster and every document stored in the blob directory — lives
+  ; Everything this application is -- the code, the virtualenv, the private
+  ; database cluster and every document stored in the blob directory -- lives
   ; under one folder, so uninstalling is removing it. Which is also why this
   ; asks first.
   MessageBox MB_YESNO|MB_ICONEXCLAMATION \
