@@ -71,6 +71,9 @@
     {% if setup_status and not setup_status.complete and path != "/setup" %}
     <a class="setupline" href="/setup">Finish setup ({{ setup_status.done }} of 2 done) →</a>
     {% endif %}
+    {% if update_available and path != "/setup" %}
+    <a class="setupline quiet" href="/setup#updates">Renewal {{ update_available.label }} is available — update from Setup →</a>
+    {% endif %}
     {# Above the page's own heading rather than in the masthead: with the nav
        down the side there is nothing at the top to bury it in, and a trail
        reads as a trail when it sits directly over what it leads back from. #}

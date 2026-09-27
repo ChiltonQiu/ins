@@ -16,11 +16,11 @@ from __future__ import annotations
 import dataclasses
 import logging
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 
-from renewal import envfile, settings_store
+from renewal import envfile, settings_store, updates
 from renewal.mail.poll import start_from_beginning, start_from_now
 from renewal.models import MailPollState
 from renewal.providers import is_configured
@@ -100,7 +100,14 @@ def register(app, deps: Deps) -> None:
                 "gmail_imap": GMAIL_IMAP,
                 "app_password_url": checks.APP_PASSWORD_URL,
                 "just_saved": request.query_params.get("saved"),
-                "update": None,
+                "update": {
+                    "current": updates.current_version(),
+                    "available": updates.STATUS.available(),
+                    "error": updates.STATUS.error,
+                    "checked_at": updates.STATUS.checked_at,
+                    "can_apply": updates.can_apply(),
+                    "enabled": live_settings.update_check,
+                },
             },
             status_code=status_code,
         )
@@ -281,5 +288,26 @@ def register(app, deps: Deps) -> None:
             settings_store.write(session, "notify_to", to)
             session.commit()
         return RedirectResponse("/setup?saved=summary#summary", status_code=303)
+
+    # --------------------------------------------------------------- update
+
+    @router.post("/setup/update", response_class=HTMLResponse)
+    def apply_update(request: Request):
+        release = updates.STATUS.available()
+        if release is None:
+            return RedirectResponse("/setup#updates", status_code=303)
+        if not updates.can_apply():
+            raise HTTPException(
+                400, "One-click update works on Windows installs. Download it "
+                     f"from {release.page_url}")
+        try:
+            installer = updates.download_verified(
+                release, updates.APP_ROOT / "runtime" / "downloads")
+            updates.spawn_updater(updates.APP_ROOT, installer)
+        except (updates.UpdateError, OSError) as exc:
+            logger.warning("update failed before handing off: %r", exc)
+            return _render(request, results={"updates": CheckResult(False, str(exc))})
+        return TEMPLATES.TemplateResponse(
+            request, "updating.html", {"version": release.label})
 
     app.include_router(router)

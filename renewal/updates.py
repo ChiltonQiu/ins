@@ -8,13 +8,18 @@ it off: it is the one request this application makes unprompted.
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
 import re
+import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 
 import httpx
 
@@ -143,3 +148,74 @@ class UpdateClock:
         thread = threading.Thread(target=self.run, name="updates", daemon=True)
         thread.start()
         return thread
+
+
+# ------------------------------------------------------------- applying one
+
+APP_ROOT = Path(__file__).resolve().parent.parent
+
+DETACHED_PROCESS = 0x00000008
+CREATE_NEW_PROCESS_GROUP = 0x00000200
+CREATE_NO_WINDOW = 0x08000000
+CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+
+
+def can_apply(root: Path = APP_ROOT, platform: str = sys.platform) -> bool:
+    return platform == "win32" and (root / "scripts" / "update.ps1").exists()
+
+
+def download_verified(release: Release, dest_dir: Path, *, transport=None) -> Path:
+    """The .exe, checked against the release's SHA256SUMS.
+
+    Same release, same publisher: this proves the bytes arrived intact, not
+    who made them. It is the trust somebody places in the .exe the first
+    time they double-click it, and it is not called signature checking."""
+    if not (release.exe_url and release.sums_url and release.exe_name):
+        raise UpdateError("that release has no installer and checksum to download")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        with httpx.Client(timeout=120.0, transport=transport,
+                          follow_redirects=True) as http:
+            sums = http.get(release.sums_url)
+            sums.raise_for_status()
+            exe = http.get(release.exe_url)
+            exe.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise UpdateError(f"could not download the update: {exc}") from exc
+    expected = None
+    for line in sums.text.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1].lstrip("*") == release.exe_name:
+            expected = parts[0].lower()
+    if expected is None:
+        raise UpdateError(f"SHA256SUMS does not list {release.exe_name}")
+    path = dest_dir / release.exe_name
+    if hashlib.sha256(exe.content).hexdigest() != expected:
+        path.unlink(missing_ok=True)
+        raise UpdateError(
+            "the download does not match its checksum; nothing was installed")
+    path.write_bytes(exe.content)
+    return path
+
+
+def spawn_updater(root: Path, installer: Path, *, popen=subprocess.Popen,
+                  pid: int | None = None) -> None:
+    """Hand off to a process that outlives this one.
+
+    Detached, and broken away from the job object the venv launcher runs this
+    interpreter in: the launcher closes that job when it exits, and a child
+    still inside it would die with the application it is meant to replace.
+    A job that forbids breaking away refuses the flag with access denied, and
+    then the plain detached start is the best there is."""
+    args = [
+        "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-WindowStyle", "Hidden", "-File", str(root / "scripts" / "update.ps1"),
+        "-Installer", str(installer), "-AppPid", str(pid or os.getpid()),
+    ]
+    base = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    kwargs = dict(cwd=str(root), close_fds=True, stdin=subprocess.DEVNULL,
+                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        popen(args, creationflags=base | CREATE_BREAKAWAY_FROM_JOB, **kwargs)
+    except PermissionError:
+        popen(args, creationflags=base, **kwargs)

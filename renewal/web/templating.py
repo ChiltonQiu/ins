@@ -11,6 +11,8 @@ from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
+from renewal import updates
+
 
 def _nav(request) -> dict:
     """Defaults to zero so a template rendered outside a request cycle — an
@@ -18,6 +20,8 @@ def _nav(request) -> dict:
     return {
         "needs_you_count": getattr(request.state, "needs_you_count", 0),
         "setup_status": getattr(request.state, "setup_status", None),
+        # In memory, filled by the update clock: no query, no network.
+        "update_available": updates.STATUS.available(),
     }
 
 

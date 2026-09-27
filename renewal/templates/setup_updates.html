@@ -1,0 +1,29 @@
+<section class="panel setupcard" id="updates">
+  <header><h2>Updates</h2><span class="chip">Version {{ update.current }}</span></header>
+  {{ result("updates") }}
+  {% if not update.enabled %}
+  <p>Update checks are off (<code>UPDATE_CHECK=false</code> in <code>.env</code>).</p>
+  {% elif update.available and update.can_apply %}
+  <p>
+    <strong>Renewal {{ update.available.label }} is available.</strong>
+    <a href="{{ update.available.page_url }}" target="_blank" rel="noopener">What's new</a>
+  </p>
+  <form method="post" action="/setup/update">
+    <p class="hint">Renewal stops, installs the new version and starts again by
+      itself; it takes a few minutes. A backup of the database is made first.</p>
+    <div class="actions"><button class="btn primary" type="submit">Update now</button></div>
+  </form>
+  {% elif update.available %}
+  <p>
+    <strong>Renewal {{ update.available.label }} is available.</strong>
+    <a href="{{ update.available.page_url }}" target="_blank" rel="noopener">Download it</a>
+    — updating from this page works on Windows installs.
+  </p>
+  {% elif update.error %}
+  <p class="hint">Couldn't check for updates ({{ update.error }}). It tries again every twelve hours.</p>
+  {% elif update.checked_at %}
+  <p>Up to date ✓</p>
+  {% else %}
+  <p class="hint">Checking for updates…</p>
+  {% endif %}
+</section>

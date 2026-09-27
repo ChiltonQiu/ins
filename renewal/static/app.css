@@ -2507,3 +2507,9 @@ table.rows .go a {
 .notice.warn {
   border-top-color: var(--danger);
 }
+
+.setupline.quiet {
+  background: var(--accent-wash);
+  border-left-color: var(--ink);
+  font-weight: 400;
+}

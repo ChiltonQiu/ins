@@ -94,3 +94,76 @@ def test_the_clock_does_nothing_when_turned_off():
                                 fetch=lambda url, **kw: calls.append(url))
     clock.tick()
     assert calls == []
+
+
+import hashlib
+
+
+def _release():
+    return updates.Release((0, 3, 1), "v0.3.1", "p", "Renewal-0.3.1-setup.exe",
+                           "https://x/exe", "https://x/sums")
+
+
+def test_a_download_whose_checksum_matches_is_kept(tmp_path):
+    payload = b"MZ installer bytes"
+    sums = f"{hashlib.sha256(payload).hexdigest()}  Renewal-0.3.1-setup.exe\n".encode()
+    transport = httpx.MockTransport(
+        lambda req: httpx.Response(200, content=sums if req.url.path == "/sums" else payload))
+    path = updates.download_verified(_release(), tmp_path, transport=transport)
+    assert path.read_bytes() == payload and path.name == "Renewal-0.3.1-setup.exe"
+
+
+def test_a_corrupted_download_is_refused_and_not_kept(tmp_path):
+    sums = b"0" * 64 + b"  Renewal-0.3.1-setup.exe\n"
+    transport = httpx.MockTransport(
+        lambda req: httpx.Response(200, content=sums if req.url.path == "/sums" else b"MZ"))
+    with pytest.raises(updates.UpdateError, match="checksum"):
+        updates.download_verified(_release(), tmp_path, transport=transport)
+    assert not (tmp_path / "Renewal-0.3.1-setup.exe").exists()
+
+
+def test_a_release_missing_its_checksum_is_refused(tmp_path):
+    release = updates.Release((0, 3, 1), "v0.3.1", "p", "Renewal-0.3.1-setup.exe",
+                              "https://x/exe", None)
+    with pytest.raises(updates.UpdateError):
+        updates.download_verified(release, tmp_path, transport=httpx.MockTransport(
+            lambda req: httpx.Response(200, content=b"")))
+
+
+def test_a_checksum_file_that_does_not_list_the_exe_is_refused(tmp_path):
+    transport = httpx.MockTransport(lambda req: httpx.Response(
+        200, content=b"abc  something-else.exe\n" if req.url.path == "/sums" else b"MZ"))
+    with pytest.raises(updates.UpdateError, match="does not list"):
+        updates.download_verified(_release(), tmp_path, transport=transport)
+
+
+def test_one_click_is_windows_only(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "update.ps1").write_text("")
+    assert updates.can_apply(tmp_path, platform="win32")
+    assert not updates.can_apply(tmp_path, platform="linux")
+    assert not updates.can_apply(tmp_path / "elsewhere", platform="win32")
+
+
+def test_the_updater_is_started_detached_with_this_process_id(tmp_path):
+    calls = []
+    updates.spawn_updater(tmp_path, tmp_path / "i.exe",
+                          popen=lambda args, **kw: calls.append((args, kw)), pid=4242)
+    args, kw = calls[0]
+    assert args[args.index("-Installer") + 1] == str(tmp_path / "i.exe")
+    assert args[args.index("-AppPid") + 1] == "4242"
+    assert kw["cwd"] == str(tmp_path)
+    assert kw["creationflags"] & updates.DETACHED_PROCESS
+
+
+def test_the_updater_retries_without_breakaway_when_the_job_forbids_it(tmp_path):
+    flags = []
+
+    def popen(args, **kw):
+        flags.append(kw["creationflags"])
+        if len(flags) == 1:
+            raise PermissionError("access denied")
+
+    updates.spawn_updater(tmp_path, tmp_path / "i.exe", popen=popen, pid=1)
+    assert flags[0] & updates.CREATE_BREAKAWAY_FROM_JOB
+    assert not flags[1] & updates.CREATE_BREAKAWAY_FROM_JOB

@@ -253,3 +253,69 @@ def test_signing_in_after_setup_lands_home(web, env_path, live):
     response = web.post("/login", data={"email": EMAIL, "password": PASSWORD},
                         headers=ORIGIN, follow_redirects=False)
     assert response.headers["location"] == "/"
+
+
+def test_the_update_section_says_up_to_date(web, monkeypatch):
+    from renewal import updates
+    status = updates.UpdateStatus()
+    status.record(updates.Release((0, 0, 1), "v0.0.1", "p", None, None, None))
+    monkeypatch.setattr(updates, "STATUS", status)
+    assert "Up to date" in web.get("/setup").text
+
+
+def test_the_update_section_says_when_it_could_not_check(web, monkeypatch):
+    from renewal import updates
+    status = updates.UpdateStatus()
+    status.record_error("no route to host")
+    monkeypatch.setattr(updates, "STATUS", status)
+    page = web.get("/setup")
+    assert page.status_code == 200 and "Couldn" in page.text
+
+
+def test_update_now_hands_off_on_windows(web, monkeypatch, tmp_path):
+    from renewal import updates
+    status = updates.UpdateStatus()
+    status.record(updates.Release((99, 0, 0), "v99.0.0", "p", "R-99.0.0-setup.exe", "e", "s"))
+    monkeypatch.setattr(updates, "STATUS", status)
+    monkeypatch.setattr(updates, "can_apply", lambda *a, **k: True)
+    monkeypatch.setattr(updates, "download_verified", lambda r, d, **k: tmp_path / "x.exe")
+    spawned = []
+    monkeypatch.setattr(updates, "spawn_updater", lambda root, exe, **k: spawned.append(exe))
+    assert "Update now" in web.get("/setup").text
+    page = web.post("/setup/update", headers=ORIGIN)
+    assert page.status_code == 200 and "Updating to 99.0.0" in page.text
+    assert spawned == [tmp_path / "x.exe"]
+
+
+def test_a_failed_download_is_said_on_the_page(web, monkeypatch):
+    from renewal import updates
+    status = updates.UpdateStatus()
+    status.record(updates.Release((99, 0, 0), "v99.0.0", "p", "R.exe", "e", "s"))
+    monkeypatch.setattr(updates, "STATUS", status)
+    monkeypatch.setattr(updates, "can_apply", lambda *a, **k: True)
+
+    def fail(*a, **k):
+        raise updates.UpdateError("the download does not match its checksum")
+
+    monkeypatch.setattr(updates, "download_verified", fail)
+    page = web.post("/setup/update", headers=ORIGIN)
+    assert "does not match its checksum" in page.text
+
+
+def test_update_now_elsewhere_offers_the_download_instead(web, monkeypatch):
+    from renewal import updates
+    status = updates.UpdateStatus()
+    status.record(updates.Release((99, 0, 0), "v99.0.0", "https://rel", "R.exe", "e", "s"))
+    monkeypatch.setattr(updates, "STATUS", status)
+    monkeypatch.setattr(updates, "can_apply", lambda *a, **k: False)
+    page = web.get("/setup").text
+    assert "https://rel" in page and "Update now" not in page
+    assert web.post("/setup/update", headers=ORIGIN).status_code == 400
+
+
+def test_other_pages_mention_an_available_update(web, monkeypatch):
+    from renewal import updates
+    status = updates.UpdateStatus()
+    status.record(updates.Release((99, 0, 0), "v99.0.0", "p", "R.exe", "e", "s"))
+    monkeypatch.setattr(updates, "STATUS", status)
+    assert "Renewal 99.0.0 is available" in web.get("/inbox").text

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Updating{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Updating to {{ version }}</h1>
+</div>
+<p class="lede">This takes a few minutes. Leave this page open — it comes back by itself.</p>
+<p id="state">Waiting for Renewal to stop…</p>
+<script>
+  // Down first, then up: a page that only waited for "up" would see the old
+  // version still answering and declare victory before anything happened.
+  (function () {
+    var wentDown = false, started = Date.now(), state = document.getElementById("state");
+    function schedule() {
+      if (Date.now() - started > 15 * 60 * 1000) {
+        state.textContent = "This is taking longer than it should. The details are in runtime\\update.log in the Renewal folder.";
+        return;
+      }
+      setTimeout(poll, 3000);
+    }
+    function poll() {
+      fetch("/login", {cache: "no-store"}).then(function (r) {
+        if (wentDown && r.ok) { location.href = "/setup#updates"; return; }
+        schedule();
+      }, function () {
+        wentDown = true;
+        state.textContent = "Installing… (this is the slow part)";
+        schedule();
+      });
+    }
+    schedule();
+  })();
+</script>
+{% endblock %}
