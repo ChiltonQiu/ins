@@ -105,9 +105,15 @@ the pipeline and the command-line scripts all run on Windows — `install.sh` is
 bash and `deploy/` is systemd and nginx, and `install.cmd`, `install.ps1` and
 `start.ps1` are the Windows halves of those.
 
-**Windows is untested.** The above is written from the code rather than from a
-machine: nothing in this project has ever been run on Windows. WSL2 is the
-path with no unknowns in it.
+**The Windows install is tested by CI, not by hand.** Every push installs
+from the tarball and from the `.exe` on a clean Windows runner, re-installs,
+restarts after a stop, and presses the update button
+(`.github/workflows/windows-install.yml`). What CI cannot do is click, so the
+wizard's pages and the browser opening are seen only by whoever installs it.
+
+After installing, open Renewal and follow the setup page: it asks for the AI
+key and the mailbox, and tests each one as you go. Nothing needs to be typed
+into `.env`.
 
 By hand, if you would rather see each step:
 
@@ -117,9 +123,10 @@ cp .env.example .env    # then fill in the values
 .venv/bin/alembic upgrade head
 ```
 
-`PROVIDER` and the matching API key are required to start. The application
-builds its model client at import, so an unset `ANTHROPIC_API_KEY` (with
-`PROVIDER=anthropic`) fails at boot rather than at the first document.
+The application starts without a key. Open `/setup` and paste it there — it is
+tested, written to `.env`, and in effect at once. Until then documents are
+stored and searchable but not read by a model. Providers other than Anthropic
+are configured in `.env` by hand (`PROVIDER` and the model names).
 
 ## Running it
 

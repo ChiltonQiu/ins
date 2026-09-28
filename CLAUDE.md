@@ -54,16 +54,19 @@ corrections, the diff and the materiality rules. Materiality lives in
 `config/materiality.yaml` so it can be tuned without touching a prompt.
 
 Operator preferences live behind a whitelist in `renewal/settings_store.py` and
-are changed from `/settings`. Deployment configuration — model names, hosts,
-credentials, intervals — lives in the environment and never on a page.
+are changed from `/settings`. Deployment configuration lives in
+the environment. The key, the mailbox and the sender can be typed into
+`/setup`, which writes them only to `.env` (`renewal/envfile.py`) and never
+renders them back or stores them in the database; everything else — model
+names, intervals, worker counts — is set in `.env` by hand.
 
 ## Practicalities
 
 - Tests: `.venv/bin/pytest` (needs PostgreSQL; `TEST_DATABASE_URL` overrides).
   `-m eval` hits the real provider API and costs money.
 - Migrations: Alembic. Write the downgrade, and check it runs.
-- The app builds its model client at import, so it will not boot without
-  `PROVIDER` and the matching API key.
+- With no key the app boots on `UnconfiguredClient`; model stages fail as
+  `ModelNotConfigured` until `/setup` has one.
 - Plans and specs live in `docs/superpowers/`. A superseded spec says so in its
   own header rather than being deleted.
 

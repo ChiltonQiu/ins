@@ -102,6 +102,18 @@ Regenerate it from `/settings` whenever it may have been shared, forwarded, or
 left on a device no longer in use. Regenerating breaks every existing
 subscription immediately; they have to be re-added.
 
+## The update check
+
+Twice a day, and once at start, the application asks GitHub whether a newer
+release exists: one HTTPS GET to `api.github.com`, carrying nothing about the
+agency, its clients or its documents. What GitHub learns is that a request came
+from the office's IP address. It is the only request the application makes
+that nobody set up. Set `UPDATE_CHECK=false` in `.env` to turn it off; the
+setup page then says checks are off and offers nothing.
+
+Pressing *Update now* on Windows downloads the new installer from the same
+release. It sends nothing else.
+
 ## What is never done
 
 - No document is ever sent to a client automatically. Every outbound explanation

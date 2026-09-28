@@ -149,8 +149,11 @@ MODEL_READY=yes
 if [ -n "$KEY_VAR" ] && [ -z "$(env_value "$KEY_VAR")" ]; then
     MODEL_READY=no
     warn "PROVIDER=$PROVIDER but $KEY_VAR is empty in .env."
-    warn "The application builds its model client at import, so it will not"
-    warn "start until that is filled in."
+    if [ "$KEY_VAR" = ANTHROPIC_API_KEY ]; then
+        warn "It starts anyway: paste the key into the setup page at /setup."
+    else
+        warn "It starts anyway, but reads nothing until that is filled in."
+    fi
 else
     ok "PROVIDER=$PROVIDER"
 fi
@@ -192,8 +195,12 @@ fi
 say "Ready"
 
 if [ "$MODEL_READY" = no ]; then
-    printf '  1. Put %s in .env — nothing starts without it.\n' "$KEY_VAR"
-    printf '  2. Start it:  .venv/bin/uvicorn renewal.app:app --port 8000\n'
+    printf '  1. Start it:  .venv/bin/uvicorn renewal.app:app --port 8000\n'
+    if [ "$KEY_VAR" = ANTHROPIC_API_KEY ]; then
+        printf '  2. Open http://127.0.0.1:8000/setup and paste the key there.\n'
+    else
+        printf '  2. Put %s in .env, then restart it.\n' "$KEY_VAR"
+    fi
 else
     printf '  Start it:  .venv/bin/uvicorn renewal.app:app --port 8000\n'
     printf '  Then open: http://127.0.0.1:8000\n'

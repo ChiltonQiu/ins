@@ -9,7 +9,10 @@ the alerts are, who gets told, how long a session lasts. She changes these from
 Everything NOT here is deployment configuration and lives in the environment:
 model names, SMTP host and credentials, worker counts, poll intervals. Those
 are set once against the machine, and putting them on a screen would only
-invite someone to change them without a reason to.
+invite someone to change them without a reason to. The one exception is
+/setup: the key, the mailbox and the sender can be typed there, and it writes
+them only to .env (renewal/envfile.py) — never to the database, and never
+rendered back to a page.
 
 And some things are configurable nowhere at all. AUTO_LINK_THRESHOLD is D8: a
 document auto-files only on an exact policy-number match. Expose it as a knob

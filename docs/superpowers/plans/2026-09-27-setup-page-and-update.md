@@ -40,7 +40,7 @@
 **Interfaces:**
 - Produces: `env_file_path() -> Path`; `Settings.update_check: bool = True`; `Settings.update_api_url: str = "https://api.github.com/repos/ChiltonQiu/ins/releases/latest"`; `load_settings()` reads `.env` from `env_file_path()`.
 
-- [ ] **Step 1: Write the failing tests** (append to `tests/test_config.py`)
+- [x] **Step 1: Write the failing tests** (append to `tests/test_config.py`)
 
 ```python
 def test_the_env_file_is_the_one_beside_the_package(monkeypatch):
@@ -78,9 +78,9 @@ def test_the_update_check_is_on_by_default(monkeypatch):
 
 (Add `from pathlib import Path` to the imports if absent.)
 
-- [ ] **Step 2: Run to verify they fail** — `.venv/bin/pytest tests/test_config.py -q` → FAIL (`env_file_path` missing).
+- [x] **Step 2: Run to verify they fail** — `.venv/bin/pytest tests/test_config.py -q` → FAIL (`env_file_path` missing).
 
-- [ ] **Step 3: Implement** in `renewal/config.py`:
+- [x] **Step 3: Implement** in `renewal/config.py`:
 
 ```python
 def env_file_path() -> Path:
@@ -130,8 +130,8 @@ Add to `.env.example`, after the usage-tracking block:
 UPDATE_CHECK=true
 ```
 
-- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_config.py -q` → PASS.
-- [ ] **Step 5: Commit** — `feat(config): one named .env path, and a switch for the update check`
+- [x] **Step 4: Run** `.venv/bin/pytest tests/test_config.py -q` → PASS.
+- [x] **Step 5: Commit** — `feat(config): one named .env path, and a switch for the update check`
 
 ---
 
@@ -144,7 +144,7 @@ UPDATE_CHECK=true
 **Interfaces:**
 - Produces: `OWNED: frozenset[str]`; `read(path: Path) -> dict[str, str]`; `write(path: Path, updates: Mapping[str, str]) -> None`; `quote(value: str) -> str`.
 
-- [ ] **Step 1: Write the failing tests** — `tests/test_envfile.py`:
+- [x] **Step 1: Write the failing tests** — `tests/test_envfile.py`:
 
 ```python
 """Editing .env without disturbing anything the page does not own."""
@@ -244,9 +244,9 @@ def test_reading_a_missing_file_is_empty(tmp_path):
     assert envfile.read(tmp_path / "nope.env") == {}
 ```
 
-- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_envfile.py -q` → FAIL (no module).
+- [x] **Step 2: Run** `.venv/bin/pytest tests/test_envfile.py -q` → FAIL (no module).
 
-- [ ] **Step 3: Implement** `renewal/envfile.py`:
+- [x] **Step 3: Implement** `renewal/envfile.py`:
 
 ```python
 """Changing .env from the setup page, and nothing else in it.
@@ -329,8 +329,8 @@ def write(path: Path, updates: Mapping[str, str]) -> None:
         raise
 ```
 
-- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_envfile.py -q` → PASS.
-- [ ] **Step 5: Commit** — `feat: edit .env in place, one key at a time`
+- [x] **Step 4: Run** `.venv/bin/pytest tests/test_envfile.py -q` → PASS.
+- [x] **Step 5: Commit** — `feat: edit .env in place, one key at a time`
 
 ---
 
@@ -343,7 +343,7 @@ def write(path: Path, updates: Mapping[str, str]) -> None:
 **Interfaces:**
 - Produces: `ModelNotConfigured(RuntimeError)`; `UnconfiguredClient(reason: str)` with `.configured = False`, `.reason`, `.complete(**kw)` raising `ModelNotConfigured`; `build_client_or_unconfigured(settings) -> ModelClient`; `is_configured(client) -> bool`.
 
-- [ ] **Step 1: Write the failing tests** (append to `tests/test_providers.py`; reuse its existing settings helper if there is one, else build `Settings` as below):
+- [x] **Step 1: Write the failing tests** (append to `tests/test_providers.py`; reuse its existing settings helper if there is one, else build `Settings` as below):
 
 ```python
 def _bare_settings(**overrides):
@@ -374,9 +374,9 @@ def test_a_key_gives_a_real_client():
     assert is_configured(client)
 ```
 
-- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_providers.py -q` → FAIL (names missing).
+- [x] **Step 2: Run** `.venv/bin/pytest tests/test_providers.py -q` → FAIL (names missing).
 
-- [ ] **Step 3: Implement** — append to `renewal/providers.py`:
+- [x] **Step 3: Implement** — append to `renewal/providers.py`:
 
 ```python
 class ModelNotConfigured(RuntimeError):
@@ -413,8 +413,8 @@ def is_configured(client) -> bool:
     return getattr(client, "configured", True) and client is not None
 ```
 
-- [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** — `feat(providers): a client for when there is no key yet`
+- [x] **Step 4: Run** → PASS.
+- [x] **Step 5: Commit** — `feat(providers): a client for when there is no key yet`
 
 ---
 
@@ -428,7 +428,7 @@ def is_configured(client) -> bool:
 - Consumes: `env_file_path`, `load_settings` (Task 1); `envfile.read`, `envfile.OWNED` (Task 2); `build_client_or_unconfigured` (Task 3).
 - Produces: `class Live` with `settings: Settings`, `model_client`, `env_path: Path`, `external_keys: frozenset[str]`, `reload() -> None`, classmethod `Live.from_process(env_path: Path | None = None) -> Live`; `class FixedLive(settings, model_client)` with the same read interface, `env_path = None`, `external_keys = frozenset()`, and `reload()` raising `RuntimeError`.
 
-- [ ] **Step 1: Write the failing tests** — `tests/test_live.py`:
+- [x] **Step 1: Write the failing tests** — `tests/test_live.py`:
 
 ```python
 """Settings a running application can pick up without a restart."""
@@ -498,9 +498,9 @@ def test_from_process_snapshots_the_environment_before_reading_the_file(env_path
     assert "IMAP_HOST" not in live.external_keys
 ```
 
-- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_live.py -q` → FAIL.
+- [x] **Step 2: Run** `.venv/bin/pytest tests/test_live.py -q` → FAIL.
 
-- [ ] **Step 3: Implement** `renewal/live.py`:
+- [x] **Step 3: Implement** `renewal/live.py`:
 
 ```python
 """The settings and model client in force right now.
@@ -589,8 +589,8 @@ class FixedLive:
         raise RuntimeError("this application was built with fixed settings")
 ```
 
-- [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** — `feat: Live, the settings a running application can reload`
+- [x] **Step 4: Run** → PASS.
+- [x] **Step 5: Commit** — `feat: Live, the settings a running application can reload`
 
 ---
 
@@ -604,7 +604,7 @@ class FixedLive:
 - Consumes: `Live`, `FixedLive` (Task 4).
 - Produces: `Deps(live, store, session_factory, runner)` with properties `settings`, `model_client`; `create_app(*, store, session_factory, settings=None, model_client=None, live=None, inbound_provider=None, runner=None)`; `MailClock(..., live=None)` and `DigestClock(..., live=None)` read `live` each tick when given.
 
-- [ ] **Step 1: Write the failing tests** — `tests/test_live_wiring.py`:
+- [x] **Step 1: Write the failing tests** — `tests/test_live_wiring.py`:
 
 ```python
 """Routes and clocks see a reload without a restart."""
@@ -689,9 +689,9 @@ def test_fixed_live_keeps_the_old_create_app_signature_working():
     assert live.external_keys == frozenset()
 ```
 
-- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_live_wiring.py -q` → FAIL.
+- [x] **Step 2: Run** `.venv/bin/pytest tests/test_live_wiring.py -q` → FAIL.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 `renewal/web/deps.py` — replace the dataclass:
 
@@ -778,8 +778,8 @@ if _settings.imap_poll_seconds > 0:
 
 Update the module docstring's clock paragraph to say the mail clock always starts.
 
-- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_live_wiring.py -q` → PASS, then the full suite `.venv/bin/pytest -q -x` → PASS (every existing `create_app(settings=..., model_client=...)` call keeps working through `FixedLive`).
-- [ ] **Step 5: Commit** — `feat: routes and clocks read settings through Live`
+- [x] **Step 4: Run** `.venv/bin/pytest tests/test_live_wiring.py -q` → PASS, then the full suite `.venv/bin/pytest -q -x` → PASS (every existing `create_app(settings=..., model_client=...)` call keeps working through `FixedLive`).
+- [x] **Step 5: Commit** — `feat: routes and clocks read settings through Live`
 
 ---
 
@@ -792,7 +792,7 @@ Update the module docstring's clock paragraph to say the mail clock always start
 **Interfaces:**
 - Produces: `Mailbox.list_folders() -> list[str]` (selectable folders, decoded); `poll.start_from_now(session, settings, *, opener=open_mailbox) -> int` (sets `last_uid` to the folder's highest UID, returns message count); `poll.start_from_beginning(session, settings) -> None` (clears `last_uid` and `uid_validity`).
 
-- [ ] **Step 1: Write the failing tests.** In `tests/test_imapbox.py` (reuse its fake IMAP object; if it has none, this one):
+- [x] **Step 1: Write the failing tests.** In `tests/test_imapbox.py` (reuse its fake IMAP object; if it has none, this one):
 
 ```python
 class ListingImap:
@@ -861,9 +861,9 @@ def test_start_from_the_beginning_forgets_the_mark(session, settings_for_poll):
 
 (`settings_for_poll`: use the settings fixture `tests/test_mail_poll.py` already builds, with `imap_host="imap.gmail.com"`, `imap_folder="Carriers"`; add one if it has none.)
 
-- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_imapbox.py tests/test_mail_poll.py -q` → FAIL.
+- [x] **Step 2: Run** `.venv/bin/pytest tests/test_imapbox.py tests/test_mail_poll.py -q` → FAIL.
 
-- [ ] **Step 3: Implement.** In `imapbox.py`:
+- [x] **Step 3: Implement.** In `imapbox.py`:
 
 ```python
 _LIST = re.compile(rb'^\((?P<flags>[^)]*)\)\s+(?:"(?:[^"\\]|\\.)*"|NIL)\s+(?P<name>.+)$')
@@ -919,8 +919,8 @@ def start_from_beginning(session: Session, settings: Settings) -> None:
     session.flush()
 ```
 
-- [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** — `feat(mail): list folders, and start a folder from now`
+- [x] **Step 4: Run** → PASS.
+- [x] **Step 5: Commit** — `feat(mail): list folders, and start a folder from now`
 
 ---
 
@@ -943,7 +943,7 @@ def start_from_beginning(session: Session, settings: Settings) -> None:
   - `scrub(text, secrets) -> str`
   - `SetupStatus(model: bool, mail: bool, summary: bool)` with `.done` (0–2) and `.complete`; `status_of(settings, model_client) -> SetupStatus`
 
-- [ ] **Step 1: Write the failing tests** — `tests/test_setup_checks.py`:
+- [x] **Step 1: Write the failing tests** — `tests/test_setup_checks.py`:
 
 ```python
 """Each failure somebody will actually hit, as the sentence they will read."""
@@ -1120,9 +1120,9 @@ def test_status_counts_the_two_required_steps():
     assert (both.done, both.complete) == (2, True)
 ```
 
-- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_setup_checks.py -q` → FAIL.
+- [x] **Step 2: Run** `.venv/bin/pytest tests/test_setup_checks.py -q` → FAIL.
 
-- [ ] **Step 3: Implement.** `renewal/setup/__init__.py`:
+- [x] **Step 3: Implement.** `renewal/setup/__init__.py`:
 
 ```python
 """Getting from installed to working, from a page."""
@@ -1322,8 +1322,8 @@ def check_smtp(settings, *, host, port, user, password, sender, to, send=send_em
 
 Add `"renewal.setup",` to the `packages` list in `pyproject.toml`.
 
-- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_setup_checks.py tests/test_packaging.py -q` → PASS.
-- [ ] **Step 5: Commit** — `feat(setup): the checks behind the buttons, as sentences`
+- [x] **Step 4: Run** `.venv/bin/pytest tests/test_setup_checks.py tests/test_packaging.py -q` → PASS.
+- [x] **Step 5: Commit** — `feat(setup): the checks behind the buttons, as sentences`
 
 ---
 
@@ -1348,7 +1348,7 @@ Behaviour, stated exactly:
 - Banner: on every page but `/setup` itself, while `not setup_status.complete`: "Finish setup ({done} of 2 done) →" linking `/setup`.
 - After sign-in with a default `next` of `/`, a session whose setup is incomplete lands on `/setup` (`renewal/web/auth.py` login redirect).
 
-- [ ] **Step 1: Write the failing tests** — `tests/test_web_setup.py`:
+- [x] **Step 1: Write the failing tests** — `tests/test_web_setup.py`:
 
 ```python
 """The setup page, against a real .env in a temporary directory."""
@@ -1530,9 +1530,9 @@ def test_a_key_from_the_environment_is_not_offered(engine, clean_db, env_path, t
     assert "ANTHROPIC_API_KEY" not in envfile.read(env_path)
 ```
 
-- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_web_setup.py -q` → FAIL.
+- [x] **Step 2: Run** `.venv/bin/pytest tests/test_web_setup.py -q` → FAIL.
 
-- [ ] **Step 3: Implement** `renewal/web/setup.py` with a `register(app, deps)` that defines the five routes above. Helpers inside:
+- [x] **Step 3: Implement** `renewal/web/setup.py` with a `register(app, deps)` that defines the five routes above. Helpers inside:
   - `_render(request, *, results=None, folders=None, pending=None, status_code=200)` builds the context: `status` (`status_of(effective(...), deps.model_client)`), `s` (live settings), `saved` (dict of booleans for `ANTHROPIC_API_KEY`, `IMAP_PASSWORD`, `SMTP_PASSWORD` from `envfile.read` / settings), `external` (`deps.live.external_keys`), `results` (dict card → `CheckResult`), `folders`, `pending` (host/port/email for the folder step), `other_provider` (`s.provider != "anthropic"`), `poll` (the `MailPollState` row for `s.imap_host`/`s.imap_folder`, or `None`), `notify_to`, `update` (Task 10 fills this; pass `None` until then), `just_saved` (`request.query_params.get("saved")`).
   - `_save(updates: dict[str, str])` → `envfile.write(deps.live.env_path, updates)` then `deps.live.reload()`.
   - `_refused_external(keys)` → the first of `keys` in `deps.live.external_keys`, else `None`.
@@ -1558,8 +1558,8 @@ def test_a_key_from_the_environment_is_not_offered(engine, clean_db, env_path, t
 
   Register in `renewal/web/__init__.py`: add `setup as setup_routes` to the imports and to `ROUTER_MODULES`.
 
-- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_web_setup.py -q` → PASS; then the full suite → PASS.
-- [ ] **Step 5: Commit** — `feat(web): /setup, and a banner until it is done`
+- [x] **Step 4: Run** `.venv/bin/pytest tests/test_web_setup.py -q` → PASS; then the full suite → PASS.
+- [x] **Step 5: Commit** — `feat(web): /setup, and a banner until it is done`
 
 ---
 
@@ -1573,7 +1573,7 @@ def test_a_key_from_the_environment_is_not_offered(engine, clean_db, env_path, t
 **Interfaces:**
 - Produces: `parse_version(text) -> tuple[int, int, int] | None`; `current_version() -> str`; `Release(version, tag, page_url, exe_name, exe_url, sums_url)`; `fetch_latest(url, *, transport=None, timeout=10.0) -> Release`; `UpdateStatus` with `record(release)`, `record_error(message)`, `available(current: str | None = None) -> Release | None`, `checked_at`, `error`; module-level `STATUS = UpdateStatus()`; `UpdateClock(settings, status=STATUS, *, fetch=fetch_latest, sleep=time.sleep, every_seconds=43200)` with `tick()`/`start()`.
 
-- [ ] **Step 1: Write the failing tests** — `tests/test_updates.py`:
+- [x] **Step 1: Write the failing tests** — `tests/test_updates.py`:
 
 ```python
 import httpx
@@ -1665,9 +1665,9 @@ def _settings_on(**kw):
     return dataclasses.replace(base, **kw)
 ```
 
-- [ ] **Step 2: Run** → FAIL.
+- [x] **Step 2: Run** → FAIL.
 
-- [ ] **Step 3: Implement** `renewal/updates.py` (first half — applying is Task 10):
+- [x] **Step 3: Implement** `renewal/updates.py` (first half — applying is Task 10):
 
 ```python
 """Whether a newer release exists, and installing it on Windows.
@@ -1812,8 +1812,8 @@ class UpdateClock:
 
 `renewal/app.py`: `from renewal.updates import UpdateClock` and at the end `UpdateClock(_settings).start()`.
 
-- [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** — `feat: know when a newer release exists`
+- [x] **Step 4: Run** → PASS.
+- [x] **Step 5: Commit** — `feat: know when a newer release exists`
 
 ---
 
@@ -1827,7 +1827,7 @@ class UpdateClock:
 **Interfaces:**
 - Produces: `APP_ROOT: Path`; `can_apply(root=APP_ROOT, platform=sys.platform) -> bool`; `download_verified(release, dest_dir, *, transport=None) -> Path`; `spawn_updater(root, installer, *, popen=subprocess.Popen, pid=None) -> None`; `POST /setup/update`.
 
-- [ ] **Step 1: Write the failing tests** (append to `tests/test_updates.py`):
+- [x] **Step 1: Write the failing tests** (append to `tests/test_updates.py`):
 
 ```python
 import hashlib
@@ -1927,9 +1927,9 @@ def test_update_now_elsewhere_offers_the_download_instead(web, monkeypatch):
     assert web.post("/setup/update", headers=ORIGIN).status_code == 400
 ```
 
-- [ ] **Step 2: Run** → FAIL.
+- [x] **Step 2: Run** → FAIL.
 
-- [ ] **Step 3: Implement** — append to `renewal/updates.py`:
+- [x] **Step 3: Implement** — append to `renewal/updates.py`:
 
 ```python
 import hashlib
@@ -2055,8 +2055,8 @@ The Updates card in `setup.html`: "Version {{ update.current }}" then one of —
 </script>
 ```
 
-- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_updates.py tests/test_web_setup.py -q` → PASS; full suite → PASS.
-- [ ] **Step 5: Commit** — `feat: update from the setup page on Windows`
+- [x] **Step 4: Run** `.venv/bin/pytest tests/test_updates.py tests/test_web_setup.py -q` → PASS; full suite → PASS.
+- [x] **Step 5: Commit** — `feat: update from the setup page on Windows`
 
 ---
 
@@ -2067,7 +2067,7 @@ The Updates card in `setup.html`: "Version {{ update.current }}" then one of —
 - Modify: `MANIFEST.in` (`include scripts/update.ps1`), `packaging/build-installer.sh` (require `scripts/update.ps1`), `packaging/renewal.nsi` (finish text), `scripts/install.ps1` ("Ready" text), `scripts/start.ps1` (the did-not-start message), `.github/workflows/windows-install.yml`
 - Test: `tests/test_windows_scripts.py` (existing tests cover the new script), CI
 
-- [ ] **Step 1: Write `scripts/update.ps1`** (ASCII only):
+- [x] **Step 1: Write `scripts/update.ps1`** (ASCII only):
 
 ```powershell
 <#
@@ -2160,9 +2160,9 @@ try { Stop-Transcript | Out-Null } catch { }
 exit $code
 ```
 
-- [ ] **Step 2: Packaging.** `MANIFEST.in`: add `include scripts/update.ps1` beside `scripts/start.ps1`. `packaging/build-installer.sh`: add `scripts/update.ps1` to the `for required in …` list.
+- [x] **Step 2: Packaging.** `MANIFEST.in`: add `include scripts/update.ps1` beside `scripts/start.ps1`. `packaging/build-installer.sh`: add `scripts/update.ps1` to the `for required in …` list.
 
-- [ ] **Step 3: The installer's words.** In `packaging/renewal.nsi` replace `MUI_FINISHPAGE_TEXT` with:
+- [x] **Step 3: The installer's words.** In `packaging/renewal.nsi` replace `MUI_FINISHPAGE_TEXT` with:
 
 ```
 !define MUI_FINISHPAGE_TEXT "Renewal is installed.$\r$\n$\r$\nTick the box below to make your login. Then open Renewal from the icon on the desktop: the setup page walks you through the AI key and your mail, and tests each one as you go."
@@ -2178,7 +2178,7 @@ Write-Host '  through the AI key and your mail, and tests each one as you go.'
 
 and delete the "Optional … IMAP_* … SMTP_*" block's first two lines (keep the archive and schtasks lines). Leave the `Model provider` section's warning, reworded: `Warn 'No AI key yet -- the setup page asks for it.'`. In `scripts/start.ps1`, replace the "usual cause is an empty ANTHROPIC_API_KEY" paragraph with "To see the actual error, open this folder in a terminal and run …" (the key no longer stops it starting).
 
-- [ ] **Step 4: CI.** In `.github/workflows/windows-install.yml`, in the `install` job's "A key and an account" step, stop writing a fake key (the app must boot without one now) and instead append `SESSION_COOKIE_SECURE=false` and `UPDATE_CHECK=false`. Then add after "Sign in":
+- [x] **Step 4: CI.** In `.github/workflows/windows-install.yml`, in the `install` job's "A key and an account" step, stop writing a fake key (the app must boot without one now) and instead append `SESSION_COOKIE_SECURE=false` and `UPDATE_CHECK=false`. Then add after "Sign in":
 
 ```yaml
       - name: Setup page, with nothing set up
@@ -2252,8 +2252,8 @@ In the `install-exe` job, in "A key and an account", write `SESSION_COOKIE_SECUR
 
 and add `'runtime\update.log'` to the job's final Logs step list.
 
-- [ ] **Step 5: Run** `.venv/bin/pytest tests/test_windows_scripts.py tests/test_packaging.py -q` → PASS. Push the branch; the CI run must pass all four jobs. Fix what it finds before moving on (each fix: failing test first where it can be tested locally; a CI step where it cannot).
-- [ ] **Step 6: Commit** (per fix, as they land) — `feat(windows): update.ps1, and CI for setup and update`
+- [x] **Step 5: Run** `.venv/bin/pytest tests/test_windows_scripts.py tests/test_packaging.py -q` → PASS. Push the branch; the CI run must pass all four jobs. Fix what it finds before moving on (each fix: failing test first where it can be tested locally; a CI step where it cannot).
+- [x] **Step 6: Commit** (per fix, as they land) — `feat(windows): update.ps1, and CI for setup and update`
 
 ---
 
@@ -2263,8 +2263,14 @@ and add `'runtime\update.log'` to the job's final Logs step list.
 - Modify: `CLAUDE.md`, `renewal/settings_store.py` (docstring), `renewal/config.py` (the IMAP comment), `docs/how-it-works.md`, `README.md`, `PRIVACY.md`, `pyproject.toml` (version `0.3.0`)
 - Create: `docs/releases/v0.3.0.md`
 
-- [ ] **Step 1: The rule.** In `CLAUDE.md` replace "Deployment configuration — model names, hosts, credentials, intervals — lives in the environment and never on a page." with: "Deployment configuration lives in the environment. The key, the mailbox and the sender can be typed into `/setup`, which writes them only to `.env` (`renewal/envfile.py`) and never renders them back or stores them in the database; everything else — model names, intervals, worker counts — is set in `.env` by hand." Also remove "The app builds its model client at import, so it will not boot without `PROVIDER` and the matching API key." and add "With no key the app boots on `UnconfiguredClient`; model stages fail as `ModelNotConfigured` until `/setup` has one." Mirror the rule in the `settings_store.py` docstring's second paragraph and the `config.py` comment above `imap_host` ("Credentials are deployment configuration: they never reach the database and never reach a page" → "…never reach the database; /setup may write them to .env and never shows them back").
-- [ ] **Step 2: Docs.** `docs/how-it-works.md`: a short "### Setup (`/setup`)" section under The screens (the three cards, the `.env` rule, live reload) and "### Updates" (check every 12h, Windows one-click, backup, `UPDATE_CHECK`). `README.md`: replace the post-install "put the key in .env" instructions with "open Renewal and follow the setup page". `PRIVACY.md`: add a paragraph on the update check (what is sent: an HTTPS GET to api.github.com, i.e. the office's IP address; how to turn it off).
-- [ ] **Step 3: Release notes** `docs/releases/v0.3.0.md`: what it does for somebody installing (no `.env` editing; the three cards; update from the page), what it does not (Microsoft 365; other AI providers need `.env`), and what CI covers vs what nobody has clicked.
-- [ ] **Step 4: Version.** `pyproject.toml` → `version = "0.3.0"`. Full suite `.venv/bin/pytest -q` → PASS.
+- [x] **Step 1: The rule.** In `CLAUDE.md` replace "Deployment configuration — model names, hosts, credentials, intervals — lives in the environment and never on a page." with: "Deployment configuration lives in the environment. The key, the mailbox and the sender can be typed into `/setup`, which writes them only to `.env` (`renewal/envfile.py`) and never renders them back or stores them in the database; everything else — model names, intervals, worker counts — is set in `.env` by hand." Also remove "The app builds its model client at import, so it will not boot without `PROVIDER` and the matching API key." and add "With no key the app boots on `UnconfiguredClient`; model stages fail as `ModelNotConfigured` until `/setup` has one." Mirror the rule in the `settings_store.py` docstring's second paragraph and the `config.py` comment above `imap_host` ("Credentials are deployment configuration: they never reach the database and never reach a page" → "…never reach the database; /setup may write them to .env and never shows them back").
+- [x] **Step 2: Docs.** `docs/how-it-works.md`: a short "### Setup (`/setup`)" section under The screens (the three cards, the `.env` rule, live reload) and "### Updates" (check every 12h, Windows one-click, backup, `UPDATE_CHECK`). `README.md`: replace the post-install "put the key in .env" instructions with "open Renewal and follow the setup page". `PRIVACY.md`: add a paragraph on the update check (what is sent: an HTTPS GET to api.github.com, i.e. the office's IP address; how to turn it off).
+- [x] **Step 3: Release notes** `docs/releases/v0.3.0.md`: what it does for somebody installing (no `.env` editing; the three cards; update from the page), what it does not (Microsoft 365; other AI providers need `.env`), and what CI covers vs what nobody has clicked.
+- [x] **Step 4: Version.** `pyproject.toml` → `version = "0.3.0"`. Full suite `.venv/bin/pytest -q` → PASS.
 - [ ] **Step 5: Commit** — `release: 0.3.0`; push; wait for CI green on that commit; merge to master (fast-forward), tag `v0.3.0`, build with `./packaging/build-installer.sh`, write `SHA256SUMS` for the three files, `gh release create v0.3.0` with the notes and the four assets.
+  *Not done: merging to master, tagging `v0.3.0` and publishing the release are
+  left for the owner. Up to that point it ran on 2026-09-28 -- 1,038 passed, 3
+  deselected; Windows CI green on all four jobs, including the one-click update
+  (backup made, installer exited 0, application back up). The first CI run of
+  Task 11 had failed: the updater, started with DETACHED_PROCESS, never wrote
+  a line; it now gets a hidden console and writes its own log.*

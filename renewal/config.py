@@ -89,7 +89,7 @@ class Settings:
     # Pulling mail out of a real mailbox. An empty host turns polling off,
     # which is the default, exactly as an empty SMTP_HOST turns notifications
     # off. Credentials are deployment configuration: they never reach the
-    # database and never reach a page.
+    # database; /setup may write them to .env and never shows them back.
     imap_host: str = ""
     imap_port: int = 993
     imap_user: str = ""

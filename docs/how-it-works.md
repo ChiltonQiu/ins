@@ -258,6 +258,54 @@ machine, and putting them on a screen would only invite someone to change them
 without a reason to. The page also shows the mailbox's last poll, what it
 found, and the error if it failed.
 
+### Setup (`/setup`)
+
+Where an install becomes useful without anybody opening `.env`. Three cards,
+each marked *Set up* or *Not set up* from the values actually saved:
+
+1. **AI** — the Anthropic key. *Save & test* makes one small real request with
+   it first.
+2. **Reading mail** — an address, an app password, and a folder picked from
+   the ones the mailbox actually has. It offers to start from *mail that
+   arrives from now on* (the default) or from everything already in the
+   folder, because the first poll of a folder with years in it is a bill
+   nobody asked for. Disabled until the AI card works, since mail read without
+   a model is stored but not read.
+3. **Daily summary email** — optional; by default sent from the same account.
+
+The one exception to the rule above: these credentials can be typed here. They
+are written only to `.env` (`renewal/envfile.py`, one key at a time, every
+other line left alone), never to the database and never rendered back — a
+saved secret shows as *saved*, and a blank field keeps it. A key set by the
+real environment wins over `.env`, so the page shows it read-only rather than
+saving something that would do nothing. Every check can be overridden with
+*Save anyway*, so a flaky network cannot lock anybody out of their own
+settings.
+
+A save takes effect at once, with no restart: `renewal/live.py` re-reads
+`.env` and swaps the settings and the model client under a lock, and the mail
+and digest clocks read it at every tick. With no key at all the application
+still boots, on `UnconfiguredClient`; model stages fail as
+`ModelNotConfigured`, which the pipeline logs and skips like any other stage,
+so a document that arrives first is stored and searchable and waits for a
+Retry. Until the first two cards are done every page carries one line,
+*Finish setup*, derived per request — there is no stored "set up" flag.
+
+### Updates
+
+The setup page also says which version this is and whether a newer one
+exists. The check is one request to GitHub's releases API at start and every
+twelve hours, on a background thread, so no page waits on it and a failure
+reads as *couldn't check*. `UPDATE_CHECK=false` turns it off.
+
+On a Windows install the section has an *Update now* button. It downloads the
+release's `.exe`, checks it against the release's `SHA256SUMS` (which proves the
+bytes arrived intact, not who published them), and hands off to
+`scripts/update.ps1`, a separate process that backs up the private database,
+stops the application, runs the installer silently over this folder, and starts
+the application again whether or not the install worked. Everything it does
+goes to `runtime\update.log`. Everywhere else the section links to the release.
+
 ---
 
 ## What it sends
@@ -278,6 +326,10 @@ Both send the same body — one question asked by two clocks, not two
 notification systems. The digest's send is recorded *after* the send and never
 before, so the worst a crash can do is send twice rather than silently skip a
 day.
+
+Apart from mail, the model provider and the SMTP server, the one request it
+makes unprompted is the update check above — an HTTPS GET to `api.github.com`
+twice a day, which tells GitHub the office's IP address and nothing else.
 
 **No draft, no comparison and no client communication is ever sent
 automatically.** There is currently no path at all — manual or automatic — for
@@ -336,7 +388,7 @@ request to anything is a redirect to `/login`. Accounts are created with
 
 ## Its current state, honestly
 
-893 tests pass, 37 tables, every planned feature built and merged. What has not
+1,038 tests pass, 37 tables, every planned feature built and merged. What has not
 happened is contact with reality: `evals/baselines/` is empty, no real mailbox
 has ever been polled, and the development database holds four clients against
 24 KB of synthetic documents. Extraction accuracy on genuine carrier paperwork
