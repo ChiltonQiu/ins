@@ -154,7 +154,6 @@ class UpdateClock:
 
 APP_ROOT = Path(__file__).resolve().parent.parent
 
-DETACHED_PROCESS = 0x00000008
 CREATE_NEW_PROCESS_GROUP = 0x00000200
 CREATE_NO_WINDOW = 0x08000000
 CREATE_BREAKAWAY_FROM_JOB = 0x01000000
@@ -202,20 +201,29 @@ def spawn_updater(root: Path, installer: Path, *, popen=subprocess.Popen,
                   pid: int | None = None) -> None:
     """Hand off to a process that outlives this one.
 
-    Detached, and broken away from the job object the venv launcher runs this
-    interpreter in: the launcher closes that job when it exits, and a child
-    still inside it would die with the application it is meant to replace.
-    A job that forbids breaking away refuses the flag with access denied, and
-    then the plain detached start is the best there is."""
+    Broken away from the job object the venv launcher runs this interpreter
+    in: the launcher closes that job when it exits, and a child still inside
+    it would die with the application it is meant to replace. A job that
+    forbids breaking away refuses the flag with access denied, and then the
+    plain start is the best there is.
+
+    A hidden console, not none: started with DETACHED_PROCESS, powershell.exe
+    has no console for its host, and in CI it left no trace at all -- not one
+    line of update.log. Whatever it prints before its own log is open lands in
+    runtime/update.out, so a script that dies at its first line still says
+    why."""
     args = [
         "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
         "-WindowStyle", "Hidden", "-File", str(root / "scripts" / "update.ps1"),
         "-Installer", str(installer), "-AppPid", str(pid or os.getpid()),
     ]
-    base = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
-    kwargs = dict(cwd=str(root), close_fds=True, stdin=subprocess.DEVNULL,
-                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    try:
-        popen(args, creationflags=base | CREATE_BREAKAWAY_FROM_JOB, **kwargs)
-    except PermissionError:
-        popen(args, creationflags=base, **kwargs)
+    runtime = root / "runtime"
+    runtime.mkdir(parents=True, exist_ok=True)
+    base = CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    with open(runtime / "update.out", "ab") as out:
+        kwargs = dict(cwd=str(root), close_fds=True, stdin=subprocess.DEVNULL,
+                      stdout=out, stderr=subprocess.STDOUT)
+        try:
+            popen(args, creationflags=base | CREATE_BREAKAWAY_FROM_JOB, **kwargs)
+        except PermissionError:
+            popen(args, creationflags=base, **kwargs)

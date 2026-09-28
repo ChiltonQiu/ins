@@ -153,7 +153,17 @@ def test_the_updater_is_started_detached_with_this_process_id(tmp_path):
     assert args[args.index("-Installer") + 1] == str(tmp_path / "i.exe")
     assert args[args.index("-AppPid") + 1] == "4242"
     assert kw["cwd"] == str(tmp_path)
-    assert kw["creationflags"] & updates.DETACHED_PROCESS
+    assert kw["creationflags"] & updates.CREATE_NO_WINDOW
+    assert kw["stdout"].name == str(tmp_path / "runtime" / "update.out")
+
+
+def test_the_updater_gets_a_console_because_powershell_needs_one(tmp_path):
+    """DETACHED_PROCESS left powershell.exe with no host: nothing ran, and
+    nothing was logged."""
+    calls = []
+    updates.spawn_updater(tmp_path, tmp_path / "i.exe",
+                          popen=lambda args, **kw: calls.append(kw), pid=1)
+    assert not calls[0]["creationflags"] & 0x00000008
 
 
 def test_the_updater_retries_without_breakaway_when_the_job_forbids_it(tmp_path):

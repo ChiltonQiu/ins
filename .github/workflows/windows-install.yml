@@ -323,7 +323,7 @@ jobs:
       - name: Logs
         if: always()
         run: |
-          foreach ($f in 'runtime\install.log', 'runtime\postgres.log', 'runtime\pg_ctl.out', 'runtime\pg_ctl.err', 'runtime\update.log') {
+          foreach ($f in 'runtime\install.log', 'runtime\postgres.log', 'runtime\pg_ctl.out', 'runtime\pg_ctl.err', 'runtime\update.log', 'runtime\update.out') {
             $p = Join-Path $env:APP $f
             "===== $f"
             if (Test-Path $p) { Get-Content $p -Tail 200 } else { '(missing)' }

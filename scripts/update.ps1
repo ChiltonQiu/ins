@@ -29,9 +29,22 @@ Set-Location (Join-Path $PSScriptRoot '..')
 $root = $PWD.Path
 $runtime = Join-Path $root 'runtime'
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
-try { Start-Transcript -Path (Join-Path $runtime 'update.log') -Append | Out-Null } catch { }
+$logFile = Join-Path $runtime 'update.log'
 
-function Log { param($m) Write-Host "$(Get-Date -Format s)  $m" }
+# Each line is appended to the file itself, not left to a transcript: this
+# runs with no one watching, and a transcript that failed to start would
+# take every line down with it.
+function Log {
+    param($m)
+    $line = "$(Get-Date -Format s)  $m"
+    Write-Output $line
+    try { Add-Content -Path $logFile -Value $line -Encoding UTF8 } catch { }
+}
+
+trap {
+    Log "update.ps1 failed: $($_.Exception.Message) at line $($_.InvocationInfo.ScriptLineNumber)"
+    exit 1
+}
 
 Log "update: installer $Installer, application pid $AppPid"
 
@@ -52,7 +65,6 @@ if (Test-Path $pgDump) {
     if ($LASTEXITCODE -ne 0) {
         Log "backup failed ($LASTEXITCODE): $out"
         Log 'not updating without a backup; the running version is untouched'
-        try { Stop-Transcript | Out-Null } catch { }
         exit 1
     }
     Log "backup: $file"
@@ -88,6 +100,4 @@ Log "installer exited $code"
 & (Get-Command powershell).Source -NoProfile -ExecutionPolicy Bypass `
     -File (Join-Path $root 'scripts\start.ps1') -NoBrowser
 Log "start exited $LASTEXITCODE"
-
-try { Stop-Transcript | Out-Null } catch { }
 exit $code
