@@ -50,8 +50,6 @@ _FIELD_GROUP = case(
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
     store = deps.store
-    settings = deps.settings
-    model_client = deps.model_client
     router = APIRouter()
 
     @router.get("/inbox", response_class=HTMLResponse)
@@ -59,8 +57,8 @@ def register(app, deps: Deps) -> None:
         with session_factory() as session:
             groups = bucketed(inbox_rows(
                 session,
-                stalled_after=stalled_after_from(settings),
-                limit=settings.inbox_limit,
+                stalled_after=stalled_after_from(deps.settings),
+                limit=deps.settings.inbox_limit,
             ))
 
             # Built only for the rows that need them, so an inbox of Done rows
@@ -102,7 +100,7 @@ def register(app, deps: Deps) -> None:
                 {
                     "groups": groups,
                     "in_flight": anything_in_flight(session),
-                    "poll_seconds": settings.inbox_poll_seconds,
+                    "poll_seconds": deps.settings.inbox_poll_seconds,
                     "candidates": candidates,
                     "policies": policies,
                 },
@@ -143,8 +141,8 @@ def register(app, deps: Deps) -> None:
             session_factory,
             store,
             document_id,
-            model_client=model_client,
-            settings=settings,
+            model_client=deps.model_client,
+            settings=deps.settings,
         )
         return RedirectResponse("/inbox", status_code=303)
 
@@ -173,8 +171,8 @@ def register(app, deps: Deps) -> None:
             session_factory,
             store,
             document_id,
-            model_client=model_client,
-            settings=settings,
+            model_client=deps.model_client,
+            settings=deps.settings,
             acknowledged=frozenset(acknowledged),
         )
         return RedirectResponse("/inbox", status_code=303)
@@ -194,7 +192,7 @@ def register(app, deps: Deps) -> None:
                 raise HTTPException(status_code=404, detail="no such document")
             state = state_of(
                 session, document,
-                stalled_after=stalled_after_from(settings),
+                stalled_after=stalled_after_from(deps.settings),
             )
 
             extraction = (

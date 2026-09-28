@@ -36,7 +36,6 @@ def content_disposition(filename: str) -> str:
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
-    settings = deps.settings
     store = deps.store
     router = APIRouter()
 
@@ -87,7 +86,7 @@ def register(app, deps: Deps) -> None:
         with session_factory() as session:
             try:
                 got = prep(
-                    session, client_id, agency_id=AGENCY_ID, settings=settings
+                    session, client_id, agency_id=AGENCY_ID, settings=deps.settings
                 )
             except LookupError:
                 raise HTTPException(status_code=404, detail="no such client")

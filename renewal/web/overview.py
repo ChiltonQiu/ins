@@ -17,7 +17,6 @@ from renewal.web.templating import TEMPLATES
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
-    settings = deps.settings
 
     router = APIRouter()
 
@@ -25,7 +24,7 @@ def register(app, deps: Deps) -> None:
     def home(request: Request):
         with session_factory() as session:
             return TEMPLATES.TemplateResponse(
-                request, "overview.html", overview(session, settings=settings)
+                request, "overview.html", overview(session, settings=deps.settings)
             )
 
     app.include_router(router)

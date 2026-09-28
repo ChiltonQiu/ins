@@ -28,7 +28,6 @@ ESCALATED_REASONS = ("cancellation_notice", "non_renewal_notice")
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
-    settings = deps.settings
     router = APIRouter()
 
     @router.get("/attention", response_class=HTMLResponse)
@@ -39,7 +38,7 @@ def register(app, deps: Deps) -> None:
             rows = open_items(
                 session,
                 window_days=effective(
-                    session, settings
+                    session, deps.settings
                 ).unconfirmed_date_window_days,
             )
             ordered = sorted(

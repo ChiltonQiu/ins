@@ -32,8 +32,6 @@ logger = logging.getLogger(__name__)
 def register(app, deps: Deps, provider: InboundProvider) -> None:
     session_factory = deps.session_factory
     store = deps.store
-    settings = deps.settings
-    model_client = deps.model_client
 
     router = APIRouter()
 
@@ -71,7 +69,7 @@ def register(app, deps: Deps, provider: InboundProvider) -> None:
         pending: list[int] = []
         with session_factory() as session:
             message = receive(session, store, email,
-                              client=model_client, settings=settings,
+                              client=deps.model_client, settings=deps.settings,
                               on_document=pending.append)
             session.commit()
             row_id, status = message.id, message.processing_status
@@ -84,8 +82,8 @@ def register(app, deps: Deps, provider: InboundProvider) -> None:
                 session_factory,
                 store,
                 document_id,
-                model_client=model_client,
-                settings=settings,
+                model_client=deps.model_client,
+                settings=deps.settings,
             )
 
         # Ids and statuses only. Never the body, never the subject.

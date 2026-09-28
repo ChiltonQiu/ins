@@ -32,9 +32,7 @@ from renewal.web.templating import TEMPLATES
 
 
 def register(app, deps: Deps) -> None:
-    settings = deps.settings
     store = deps.store
-    model_client = deps.model_client
     session_factory = deps.session_factory
     router = APIRouter()
 
@@ -100,8 +98,8 @@ def register(app, deps: Deps) -> None:
                 comparison = build_matrix(
                     session,
                     columns=specs,
-                    rules=load_rules(settings.materiality_config),
-                    settings=settings,
+                    rules=load_rules(deps.settings.materiality_config),
+                    settings=deps.settings,
                     user_id=acting_user_id(request),
                 )
             except ColumnsRejected as rejected:

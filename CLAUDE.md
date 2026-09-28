@@ -60,6 +60,13 @@ the environment. The key, the mailbox and the sender can be typed into
 renders them back or stores them in the database; everything else — model
 names, intervals, worker counts — is set in `.env` by hand.
 
+**Read settings and the model client when you use them.** `/setup` swaps both
+under a running application through `Live` (`renewal/live.py`). A router that
+copies `deps.settings` or `deps.model_client` into a local at registration
+keeps the startup value for the life of the process — uploads went on using
+the "not set up" client after a key was saved. `tests/test_live_routes.py`
+refuses that shape.
+
 ## Practicalities
 
 - Tests: `.venv/bin/pytest` (needs PostgreSQL; `TEST_DATABASE_URL` overrides).

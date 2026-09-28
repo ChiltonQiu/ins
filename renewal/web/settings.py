@@ -52,7 +52,6 @@ def _one_of(value: str, allowed: tuple[str, ...], field: str) -> str:
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
-    base_settings = deps.settings
     router = APIRouter()
 
     @router.get("/calendar/{token}.ics")
@@ -113,9 +112,9 @@ def register(app, deps: Deps) -> None:
                     "billing_types": BILLING_TYPES,
                     "definitions": DEFINITIONS,
                     "values": _current(session),
-                    "mail_configured": bool(base_settings.smtp_host),
-                    "imap_configured": bool(base_settings.imap_host),
-                    "imap_folder": base_settings.imap_folder,
+                    "mail_configured": bool(deps.settings.smtp_host),
+                    "imap_configured": bool(deps.settings.imap_host),
+                    "imap_folder": deps.settings.imap_folder,
                     "mail_poll": session.scalar(
                         select(MailPollState)
                         .order_by(MailPollState.last_polled_at.desc().nullslast())
@@ -137,7 +136,7 @@ def register(app, deps: Deps) -> None:
         untouched setting shows the value actually in force instead of an
         empty box that looks like nothing is configured.
         """
-        got = effective(session, base_settings)
+        got = effective(session, deps.settings)
         return {
             definition.key: getattr(got, definition.key)
             for definition in DEFINITIONS

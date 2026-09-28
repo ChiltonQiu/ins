@@ -59,7 +59,6 @@ def _record_failure(session, user: User, now: datetime) -> None:
 
 def register(app, deps: Deps) -> None:
     session_factory = deps.session_factory
-    settings = deps.settings
     router = APIRouter()
 
     def _page(request: Request, error: str | None, status: int = 200):
@@ -113,7 +112,7 @@ def register(app, deps: Deps) -> None:
             if needs_rehash(user.password_hash):
                 user.password_hash = hash_password(password)
             token = create_session(
-                session, user, ttl_hours=settings.session_ttl_hours
+                session, user, ttl_hours=deps.settings.session_ttl_hours
             )
             # The first screen after an install is the one that finishes it:
             # a home page with no key and no mail has nothing to show.
@@ -127,8 +126,8 @@ def register(app, deps: Deps) -> None:
         response.set_cookie(
             COOKIE_NAME, token,
             httponly=True, samesite="lax",
-            secure=settings.session_cookie_secure,
-            path="/", max_age=settings.session_ttl_hours * 3600,
+            secure=deps.settings.session_cookie_secure,
+            path="/", max_age=deps.settings.session_ttl_hours * 3600,
         )
         return response
 

@@ -12,6 +12,7 @@ from renewal.live import Live
 from renewal.setup.checks import CheckResult
 from renewal.web import create_app
 from tests.authhelp import EMAIL, PASSWORD, sign_in
+from tests.pdfmaker import make_text_pdf
 
 ORIGIN = {"Origin": "http://testserver"}
 
@@ -319,3 +320,34 @@ def test_other_pages_mention_an_available_update(web, monkeypatch):
     status.record(updates.Release((99, 0, 0), "v99.0.0", "p", "R.exe", "e", "s"))
     monkeypatch.setattr(updates, "STATUS", status)
     assert "Renewal 99.0.0 is available" in web.get("/inbox").text
+
+
+class RecordingRunner:
+    def __init__(self):
+        self.calls = []
+
+    def submit(self, fn, /, *args, **kwargs):
+        self.calls.append(kwargs)
+
+
+def test_an_upload_after_setup_uses_the_new_key_without_a_restart(
+    engine, clean_db, live, env_path, tmp_path
+):
+    """Routes must read the client when they use it: one captured when the
+    router was registered would still be the 'not set up' one."""
+    from renewal.providers import is_configured
+
+    runner = RecordingRunner()
+    app = create_app(store=BlobStore(tmp_path / "blobs"),
+                     session_factory=sessionmaker(bind=engine), live=live,
+                     runner=runner)
+    envfile.write(env_path, {"ANTHROPIC_API_KEY": "sk-after-boot"})
+    live.reload()
+    with TestClient(app) as client:
+        sign_in(client, engine)
+        client.post("/documents", headers=ORIGIN,
+                    files={"document": ("a.pdf", make_text_pdf([["Declarations"]]),
+                                        "application/pdf")})
+    assert runner.calls, "nothing was handed to the runner"
+    assert is_configured(runner.calls[-1]["model_client"])
+    assert runner.calls[-1]["settings"].anthropic_api_key == "sk-after-boot"
