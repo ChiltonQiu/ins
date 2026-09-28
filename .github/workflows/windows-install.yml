@@ -57,9 +57,20 @@ jobs:
       # path the installer takes.
       - name: Hide the runner's PostgreSQL
         run: |
+          # Stop-Service can return while postgres.exe still holds files in the
+          # folder, and the rename is then refused ("Access is denied") -- one
+          # run failed exactly so. Kill what is left, and retry for a while.
           Get-Service postgresql* -ErrorAction SilentlyContinue | Stop-Service -Force
+          Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue | Stop-Process -Force
           if (Test-Path 'C:\Program Files\PostgreSQL') {
-            Rename-Item 'C:\Program Files\PostgreSQL' 'PostgreSQL-hidden'
+            for ($i = 1; $true; $i++) {
+              try { Rename-Item 'C:\Program Files\PostgreSQL' 'PostgreSQL-hidden' -ErrorAction Stop; break }
+              catch {
+                if ($i -ge 20) { throw }
+                Start-Sleep 3
+                Get-Process postgres -ErrorAction SilentlyContinue | Stop-Process -Force
+              }
+            }
           }
           foreach ($v in 'PGUSER','PGPASSWORD','PGDATA','PGBIN','PGROOT','PGHOST','PGPORT') {
             [Environment]::SetEnvironmentVariable($v, $null, 'Machine')
@@ -207,9 +218,20 @@ jobs:
 
       - name: Hide the runner's PostgreSQL
         run: |
+          # Stop-Service can return while postgres.exe still holds files in the
+          # folder, and the rename is then refused ("Access is denied") -- one
+          # run failed exactly so. Kill what is left, and retry for a while.
           Get-Service postgresql* -ErrorAction SilentlyContinue | Stop-Service -Force
+          Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue | Stop-Process -Force
           if (Test-Path 'C:\Program Files\PostgreSQL') {
-            Rename-Item 'C:\Program Files\PostgreSQL' 'PostgreSQL-hidden'
+            for ($i = 1; $true; $i++) {
+              try { Rename-Item 'C:\Program Files\PostgreSQL' 'PostgreSQL-hidden' -ErrorAction Stop; break }
+              catch {
+                if ($i -ge 20) { throw }
+                Start-Sleep 3
+                Get-Process postgres -ErrorAction SilentlyContinue | Stop-Process -Force
+              }
+            }
           }
           foreach ($v in 'PGUSER','PGPASSWORD','PGDATA','PGBIN','PGROOT','PGHOST','PGPORT') {
             [Environment]::SetEnvironmentVariable($v, $null, 'Machine')
